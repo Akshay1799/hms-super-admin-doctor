@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,11 +12,9 @@ import { AlertCircle, CheckCircle, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
-// Inline invitation store reader
-// Reads from the same localStorage key written by invitation.service.ts
-// (super-admin). When backend is connected, replace with an API call.
+// Base64 Invitation Token Decoder (Cross-Origin compatible)
 // ---------------------------------------------------------------------------
-const STORAGE_KEY = "hms_invitations";
+const ACTIVATED_TOKENS_KEY = "hms_activated_tokens";
 
 interface DoctorInvitation {
   token: string;
@@ -27,28 +25,49 @@ interface DoctorInvitation {
   createdAt: string;
 }
 
-function getInvitation(token: string): DoctorInvitation | null {
-  if (typeof window === "undefined") return null;
+function decodeToken(token: string): any {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const store: DoctorInvitation[] = JSON.parse(raw);
-    return store.find((inv) => inv.token === token) ?? null;
+    const str = typeof window !== "undefined" ? atob(token) : Buffer.from(token, "base64").toString("utf-8");
+    return JSON.parse(str);
   } catch {
     return null;
   }
 }
 
+function isTokenUsed(token: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(ACTIVATED_TOKENS_KEY);
+    const usedList: string[] = raw ? JSON.parse(raw) : [];
+    return usedList.includes(token);
+  } catch {
+    return false;
+  }
+}
+
+function getInvitation(token: string): DoctorInvitation | null {
+  const payload = decodeToken(token);
+  if (!payload || !payload.doctorId || !payload.name || !payload.email) {
+    return null;
+  }
+  return {
+    token,
+    doctorId: payload.doctorId,
+    name: payload.name,
+    email: payload.email,
+    used: isTokenUsed(token),
+    createdAt: payload.createdAt || new Date().toISOString(),
+  };
+}
+
 function markUsed(token: string): void {
   if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const store: DoctorInvitation[] = JSON.parse(raw);
-    const idx = store.findIndex((inv) => inv.token === token);
-    if (idx !== -1) {
-      store[idx].used = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    const raw = localStorage.getItem(ACTIVATED_TOKENS_KEY);
+    const usedList: string[] = raw ? JSON.parse(raw) : [];
+    if (!usedList.includes(token)) {
+      usedList.push(token);
+      localStorage.setItem(ACTIVATED_TOKENS_KEY, JSON.stringify(usedList));
     }
   } catch {}
 }

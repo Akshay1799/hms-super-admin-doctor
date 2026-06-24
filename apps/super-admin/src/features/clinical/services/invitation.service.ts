@@ -1,4 +1,4 @@
-﻿/**
+/**
  * invitation.service.ts
  *
  * Simulates the doctor invitation flow using localStorage.
@@ -54,6 +54,14 @@ function getDoctorPortalBaseUrl(): string {
 // Public API
 // ---------------------------------------------------------------------------
 
+function encodeToken(payload: any): string {
+  const str = JSON.stringify(payload);
+  if (typeof window !== "undefined") {
+    return btoa(str);
+  }
+  return Buffer.from(str).toString("base64");
+}
+
 export const invitationService = {
   /**
    * Create an invitation for a newly registered doctor.
@@ -64,14 +72,21 @@ export const invitationService = {
     name: string;
     email: string;
   }): { invitation: DoctorInvitation; activationLink: string } {
-    const token = generateToken();
+    const payload = {
+      doctorId: doctor.id,
+      name: doctor.name,
+      email: doctor.email,
+      createdAt: new Date().toISOString()
+    };
+    const token = encodeToken(payload);
+
     const invitation: DoctorInvitation = {
       token,
       doctorId: doctor.id,
       name: doctor.name,
       email: doctor.email,
       used: false,
-      createdAt: new Date().toISOString(),
+      createdAt: payload.createdAt,
     };
 
     const store = readStore();

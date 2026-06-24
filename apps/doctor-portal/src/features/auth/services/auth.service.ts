@@ -107,21 +107,18 @@ export const authService = {
     // Look up invitation to save corresponding account credentials
     if (typeof window !== "undefined") {
       try {
-        const raw = localStorage.getItem(STORAGE_INVITATIONS_KEY);
-        if (raw) {
-          const invitations = JSON.parse(raw);
-          const invite = invitations.find((inv: any) => inv.token === data.token);
-          if (invite) {
-            saveAccount({
-              id: invite.doctorId,
-              name: invite.name,
-              email: invite.email,
-              passwordHash: data.password,
-            });
-          }
+        const str = atob(data.token);
+        const invite = JSON.parse(str);
+        if (invite && invite.doctorId && invite.name && invite.email) {
+          saveAccount({
+            id: invite.doctorId,
+            name: invite.name,
+            email: invite.email,
+            passwordHash: data.password,
+          });
         }
       } catch (err) {
-        console.error("Failed to read/write activation details", err);
+        console.error("Failed to decode activation token details", err);
       }
     }
   },
