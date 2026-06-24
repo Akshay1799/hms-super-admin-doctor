@@ -2,6 +2,7 @@ import * as z from "zod";
 
 export const doctorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("A valid email address is required"),
   specialization: z.string().min(2, "Specialization is required"),
   hospitalId: z.string().min(1, "Hospital is required"),
   branchId: z.string().min(1, "Branch is required"),
@@ -10,6 +11,7 @@ export const doctorSchema = z.object({
   rating: z.coerce.number().min(0).max(5).default(5),
   status: z.enum(["Active", "Inactive", "Suspended", "On Leave"]).default("Active"),
 });
+
 
 export const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

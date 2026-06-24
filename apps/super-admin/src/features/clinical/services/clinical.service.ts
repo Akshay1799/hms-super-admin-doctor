@@ -10,6 +10,7 @@ import {
   MOCK_BED_OCCUPANCY,
   MOCK_CLINICAL_ANALYTICS,
 } from "../mocks/clinical.mocks";
+import { invitationService } from "./invitation.service";
 
 let doctorsData = [...MOCK_DOCTORS];
 let patientsData = [...MOCK_PATIENTS];
@@ -82,12 +83,13 @@ export const clinicalService = {
     };
   },
 
-  async createDoctor(input: DoctorInput): Promise<Doctor> {
+  async createDoctor(input: DoctorInput): Promise<{ doctor: Doctor; invitationLink: string }> {
     await new Promise((resolve) => setTimeout(resolve, 500));
     const newId = `doc-${Date.now()}`;
     const newDoc: Doctor = {
       id: newId,
       name: input.name,
+      email: input.email,
       specialization: input.specialization,
       hospitalId: input.hospitalId,
       branchId: input.branchId,
@@ -100,7 +102,15 @@ export const clinicalService = {
       successRate: 100,
     };
     doctorsData.push(newDoc);
-    return newDoc;
+
+    // Generate invitation — swap this block with a real API call when backend is ready
+    const { activationLink } = invitationService.createInvitation({
+      id: newDoc.id,
+      name: newDoc.name,
+      email: input.email,
+    });
+
+    return { doctor: newDoc, invitationLink: activationLink };
   },
 
   async getPatients(filters?: {

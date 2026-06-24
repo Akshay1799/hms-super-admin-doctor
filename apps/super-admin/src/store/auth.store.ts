@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { User } from "@/features/auth/types/auth.types";
 
 interface AuthState {
@@ -14,44 +15,52 @@ interface AuthState {
   setIsLoading: (isLoading: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  tenantId: null,
-  role: null,
-
-  login: (user) =>
-    set({
-      user,
-      isAuthenticated: true,
-      role: user.role,
-      tenantId: user.tenantId,
-    }),
-
-  logout: () =>
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       user: null,
       isAuthenticated: false,
-      role: null,
+      isLoading: false,
       tenantId: null,
-    }),
-
-  setUser: (user) =>
-    set({
-      user,
-      isAuthenticated: !!user,
-      role: user ? user.role : null,
-      tenantId: user ? user.tenantId : null,
-    }),
-
-  clearUser: () =>
-    set({
-      user: null,
-      isAuthenticated: false,
       role: null,
-      tenantId: null,
-    }),
 
-  setIsLoading: (isLoading) => set({ isLoading }),
-}));
+      login: (user) =>
+        set({
+          user,
+          isAuthenticated: true,
+          role: user.role,
+          tenantId: user.tenantId,
+        }),
+
+      logout: () =>
+        set({
+          user: null,
+          isAuthenticated: false,
+          role: null,
+          tenantId: null,
+        }),
+
+      setUser: (user) =>
+        set({
+          user,
+          isAuthenticated: !!user,
+          role: user ? user.role : null,
+          tenantId: user ? user.tenantId : null,
+        }),
+
+      clearUser: () =>
+        set({
+          user: null,
+          isAuthenticated: false,
+          role: null,
+          tenantId: null,
+        }),
+
+      setIsLoading: (isLoading) => set({ isLoading }),
+    }),
+    {
+      name: "hms_super_admin_auth",
+    }
+  )
+);
+

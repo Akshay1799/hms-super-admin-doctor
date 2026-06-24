@@ -1,22 +1,71 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter, useSearchParams } from "next/navigation";
 import { activateAccountSchema, ActivateAccountSchemaType } from "../schemas/auth.schema";
 import { useActivateAccount } from "../hooks/useActivateAccount";
 import { FormField } from "@/components/ui/form-field";
 import { ROUTES } from "@/constants/routes";
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+
+// ---------------------------------------------------------------------------
+// Inline invitation store reader
+// Reads from the same localStorage key written by invitation.service.ts
+// (super-admin). When backend is connected, replace with an API call.
+// ---------------------------------------------------------------------------
+const STORAGE_KEY = "hms_invitations";
+
+interface DoctorInvitation {
+  token: string;
+  doctorId: string;
+  name: string;
+  email: string;
+  used: boolean;
+  createdAt: string;
+}
+
+function getInvitation(token: string): DoctorInvitation | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const store: DoctorInvitation[] = JSON.parse(raw);
+    return store.find((inv) => inv.token === token) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function markUsed(token: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const store: DoctorInvitation[] = JSON.parse(raw);
+    const idx = store.findIndex((inv) => inv.token === token);
+    if (idx !== -1) {
+      store[idx].used = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
+  } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function ActivateForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activateMutation = useActivateAccount();
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [invitation, setInvitation] = useState<DoctorInvitation | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<"loading" | "valid" | "invalid" | "used">("loading");
 
   const {
     register,
@@ -25,29 +74,43 @@ export function ActivateForm() {
     formState: { errors },
   } = useForm<ActivateAccountSchemaType>({
     resolver: zodResolver(activateAccountSchema),
-    defaultValues: {
-      token: "",
-      password: "",
-      confirmPassword: "",
-    },
+    defaultValues: { token: "", password: "", confirmPassword: "" },
   });
 
+  // On mount: read token from URL, look up invitation
   useEffect(() => {
     const token = searchParams.get("token");
-    if (token) {
-      setValue("token", token);
+    if (!token) {
+      setTokenStatus("invalid");
+      return;
     }
+    setValue("token", token);
+
+    // Small delay to let localStorage sync (in case both apps are open)
+    const timer = setTimeout(() => {
+      const inv = getInvitation(token);
+      if (!inv) {
+        setTokenStatus("invalid");
+      } else if (inv.used) {
+        setTokenStatus("used");
+      } else {
+        setInvitation(inv);
+        setTokenStatus("valid");
+      }
+    }, 150);
+    return () => clearTimeout(timer);
   }, [searchParams, setValue]);
 
   const onSubmit = (data: ActivateAccountSchemaType) => {
     setErrorMessage(null);
     activateMutation.mutate(data, {
       onSuccess: () => {
+        // Mark the invitation as used so the link cannot be reused
+        const token = searchParams.get("token");
+        if (token) markUsed(token);
         setIsSuccess(true);
         toast.success("Account activated successfully! You can now log in.");
-        setTimeout(() => {
-          router.push(ROUTES.login);
-        }, 1500);
+        setTimeout(() => router.push(ROUTES.login), 1500);
       },
       onError: (error: any) => {
         setErrorMessage(error.message || "Failed to activate account.");
@@ -55,10 +118,63 @@ export function ActivateForm() {
     });
   };
 
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (tokenStatus === "loading") {
+    return (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verifying invitation link...</p>
+      </div>
+    );
+  }
+
+  // ── Invalid token ──────────────────────────────────────────────────────────
+  if (tokenStatus === "invalid") {
+    return (
+      <div className="space-y-4 w-full max-w-sm text-center">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 text-destructive mb-2">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Invalid Invitation Link</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          This activation link is invalid or has expired. Please contact your hospital administrator to generate a new link.
+        </p>
+        <button
+          onClick={() => router.push(ROUTES.login)}
+          className="w-full h-10 rounded-[var(--radius-button)] bg-primary text-white text-sm font-semibold hover:bg-primary/95 transition-colors cursor-pointer"
+        >
+          Back to Login
+        </button>
+      </div>
+    );
+  }
+
+  // ── Already used ───────────────────────────────────────────────────────────
+  if (tokenStatus === "used") {
+    return (
+      <div className="space-y-4 w-full max-w-sm text-center">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-warning/15 text-warning mb-2">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Link Already Used</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          This invitation link has already been activated. If you need help accessing your account, please contact your administrator.
+        </p>
+        <button
+          onClick={() => router.push(ROUTES.login)}
+          className="w-full h-10 rounded-[var(--radius-button)] bg-primary text-white text-sm font-semibold hover:bg-primary/95 transition-colors cursor-pointer"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  // ── Success state ──────────────────────────────────────────────────────────
   if (isSuccess) {
     return (
       <div className="space-y-4 w-full max-w-sm text-center">
-        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success mb-2">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500 mb-2">
           <CheckCircle className="h-6 w-6" />
         </div>
         <h2 className="text-2xl font-bold text-foreground">Activation Complete</h2>
@@ -69,18 +185,29 @@ export function ActivateForm() {
     );
   }
 
+  // ── Main form ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 w-full max-w-sm">
       <div className="space-y-1">
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Activate Your Account</h2>
         <p className="text-sm text-muted-foreground">
-          Complete your registration by choosing a password.
+          Welcome, <span className="font-semibold text-foreground">{invitation?.name}</span>. Set a password to complete your account setup.
         </p>
       </div>
 
+      {/* Pre-filled doctor info banner */}
+      {invitation && (
+        <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 space-y-1">
+          <p className="text-xs font-semibold text-foreground">Registered for:</p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{invitation.name}</span> &mdash; {invitation.email}
+          </p>
+        </div>
+      )}
+
       {errorMessage && (
         <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex items-start gap-2.5 text-xs text-destructive font-medium animate-in fade-in duration-200">
-          <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Activation Failed</p>
             <p className="mt-0.5 opacity-90">{errorMessage}</p>
@@ -89,14 +216,8 @@ export function ActivateForm() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          id="token"
-          label="Activation Code / Token"
-          placeholder="Enter the code from your invitation email"
-          error={errors.token?.message}
-          disabled={activateMutation.isPending}
-          {...register("token")}
-        />
+        {/* Hidden token field — auto-populated from URL */}
+        <input type="hidden" {...register("token")} />
 
         <FormField
           id="password"

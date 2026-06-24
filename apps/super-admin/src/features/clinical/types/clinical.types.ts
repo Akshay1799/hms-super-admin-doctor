@@ -1,6 +1,7 @@
 export interface Doctor {
   id: string;
   name: string;
+  email?: string;
   specialization: string;
   hospitalId: string;
   branchId: string;
@@ -12,6 +13,16 @@ export interface Doctor {
   consultationTime: number; // in minutes
   successRate: number; // percentage
   avatarUrl?: string;
+}
+
+/** Invitation record stored in localStorage until backend is connected */
+export interface DoctorInvitation {
+  token: string;
+  doctorId: string;
+  name: string;
+  email: string;
+  used: boolean;
+  createdAt: string; // ISO string
 }
 
 export interface Patient {

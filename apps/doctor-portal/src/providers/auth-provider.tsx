@@ -32,14 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isPublicRoute = publicRoutes.includes(pathname);
 
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Route protection redirect checks
   useEffect(() => {
+    if (!isMounted) return;
     if (!isPublicRoute && !isAuthenticated) {
       router.push(ROUTES.login);
     } else if (isAuthenticated && pathname === ROUTES.login) {
       router.push(ROUTES.dashboard);
     }
-  }, [isAuthenticated, pathname, isPublicRoute, router]);
+  }, [isAuthenticated, pathname, isPublicRoute, router, isMounted]);
 
   // Inactivity tracking
   const resetInactivityTimer = () => {

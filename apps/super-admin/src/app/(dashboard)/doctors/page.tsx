@@ -7,7 +7,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { DoctorTable } from "@/features/clinical/components/DoctorTable";
 import { useDoctors, useCreateDoctor } from "@/features/clinical/hooks/useClinical";
 import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
-import { Plus, X, Stethoscope } from "lucide-react";
+import { Plus, X, Stethoscope, Copy, CheckCheck, Link2, ExternalLink } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { doctorSchema, DoctorInput } from "@/features/clinical/schemas/clinical.schema";
@@ -20,6 +20,8 @@ export default function DoctorsPage() {
   const [specialization, setSpecialization] = useState("");
   const [status, setStatus] = useState("");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [inviteModal, setInviteModal] = useState<{ doctorName: string; link: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { data: doctors = [], isLoading } = useDoctors({
     search,
@@ -39,6 +41,7 @@ export default function DoctorsPage() {
     resolver: zodResolver(doctorSchema) as any,
     defaultValues: {
       name: "",
+      email: "",
       specialization: "",
       hospitalId: "",
       branchId: "b-1",
@@ -51,10 +54,10 @@ export default function DoctorsPage() {
 
   const onSubmit = (data: DoctorInput) => {
     createDoctorMutation.mutate(data, {
-      onSuccess: () => {
-        toast.success("Doctor registered successfully.");
+      onSuccess: (result) => {
         setIsDrawerOpen(false);
         reset();
+        setInviteModal({ doctorName: result.doctor.name, link: result.invitationLink });
       },
       onError: (err) => {
         toast.error("Failed to register doctor: " + err.message);
@@ -62,7 +65,15 @@ export default function DoctorsPage() {
     });
   };
 
-  // Unique specializations from doctors mock for filter
+  const handleCopy = () => {
+    if (!inviteModal) return;
+    navigator.clipboard.writeText(inviteModal.link).then(() => {
+      setCopied(true);
+      toast.success("Activation link copied to clipboard!");
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
   const specializations = ["Diagnostics / Nephrology", "General Medicine", "Neurosurgery", "Psychiatry", "General Surgery"];
 
   return (
@@ -84,7 +95,6 @@ export default function DoctorsPage() {
           </button>
         </div>
 
-        {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-card border border-border rounded-xl p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Search Doctors</label>
@@ -96,7 +106,6 @@ export default function DoctorsPage() {
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
             />
           </div>
-
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Hospital Location</label>
             <select
@@ -106,13 +115,10 @@ export default function DoctorsPage() {
             >
               <option value="">All Locations</option>
               {MOCK_HOSPITALS.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
+                <option key={h.id} value={h.id}>{h.name}</option>
               ))}
             </select>
           </div>
-
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Specialization</label>
             <select
@@ -122,13 +128,10 @@ export default function DoctorsPage() {
             >
               <option value="">All Specialties</option>
               {specializations.map((spec) => (
-                <option key={spec} value={spec}>
-                  {spec}
-                </option>
+                <option key={spec} value={spec}>{spec}</option>
               ))}
             </select>
           </div>
-
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Status</label>
             <select
@@ -165,6 +168,14 @@ export default function DoctorsPage() {
               </button>
             </div>
 
+            <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 flex items-start gap-2.5">
+              <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-foreground/80 leading-relaxed">
+                After registering, an <span className="font-semibold text-primary">activation link</span> will be
+                generated. Share it with the doctor so they can set their password and access the Doctor Portal.
+              </p>
+            </div>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 flex-1">
               <FormField
                 label="Full Name"
@@ -172,14 +183,19 @@ export default function DoctorsPage() {
                 error={errors.name?.message}
                 {...register("name")}
               />
-
+              <FormField
+                label="Email Address"
+                type="email"
+                placeholder="doctor@hospital.com"
+                error={errors.email?.message}
+                {...register("email")}
+              />
               <FormField
                 label="Specialization"
                 placeholder="Pediatrics / Cardiology"
                 error={errors.specialization?.message}
                 {...register("specialization")}
               />
-
               <FormField
                 label="Experience (Years)"
                 type="number"
@@ -187,7 +203,6 @@ export default function DoctorsPage() {
                 error={errors.experience?.message}
                 {...register("experience")}
               />
-
               <FormField
                 label="Hospital Location"
                 as="select"
@@ -196,12 +211,9 @@ export default function DoctorsPage() {
               >
                 <option value="">Select Hospital Location</option>
                 {MOCK_HOSPITALS.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
+                  <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </FormField>
-
               <FormField
                 label="Status"
                 as="select"
@@ -227,10 +239,80 @@ export default function DoctorsPage() {
                   disabled={createDoctorMutation.isPending}
                   className="flex-1 inline-flex h-10 items-center justify-center rounded-[var(--radius-button)] bg-primary text-sm font-semibold text-white shadow hover:bg-primary/95 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {createDoctorMutation.isPending ? "Registering..." : "Register Doctor"}
+                  {createDoctorMutation.isPending ? "Registering..." : "Register & Generate Link"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invitation Link Success Modal */}
+      {inviteModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl p-6 flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+                  <CheckCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Doctor Registered!</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <span className="font-semibold text-foreground">{inviteModal.doctorName}</span> has been added to the registry.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setInviteModal(null); setCopied(false); }}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-muted/60 border border-border p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-xs font-semibold text-foreground">Doctor Portal Activation Link</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Share this link with <span className="font-semibold text-foreground">{inviteModal.doctorName}</span>.
+                They will use it to set their password and access the Doctor Portal.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground font-mono break-all select-all">
+                  {inviteModal.link}
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Copy activation link"
+                >
+                  {copied ? <CheckCheck className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+                <a
+                  href={inviteModal.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Open activation link in new tab"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 border border-border">
+              💡 <span className="font-semibold">Note:</span> This link is stored locally for now. When connected to a real backend, it will be sent automatically via email to the doctor.
+            </p>
+
+            <button
+              onClick={() => { setInviteModal(null); setCopied(false); }}
+              className="w-full h-10 rounded-[var(--radius-button)] bg-primary text-white text-sm font-semibold hover:bg-primary/95 transition-colors cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
