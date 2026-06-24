@@ -1,0 +1,75 @@
+import { Appointment } from "../types/appointments.types";
+
+export const MOCK_APPOINTMENTS: Appointment[] = [
+  {
+    id: "ap-1",
+    patientName: "John Doe",
+    patientId: "pat-1",
+    date: new Date().toISOString().split("T")[0],
+    time: "09:30 AM",
+    type: "Consultation",
+    status: "Completed",
+    symptoms: "Mild hypertension check",
+    notes: "Patient compliance is high, vitals monitored.",
+  },
+  {
+    id: "ap-2",
+    patientName: "Sarah Connor",
+    patientId: "pat-2",
+    date: new Date().toISOString().split("T")[0],
+    time: "11:00 AM",
+    type: "Follow-up",
+    status: "Waiting",
+    symptoms: "Asthma exacerbation check",
+  },
+  {
+    id: "ap-3",
+    patientName: "Bruce Wayne",
+    patientId: "pat-3",
+    date: new Date().toISOString().split("T")[0],
+    time: "02:00 PM",
+    type: "Diagnostic",
+    status: "Scheduled",
+    symptoms: "Cardiovascular wellness check",
+  },
+  {
+    id: "ap-4",
+    patientName: "Clark Kent",
+    patientId: "pat-4",
+    date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Tomorrow
+    time: "09:30 AM",
+    type: "Follow-up",
+    status: "Scheduled",
+    symptoms: "Cardiology checkout",
+  },
+  {
+    id: "ap-5",
+    patientName: "Peter Parker",
+    patientId: "pat-5",
+    date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // In 2 days
+    time: "10:30 AM",
+    type: "Consultation",
+    status: "Scheduled",
+    symptoms: "Dehydration follow-up",
+  },
+  {
+    id: "ap-6",
+    patientName: "Tony Stark",
+    patientId: "pat-6",
+    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Yesterday
+    time: "03:00 PM",
+    type: "Therapy",
+    status: "Completed",
+    symptoms: "Cardiac pacemaker review",
+  },
+  {
+    id: "ap-7",
+    patientName: "Diana Prince",
+    patientId: "pat-7",
+    date: new Date().toISOString().split("T")[0],
+    time: "04:30 PM",
+    type: "Consultation",
+    status: "Cancelled",
+    symptoms: "Athletic stress check",
+  },
+];
