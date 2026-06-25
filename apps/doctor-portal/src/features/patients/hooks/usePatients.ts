@@ -105,3 +105,36 @@ export function useAddLabOrder() {
     },
   });
 }
+
+export function useCreatePatient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: patientsService.createPatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
+}
+
+export function useUpdatePatient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { id: string; updates: any }) =>
+      patientsService.updatePatient(variables.id, variables.updates),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["patients", data.id], data);
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
+}
+
+export function useDeletePatient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: patientsService.deletePatient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
+}
+

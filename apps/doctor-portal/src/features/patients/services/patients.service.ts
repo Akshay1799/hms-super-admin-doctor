@@ -1,25 +1,138 @@
 import { MOCK_PATIENTS } from "../mocks/patients.mock";
 import { Patient, SoapNote, PatientDiagnosis, PatientMedication, PatientScan } from "../types/patients.types";
 
-let localPatients = [...MOCK_PATIENTS];
+const STORAGE_KEY = "hms_patients_registry";
+
+function readPatients(): Patient[] {
+  if (typeof window === "undefined") return [...MOCK_PATIENTS];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_PATIENTS));
+      return [...MOCK_PATIENTS];
+    }
+    return JSON.parse(raw);
+  } catch {
+    return [...MOCK_PATIENTS];
+  }
+}
+
+function writePatients(patients: Patient[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+  } catch {}
+}
 
 export const patientsService = {
   async getPatients(doctorId?: string): Promise<Patient[]> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    // Filter patients assigned to the specific doctor, but fall back to all if doctorId is not supplied
+    const patients = readPatients();
     if (doctorId) {
-      return localPatients.filter((p) => p.assignedDoctorId === doctorId);
+      return patients.filter((p) => p.assignedDoctorId === doctorId);
     }
-    return [...localPatients];
+    return [...patients];
   },
 
   async getPatientById(id: string): Promise<Patient> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const patient = localPatients.find((p) => p.id === id);
+    const patients = readPatients();
+    const patient = patients.find((p) => p.id === id);
     if (!patient) {
       throw new Error("Patient not found in the registry.");
     }
     return { ...patient };
+  },
+
+  async createPatient(patientData: Omit<Patient, "id" | "soapNotes" | "diagnoses" | "medications" | "scans" | "timeline" | "vitalTrends" | "vitals" | "billing" | "audits">): Promise<Patient> {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const patients = readPatients();
+    const newId = `pat-${Date.now()}`;
+    
+    const newPatient: Patient = {
+      ...patientData,
+      id: newId,
+      soapNotes: [],
+      diagnoses: [],
+      medications: [],
+      scans: [],
+      vitals: [
+        {
+          timestamp: "Just Now",
+          bpSystolic: 120,
+          bpDiastolic: 80,
+          temperature: 98.6,
+          weight: 70,
+          spo2: 99
+        }
+      ],
+      billing: [
+        {
+          id: `bill-${Date.now()}`,
+          invoiceNumber: `INV-${Math.floor(Math.random() * 90000) + 10000}`,
+          amount: 150.00,
+          status: "Unpaid",
+          date: new Date().toISOString().split("T")[0]
+        }
+      ],
+      audits: [
+        {
+          id: `audit-${Date.now()}`,
+          action: "Patient Registered",
+          user: "Physician Creator",
+          timestamp: new Date().toISOString(),
+          ipAddress: "127.0.0.1"
+        }
+      ],
+      timeline: [
+        {
+          id: `t-${Date.now()}`,
+          title: "Intake Completed",
+          description: "Patient registered and assigned to physician.",
+          date: "Just now",
+          type: "admission"
+        }
+      ]
+    };
+
+    patients.push(newPatient);
+    writePatients(patients);
+    return newPatient;
+  },
+
+  async updatePatient(id: string, updates: Partial<Patient>): Promise<Patient> {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const patients = readPatients();
+    const index = patients.findIndex((p) => p.id === id);
+    if (index === -1) {
+      throw new Error("Patient not found.");
+    }
+
+    const updatedPatient: Patient = {
+      ...patients[index],
+      ...updates,
+      audits: [
+        {
+          id: `audit-${Date.now()}`,
+          action: "Patient Details Updated",
+          user: "Physician Creator",
+          timestamp: new Date().toISOString(),
+          ipAddress: "127.0.0.1"
+        },
+        ...patients[index].audits
+      ]
+    };
+
+    patients[index] = updatedPatient;
+    writePatients(patients);
+    return updatedPatient;
+  },
+
+  async deletePatient(id: string): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const patients = readPatients();
+    const filtered = patients.filter((p) => p.id !== id);
+    writePatients(filtered);
   },
 
   async addSoapNote(
@@ -31,7 +144,8 @@ export const patientsService = {
     author: string
   ): Promise<Patient> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const patientIndex = localPatients.findIndex((p) => p.id === patientId);
+    const patients = readPatients();
+    const patientIndex = patients.findIndex((p) => p.id === patientId);
     if (patientIndex === -1) throw new Error("Patient not found.");
 
     const newNote: SoapNote = {
@@ -45,8 +159,8 @@ export const patientsService = {
     };
 
     const updatedPatient = {
-      ...localPatients[patientIndex],
-      soapNotes: [newNote, ...localPatients[patientIndex].soapNotes],
+      ...patients[patientIndex],
+      soapNotes: [newNote, ...patients[patientIndex].soapNotes],
       timeline: [
         {
           id: `t-${Date.now()}`,
@@ -55,17 +169,19 @@ export const patientsService = {
           date: "Just now",
           type: "vital" as const,
         },
-        ...localPatients[patientIndex].timeline,
+        ...patients[patientIndex].timeline,
       ],
     };
 
-    localPatients[patientIndex] = updatedPatient;
+    patients[patientIndex] = updatedPatient;
+    writePatients(patients);
     return updatedPatient;
   },
 
   async addDiagnosis(patientId: string, code: string, description: string): Promise<Patient> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const patientIndex = localPatients.findIndex((p) => p.id === patientId);
+    const patients = readPatients();
+    const patientIndex = patients.findIndex((p) => p.id === patientId);
     if (patientIndex === -1) throw new Error("Patient not found.");
 
     const newDiagnosis: PatientDiagnosis = {
@@ -77,8 +193,8 @@ export const patientsService = {
     };
 
     const updatedPatient = {
-      ...localPatients[patientIndex],
-      diagnoses: [...localPatients[patientIndex].diagnoses, newDiagnosis],
+      ...patients[patientIndex],
+      diagnoses: [...patients[patientIndex].diagnoses, newDiagnosis],
       timeline: [
         {
           id: `t-${Date.now()}`,
@@ -87,11 +203,12 @@ export const patientsService = {
           date: "Just now",
           type: "diagnosis" as const,
         },
-        ...localPatients[patientIndex].timeline,
+        ...patients[patientIndex].timeline,
       ],
     };
 
-    localPatients[patientIndex] = updatedPatient;
+    patients[patientIndex] = updatedPatient;
+    writePatients(patients);
     return updatedPatient;
   },
 
@@ -106,7 +223,8 @@ export const patientsService = {
     prescribedBy: string
   ): Promise<Patient> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const patientIndex = localPatients.findIndex((p) => p.id === patientId);
+    const patients = readPatients();
+    const patientIndex = patients.findIndex((p) => p.id === patientId);
     if (patientIndex === -1) throw new Error("Patient not found.");
 
     const newMed: PatientMedication = {
@@ -124,8 +242,8 @@ export const patientsService = {
     };
 
     const updatedPatient = {
-      ...localPatients[patientIndex],
-      medications: [newMed, ...localPatients[patientIndex].medications],
+      ...patients[patientIndex],
+      medications: [newMed, ...patients[patientIndex].medications],
       timeline: [
         {
           id: `t-${Date.now()}`,
@@ -134,11 +252,12 @@ export const patientsService = {
           date: "Just now",
           type: "prescription" as const,
         },
-        ...localPatients[patientIndex].timeline,
+        ...patients[patientIndex].timeline,
       ],
     };
 
-    localPatients[patientIndex] = updatedPatient;
+    patients[patientIndex] = updatedPatient;
+    writePatients(patients);
     return updatedPatient;
   },
 
@@ -149,7 +268,8 @@ export const patientsService = {
     prescribedBy: string
   ): Promise<Patient> {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const patientIndex = localPatients.findIndex((p) => p.id === patientId);
+    const patients = readPatients();
+    const patientIndex = patients.findIndex((p) => p.id === patientId);
     if (patientIndex === -1) throw new Error("Patient not found.");
 
     const newScan: PatientScan = {
@@ -162,8 +282,8 @@ export const patientsService = {
     };
 
     const updatedPatient = {
-      ...localPatients[patientIndex],
-      scans: [newScan, ...localPatients[patientIndex].scans],
+      ...patients[patientIndex],
+      scans: [newScan, ...patients[patientIndex].scans],
       timeline: [
         {
           id: `t-${Date.now()}`,
@@ -172,11 +292,12 @@ export const patientsService = {
           date: "Just now",
           type: "vital" as const,
         },
-        ...localPatients[patientIndex].timeline,
+        ...patients[patientIndex].timeline,
       ],
     };
 
-    localPatients[patientIndex] = updatedPatient;
+    patients[patientIndex] = updatedPatient;
+    writePatients(patients);
     return updatedPatient;
   },
 };
