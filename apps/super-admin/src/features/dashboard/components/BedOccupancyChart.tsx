@@ -34,7 +34,7 @@ export function BedOccupancyChart() {
       title="Bed Occupancy"
       description="Live status tracking of occupied vs available emergency/clinical beds."
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
             data={data}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import { ROUTES } from "@/constants/routes";
 import { SessionModal } from "@/features/auth/components/SessionModal";
+import { Loader2 } from "lucide-react";
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const COUNTDOWN_TIME = 30; // 30 seconds
@@ -32,21 +33,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  const [isMounted, setIsMounted] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    // Check if store has already hydrated
+    if (useAuthStore.persist.hasHydrated()) {
+      setHasHydrated(true);
+    } else {
+      const unsub = useAuthStore.persist.onFinishHydration(() => {
+        setHasHydrated(true);
+      });
+      return () => unsub();
+    }
   }, []);
 
   // Route protection redirect checks
   useEffect(() => {
-    if (!isMounted) return;
+    if (!hasHydrated) return;
     if (!isPublicRoute && !isAuthenticated) {
       router.push(ROUTES.login);
     } else if (isAuthenticated && pathname === ROUTES.login) {
       router.push(ROUTES.dashboard);
     }
-  }, [isAuthenticated, pathname, isPublicRoute, router, isMounted]);
+  }, [isAuthenticated, pathname, isPublicRoute, router, hasHydrated]);
 
   // Inactivity tracking
   const resetInactivityTimer = () => {
@@ -109,6 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout();
     router.push(ROUTES.login);
   };
+
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>

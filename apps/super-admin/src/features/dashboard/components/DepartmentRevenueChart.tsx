@@ -36,7 +36,7 @@ export function DepartmentRevenueChart() {
       title="Department Revenues"
       description="Comparative analysis of major clinical departments monthly contribution."
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
           <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
