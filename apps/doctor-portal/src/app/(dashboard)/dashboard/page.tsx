@@ -20,17 +20,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ROUTES } from "@/constants/routes";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  LineChart,
-  Line,
-  CartesianGrid,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const WeeklyAppointmentsTrend = dynamic(
+  () => import("@/features/dashboard/components/WeeklyAppointmentsTrend").then(m => m.WeeklyAppointmentsTrend),
+  { ssr: false }
+);
+const AdmissionsTrend = dynamic(
+  () => import("@/features/dashboard/components/AdmissionsTrend").then(m => m.AdmissionsTrend),
+  { ssr: false }
+);
 
 export default function DashboardPage() {
   const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError } = useDashboard();
@@ -121,36 +120,14 @@ export default function DashboardPage() {
             title="Weekly Appointments Trend"
             description="Daily consultation workloads for this week"
           >
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={appointmentsTrend} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <Tooltip 
-                  formatter={(value: any) => [`${value} appointments`, "Appointments"]}
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                />
-                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <WeeklyAppointmentsTrend data={appointmentsTrend} />
           </ChartCard>
 
           <ChartCard
             title="Admissions Trend"
             description="Monthly patient admissions count"
           >
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={patientsTrend} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                <Tooltip 
-                  formatter={(value: any) => [`${value} admitted`, "Patients"]}
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                />
-                <Line type="monotone" dataKey="admitted" stroke="hsl(var(--success))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <AdmissionsTrend data={patientsTrend} />
           </ChartCard>
         </div>
 

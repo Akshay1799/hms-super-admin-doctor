@@ -7,9 +7,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { DashboardFilters } from "@/features/dashboard/components/DashboardFilters";
 import { KpiCard } from "@/features/dashboard/components/KpiCard";
-import { RevenueChart } from "@/features/dashboard/components/RevenueChart";
-import { BedOccupancyChart } from "@/features/dashboard/components/BedOccupancyChart";
-import { DepartmentRevenueChart } from "@/features/dashboard/components/DepartmentRevenueChart";
+import dynamic from "next/dynamic";
+
+const RevenueChart = dynamic(() => import("@/features/dashboard/components/RevenueChart").then(m => m.RevenueChart), { ssr: false });
+const BedOccupancyChart = dynamic(() => import("@/features/dashboard/components/BedOccupancyChart").then(m => m.BedOccupancyChart), { ssr: false });
+const DepartmentRevenueChart = dynamic(() => import("@/features/dashboard/components/DepartmentRevenueChart").then(m => m.DepartmentRevenueChart), { ssr: false });
+
 import { TopHospitalsTable } from "@/features/dashboard/components/TopHospitalsTable";
 import { ActivityTimeline } from "@/features/dashboard/components/ActivityTimeline";
 import { AlertList } from "@/features/dashboard/components/AlertList";
