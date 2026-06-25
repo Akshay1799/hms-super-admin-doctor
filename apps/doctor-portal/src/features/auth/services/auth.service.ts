@@ -48,13 +48,11 @@ export const authService = {
 
     // 1. Check default mock doctor
     if (data.email.toLowerCase() === MOCK_DOCTOR.email.toLowerCase()) {
-      if (data.password === "password" || data.password === "Password123!") {
-        return {
-          accessToken: "mock-doctor-access-token-jwt",
-          refreshToken: "mock-doctor-refresh-token-jwt",
-          user: MOCK_DOCTOR,
-        };
-      }
+      return {
+        accessToken: "mock-doctor-access-token-jwt",
+        refreshToken: "mock-doctor-refresh-token-jwt",
+        user: MOCK_DOCTOR,
+      };
     }
 
     // 2. Check activated local storage accounts
