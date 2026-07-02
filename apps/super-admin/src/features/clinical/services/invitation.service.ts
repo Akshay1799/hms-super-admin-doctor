@@ -42,6 +42,9 @@ function generateToken(): string {
 
 function getDoctorPortalBaseUrl(): string {
   if (typeof window !== "undefined") {
+    const override = localStorage.getItem("hms_doctor_portal_url");
+    if (override) return override;
+    
     return (
       (process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL as string) ||
       "http://localhost:3000"

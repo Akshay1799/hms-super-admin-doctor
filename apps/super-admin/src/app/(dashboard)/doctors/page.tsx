@@ -22,6 +22,26 @@ export default function DoctorsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [inviteModal, setInviteModal] = useState<{ doctorName: string; link: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [doctorPortalUrl, setDoctorPortalUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hms_doctor_portal_url") || "http://localhost:3000";
+    }
+    return "http://localhost:3000";
+  });
+
+  const getDynamicLink = () => {
+    if (!inviteModal) return "";
+    const token = inviteModal.link.split("?token=")[1] || "";
+    const baseUrl = doctorPortalUrl.trim().replace(/\/$/, "");
+    return `${baseUrl}/activate-account?token=${token}`;
+  };
+
+  const handleUrlChange = (newUrl: string) => {
+    setDoctorPortalUrl(newUrl);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hms_doctor_portal_url", newUrl);
+    }
+  };
 
   const { data: doctors = [], isLoading } = useDoctors({
     search,
@@ -67,7 +87,8 @@ export default function DoctorsPage() {
 
   const handleCopy = () => {
     if (!inviteModal) return;
-    navigator.clipboard.writeText(inviteModal.link).then(() => {
+    const dynamicLink = getDynamicLink();
+    navigator.clipboard.writeText(dynamicLink).then(() => {
       setCopied(true);
       toast.success("Activation link copied to clipboard!");
       setTimeout(() => setCopied(false), 2500);
@@ -272,6 +293,22 @@ export default function DoctorsPage() {
             </div>
 
             <div className="rounded-xl bg-muted/60 border border-border p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Doctor Portal Deployed Base URL</label>
+                <input
+                  type="url"
+                  value={doctorPortalUrl}
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                  placeholder="e.g. https://doctor-portal.vercel.app"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Update this value to match your deployed Vercel Doctor Portal URL to avoid broken links.
+                </p>
+              </div>
+
+              <div className="border-t border-border/40 my-1" />
+
               <div className="flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-xs font-semibold text-foreground">Doctor Portal Activation Link</span>
@@ -282,7 +319,7 @@ export default function DoctorsPage() {
               </p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground font-mono break-all select-all">
-                  {inviteModal.link}
+                  {getDynamicLink()}
                 </div>
                 <button
                   onClick={handleCopy}
@@ -292,7 +329,7 @@ export default function DoctorsPage() {
                   {copied ? <CheckCheck className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                 </button>
                 <a
-                  href={inviteModal.link}
+                  href={getDynamicLink()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
