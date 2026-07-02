@@ -60,7 +60,7 @@ function getDoctorPortalBaseUrl(): string {
 function encodeToken(payload: any): string {
   const str = JSON.stringify(payload);
   if (typeof window !== "undefined") {
-    return btoa(str);
+    return btoa(unescape(encodeURIComponent(str)));
   }
   return Buffer.from(str).toString("base64");
 }
@@ -96,7 +96,7 @@ export const invitationService = {
     store.push(invitation);
     writeStore(store);
 
-    const activationLink = `${getDoctorPortalBaseUrl()}/activate-account?token=${token}`;
+    const activationLink = `${getDoctorPortalBaseUrl()}/activate-account?token=${encodeURIComponent(token)}`;
     return { invitation, activationLink };
   },
 

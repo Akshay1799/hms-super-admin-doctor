@@ -105,7 +105,8 @@ export const authService = {
     // Look up invitation to save corresponding account credentials
     if (typeof window !== "undefined") {
       try {
-        const str = atob(data.token);
+        const cleaned = data.token.replace(/ /g, "+");
+        const str = decodeURIComponent(escape(atob(cleaned)));
         const invite = JSON.parse(str);
         if (invite && invite.doctorId && invite.name && invite.email) {
           saveAccount({
@@ -116,7 +117,22 @@ export const authService = {
           });
         }
       } catch (err) {
-        console.error("Failed to decode activation token details", err);
+        console.error("Failed to decode activation token details via primary decoder", err);
+        try {
+          const cleaned = data.token.replace(/ /g, "+");
+          const str = atob(cleaned);
+          const invite = JSON.parse(str);
+          if (invite && invite.doctorId && invite.name && invite.email) {
+            saveAccount({
+              id: invite.doctorId,
+              name: invite.name,
+              email: invite.email,
+              passwordHash: data.password,
+            });
+          }
+        } catch (innerErr) {
+          console.error("Failed to decode activation token via fallback decoder", innerErr);
+        }
       }
     }
   },
