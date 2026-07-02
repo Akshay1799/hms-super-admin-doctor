@@ -42,12 +42,18 @@ function generateToken(): string {
 
 function getDoctorPortalBaseUrl(): string {
   if (typeof window !== "undefined") {
+    // 1. LocalStorage override (highest priority)
     const override = localStorage.getItem("hms_doctor_portal_url");
     if (override) return override;
 
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-    if (!hostname.includes("localhost") && !hostname.includes("127.0.0.1")) {
+    // 2. Env variable (second priority, configured in Netlify/Vercel)
+    const envUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL;
+    if (envUrl) return envUrl;
+
+    // 3. Dynamic guesser (fallback in production if no env variable)
+    if (process.env.NODE_ENV === "production") {
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
       let guessed = hostname;
       if (guessed.includes("super-admin")) {
         guessed = guessed.replace("super-admin", "doctor-portal");
@@ -56,13 +62,8 @@ function getDoctorPortalBaseUrl(): string {
       }
       return `${protocol}//${guessed}`;
     }
-    
-    return (
-      (process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL as string) ||
-      "http://localhost:3000"
-    );
   }
-  return "http://localhost:3000";
+  return process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || "";
 }
 
 // ---------------------------------------------------------------------------
