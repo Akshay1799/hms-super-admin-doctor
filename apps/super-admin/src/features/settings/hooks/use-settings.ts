@@ -17,3 +17,43 @@ export const useToggleFeatureFlag = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'feature-flags'] }),
   });
 };
+
+export const useUpdateGeneralSettings = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => settingsService.updateGeneralSettings(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'general'] }),
+  });
+};
+
+export const useUpdateSecurityPolicy = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => settingsService.updateSecurityPolicy(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'security'] }),
+  });
+};
+
+export const useUpdateBranding = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => settingsService.updateBranding(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'branding'] }),
+  });
+};
+
+export const useUpdateStorageSettings = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => settingsService.updateStorageSettings(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'storage'] }),
+  });
+};
+
+export const useUpdateEnvironment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => settingsService.updateEnvironment(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'environment'] }),
+  });
+};

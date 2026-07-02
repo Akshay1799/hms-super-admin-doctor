@@ -44,6 +44,34 @@ export default function ReportsPage() {
   ];
 
   const handleExport = (type: "CSV" | "PDF") => {
+    let content = "";
+    let filename = "";
+    if (type === "CSV") {
+      filename = "clinical-analytics-report.csv";
+      content = `Metric,Value\nPatients Served,${stats.patientsServed}\nAppointments Completed,${stats.appointmentsCompleted}\nPrescriptions Written,${stats.prescriptionsWritten}\nFollow Ups Count,${stats.followUpsCount}`;
+    } else {
+      filename = "clinical-analytics-report.txt";
+      content = `
+========================================
+       CLINICAL PRACTICE REPORT
+========================================
+Patients Served:        ${stats.patientsServed}
+Appointments Completed: ${stats.appointmentsCompleted}
+Prescriptions Written:  ${stats.prescriptionsWritten}
+Follow Ups Count:       ${stats.followUpsCount}
+========================================
+Generated on: ${new Date().toLocaleDateString()}
+`;
+    }
+    const blob = new Blob([content.trim()], { type: type === "CSV" ? "text/csv;charset=utf-8;" : "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast.success(`Report exported successfully as ${type}.`);
   };
 

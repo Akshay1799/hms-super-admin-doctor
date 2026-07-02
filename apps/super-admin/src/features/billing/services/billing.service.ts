@@ -26,13 +26,29 @@ export const billingService = {
   },
 
   getInvoices: async (): Promise<Invoice[]> => {
-    
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hms_billing_invoices");
+      if (saved) return JSON.parse(saved);
+      localStorage.setItem("hms_billing_invoices", JSON.stringify(MOCK_INVOICES));
+    }
     return MOCK_INVOICES;
   },
 
+  saveInvoices: async (data: Invoice[]): Promise<Invoice[]> => {
+    await delay(200);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hms_billing_invoices", JSON.stringify(data));
+    }
+    return data;
+  },
+
   getInvoiceById: async (id: string): Promise<Invoice> => {
-    
-    const invoice = MOCK_INVOICES.find(inv => inv.id === id);
+    let list = MOCK_INVOICES;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hms_billing_invoices");
+      if (saved) list = JSON.parse(saved);
+    }
+    const invoice = list.find(inv => inv.id === id);
     if (!invoice) throw new Error('Invoice not found');
     return invoice;
   },

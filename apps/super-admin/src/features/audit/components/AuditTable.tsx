@@ -8,8 +8,19 @@ import { AuditLog } from "../types/audit.types";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 
-export function AuditTable() {
+interface AuditTableProps {
+  module?: string;
+  severity?: string;
+}
+
+export function AuditTable({ module = "All", severity = "All" }: AuditTableProps) {
   const { data: logs = [], isLoading } = useAuditLogs();
+
+  const filtered = logs.filter(row => {
+    const matchesModule = module === "All" || row.module.toLowerCase() === module.toLowerCase();
+    const matchesSeverity = severity === "All" || row.severity.toLowerCase() === severity.toLowerCase();
+    return matchesModule && matchesSeverity;
+  });
 
   const columns = [
     { header: "Event ID", accessor: (row: AuditLog) => <code className="text-xs font-mono text-muted-foreground">{row.id}</code> },
@@ -23,5 +34,5 @@ export function AuditTable() {
     { header: "Actions", accessor: () => <Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button> },
   ];
 
-  return <AppTable columns={columns} data={logs} isLoading={isLoading} />;
+  return <AppTable columns={columns} data={filtered} isLoading={isLoading} />;
 }

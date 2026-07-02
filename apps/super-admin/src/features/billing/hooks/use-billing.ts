@@ -57,3 +57,13 @@ export const useRevenueChartData = () => {
     queryFn: billingService.getRevenueChartData,
   });
 };
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const useUpdateInvoices = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => billingService.saveInvoices(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+  });
+};

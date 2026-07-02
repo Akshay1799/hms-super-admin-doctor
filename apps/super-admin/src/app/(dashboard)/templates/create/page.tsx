@@ -6,18 +6,59 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTemplates, useUpdateTemplates } from "@/features/notifications/hooks/useNotifications";
+import { toast } from "sonner";
+import { Template } from "@/features/notifications/types/notifications.types";
 
 const CHANNELS = ["email", "sms", "whatsapp", "in-app"] as const;
 const CATEGORIES = ["appointment", "billing", "invoice", "claims", "user-management", "security", "password-reset", "subscription", "broadcast", "custom"] as const;
 
 export default function CreateTemplatePage() {
   const router = useRouter();
+  const { data: templates = [] } = useTemplates();
+  const updateTemplates = useUpdateTemplates();
+
+  const [name, setName] = useState("");
   const [channel, setChannel] = useState<string>("email");
-  const [previewMode, setPreviewMode] = useState(false);
+  const [category, setCategory] = useState("appointment");
+  const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [status, setStatus] = useState("active");
+  const [previewMode, setPreviewMode] = useState(false);
 
   const inputClass = "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground";
   const labelClass = "text-xs font-semibold text-muted-foreground uppercase tracking-wider";
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error("Please provide a template name.");
+      return;
+    }
+    if (!body.trim()) {
+      toast.error("Please compose a template body.");
+      return;
+    }
+
+    const newTemplate: Template = {
+      id: `tmpl-${Date.now()}`,
+      name,
+      channel: channel as any,
+      category: category as any,
+      subject: channel === "email" ? subject || "Notification Alert" : undefined,
+      body,
+      variables: [],
+      status: status as any,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    updateTemplates.mutate([...templates, newTemplate], {
+      onSuccess: () => {
+        toast.success("Notification template saved successfully.");
+        router.push("/templates");
+      }
+    });
+  };
 
   return (
     <PageContainer>
@@ -33,7 +74,13 @@ export default function CreateTemplatePage() {
         <div className="bg-card border border-border rounded-xl p-6 space-y-5">
           <div className="space-y-1.5">
             <label className={labelClass}>Template Name</label>
-            <input type="text" placeholder="e.g. Appointment Reminder" className={inputClass} />
+            <input 
+              type="text" 
+              placeholder="e.g. Appointment Reminder" 
+              className={inputClass}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -45,7 +92,7 @@ export default function CreateTemplatePage() {
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Category</label>
-              <select className={inputClass}>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.replace("-", " ")}</option>)}
               </select>
             </div>
@@ -54,7 +101,13 @@ export default function CreateTemplatePage() {
           {channel === "email" && (
             <div className="space-y-1.5">
               <label className={labelClass}>Subject</label>
-              <input type="text" placeholder="e.g. Your appointment is tomorrow, {{name}}" className={inputClass} />
+              <input 
+                type="text" 
+                placeholder="e.g. Your appointment is tomorrow, {{name}}" 
+                className={inputClass}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
             </div>
           )}
 
@@ -74,7 +127,7 @@ export default function CreateTemplatePage() {
 
           <div className="space-y-1.5">
             <label className={labelClass}>Status</label>
-            <select className={inputClass}>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
               <option value="draft">Draft</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -83,7 +136,7 @@ export default function CreateTemplatePage() {
 
           <div className="flex items-center gap-3 pt-2 border-t border-border">
             <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button>Save Template</Button>
+            <Button onClick={handleSave}>Save Template</Button>
           </div>
         </div>
 

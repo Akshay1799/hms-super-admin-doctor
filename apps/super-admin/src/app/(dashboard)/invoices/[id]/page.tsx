@@ -9,9 +9,10 @@ import { Download, ArrowLeft, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/status-badge";
 
-export default function InvoiceDetailsPage({ params }: { params: { id: string } }) {
+export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { data: invoice, isLoading } = useInvoiceDetails(params.id);
+  const { id } = React.use(params);
+  const { data: invoice, isLoading } = useInvoiceDetails(id);
 
   if (isLoading) {
     return (

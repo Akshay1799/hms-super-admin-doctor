@@ -7,3 +7,21 @@ export const useExportHistory = () => useQuery({ queryKey: ['reports', 'export-h
 export const useTenantReports = () => useQuery({ queryKey: ['reports', 'tenants'], queryFn: reportsService.getTenantReports });
 export const useHospitalReports = () => useQuery({ queryKey: ['reports', 'hospitals'], queryFn: reportsService.getHospitalReports });
 export const useRevenueTrend = () => useQuery({ queryKey: ['reports', 'revenue', 'trend'], queryFn: reportsService.getRevenueTrend });
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const useUpdateExportHistory = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => reportsService.saveExportHistory(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'export-history'] }),
+  });
+};
+
+export const useUpdateScheduledReports = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => reportsService.saveScheduledReports(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'scheduled'] }),
+  });
+};

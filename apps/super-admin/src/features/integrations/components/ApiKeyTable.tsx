@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { useApiKeys } from "../hooks/use-integrations";
+import { useApiKeys, useUpdateApiKeys } from "../hooks/use-integrations";
 import { ApiKey } from "../types/integrations.types";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, RefreshCw, Power, Trash2 } from "lucide-react";
 import { AppTable } from "@/components/ui/app-table";
+import { toast } from "sonner";
 
 export function ApiKeyTable() {
   const { data: apiKeys = [], isLoading } = useApiKeys();
+  const updateApiKeys = useUpdateApiKeys();
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
 
   const toggleReveal = (id: string) => {
@@ -20,8 +22,43 @@ export function ApiKeyTable() {
     });
   };
 
+  const handleRotate = (id: string) => {
+    const updated = apiKeys.map((k: any) => {
+      if (k.id === id) {
+        const rand = Math.random().toString(36).substring(7).toUpperCase();
+        const prefix = k.keyMasked.split("••••")[0] || "key_";
+        const keyMasked = `${prefix}••••••••••••••••••••••••${rand}`;
+        toast.success(`Key rotated successfully for ${k.service}.`);
+        return { ...k, keyMasked, lastUsed: new Date().toISOString() };
+      }
+      return k;
+    });
+    updateApiKeys.mutate(updated);
+  };
+
+  const handleToggle = (id: string) => {
+    const updated = apiKeys.map((k: any) => {
+      if (k.id === id) {
+        const nextStatus = k.status === "active" ? "inactive" : "active";
+        toast.success(`Key status set to ${nextStatus}.`);
+        return { ...k, status: nextStatus };
+      }
+      return k;
+    });
+    updateApiKeys.mutate(updated);
+  };
+
+  const handleDelete = (id: string) => {
+    const updated = apiKeys.filter((k: any) => k.id !== id);
+    updateApiKeys.mutate(updated, {
+      onSuccess: () => {
+        toast.success("API key deleted.");
+      }
+    });
+  };
+
   const columns = [
-    { header: "Service", accessor: (row: ApiKey) => <span className="font-medium text-foreground">{row.service}</span> },
+    { header: "Service", accessor: (row: ApiKey) => <span className="font-semibold text-foreground">{row.service}</span> },
     { header: "Environment", accessor: (row: ApiKey) => <StatusBadge status={row.environment} /> },
     {
       header: "Key (Masked)",
@@ -37,14 +74,14 @@ export function ApiKeyTable() {
       ),
     },
     { header: "Status", accessor: (row: ApiKey) => <StatusBadge status={row.status} /> },
-    { header: "Last Used", accessor: (row: ApiKey) => new Date(row.lastUsed).toLocaleString() },
+    { header: "Last Used", accessor: (row: ApiKey) => row.lastUsed ? new Date(row.lastUsed).toLocaleString() : "Never" },
     {
       header: "Actions",
       accessor: (row: ApiKey) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" title="Rotate Key"><RefreshCw className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" title="Enable/Disable"><Power className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleRotate(row.id)} title="Rotate Key"><RefreshCw className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleToggle(row.id)} title="Enable/Disable"><Power className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)} title="Delete" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
         </div>
       ),
     },

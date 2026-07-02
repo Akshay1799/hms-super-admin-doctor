@@ -27,6 +27,12 @@ import { RefreshCw, Download } from "lucide-react";
 export default function DashboardPage() {
   const queryClient = useQueryClient();
 
+  const [filters, setFilters] = React.useState({
+    dateRange: "last-30",
+    status: "all",
+    tenant: "",
+  });
+
   // Load isolated query loaders
   const { data: metrics, isLoading: mLoading, isError: mError, refetch: mRefetch } = useDashboardMetrics();
   const { data: revTrend, isLoading: rLoading, isError: rError, refetch: rRefetch } = useRevenueTrend();
@@ -36,6 +42,11 @@ export default function DashboardPage() {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     toast.success("Synchronizing dashboard widgets...");
+  };
+
+  const handleFiltersChange = (newFilters: any) => {
+    setFilters(newFilters);
+    toast.success(`Filters updated: ${newFilters.dateRange} · ${newFilters.status} ${newFilters.tenant ? `· "${newFilters.tenant}"` : ""}`);
   };
 
   const handleExport = (format: "csv" | "pdf") => {
@@ -48,6 +59,28 @@ export default function DashboardPage() {
       }
     );
   };
+
+  // Simulate dashboard metric variations based on active filters
+  const filteredMetrics = metrics?.map(kpi => {
+    let multiplier = 1.0;
+    if (filters.dateRange === "today") multiplier = 0.05;
+    else if (filters.dateRange === "last-7") multiplier = 0.25;
+    else if (filters.dateRange === "last-90") multiplier = 2.8;
+
+    if (filters.status !== "all") multiplier *= 0.6;
+    if (filters.tenant) multiplier *= 0.15;
+
+    // Keep active user stats as integers
+    const originalValue = typeof kpi.value === "string" ? parseFloat(kpi.value.replace(/[^0-9.]/g, '')) : kpi.value;
+    const computed = Math.round(originalValue * multiplier);
+    
+    return {
+      ...kpi,
+      value: typeof kpi.value === "string" 
+        ? (kpi.value.includes("$") ? `$${computed.toLocaleString()}` : computed.toLocaleString())
+        : computed
+    };
+  });
 
   return (
     <PageContainer>
@@ -77,12 +110,12 @@ export default function DashboardPage() {
       />
 
       {/* Filters Toolbar */}
-      <DashboardFilters />
+      <DashboardFilters onFiltersChange={handleFiltersChange} />
 
       {/* KPI Cards Grid Matrix */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        {metrics ? (
-          metrics.map((kpi) => (
+        {filteredMetrics ? (
+          filteredMetrics.map((kpi) => (
             <KpiCard
               key={kpi.id}
               kpi={kpi}

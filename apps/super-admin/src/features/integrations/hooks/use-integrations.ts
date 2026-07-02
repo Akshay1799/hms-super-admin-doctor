@@ -39,3 +39,77 @@ export const useApiKeys = () =>
 
 export const useIntegrationHealth = () =>
   useQuery({ queryKey: ['integration-health'], queryFn: integrationService.getIntegrationHealth });
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const useUpdateEmailProviders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveEmailProviders(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['email-providers'] }),
+  });
+};
+
+export const useUpdateSmsProviders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveSmsProviders(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sms-providers'] }),
+  });
+};
+
+export const useUpdateWhatsAppProviders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveWhatsAppProviders(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['whatsapp-providers'] }),
+  });
+};
+
+export const useUpdatePaymentGateways = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.savePaymentGateways(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['payment-gateways'] }),
+  });
+};
+
+export const useUpdateInsuranceProviders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveInsuranceProviders(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['insurance-providers'] }),
+  });
+};
+
+export const useUpdateHl7Fhir = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveHl7Fhir(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hl7-fhir'] }),
+  });
+};
+
+export const useUpdateStorageProviders = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveStorageProviders(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['storage'] }),
+  });
+};
+
+export const useUpdateApiKeys = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveApiKeys(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['api-keys'] }),
+  });
+};
+
+export const useUpdateWebhooks = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => integrationService.saveWebhooks(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['webhooks'] }),
+  });
+};

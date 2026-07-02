@@ -64,3 +64,19 @@ export function useChannelDistribution() {
 export function useDeliveryTrend() {
   return useQuery({ queryKey: ['notification-analytics', 'trend'], queryFn: notificationService.getDeliveryTrend });
 }
+
+export function useUpdateBroadcasts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => notificationService.saveBroadcasts(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['broadcasts'] }),
+  });
+}
+
+export function useUpdateTemplates() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any[]) => notificationService.saveTemplates(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}

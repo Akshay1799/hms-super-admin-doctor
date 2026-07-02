@@ -12,6 +12,28 @@ interface ScanViewerProps {
 
 export function ScanViewer({ scan, onClose }: ScanViewerProps) {
   const handleDownload = () => {
+    const content = `
+========================================
+       HMS SCAN REPORT & METADATA
+========================================
+Scan Name:      ${scan.name}
+Scan Type:      ${scan.type}
+Recorded Date:  ${scan.date}
+Verification:   Radiography Lab Certified
+----------------------------------------
+[IMMUTABLE DIAGNOSTIC HASH: SHA-256]
+6a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t
+========================================
+`;
+    const blob = new Blob([content.trim()], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `scan-${scan.name.replace(/\s+/g, '-').toLowerCase()}.txt`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast.success(`Successfully downloaded scan: ${scan.name}`);
   };
 

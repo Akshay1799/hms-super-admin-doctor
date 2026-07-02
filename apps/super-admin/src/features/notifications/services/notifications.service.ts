@@ -32,20 +32,46 @@ export const notificationService = {
 
   // Templates
   async getTemplates(): Promise<Template[]> {
-    
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hms_notification_templates");
+      if (saved) return JSON.parse(saved);
+      localStorage.setItem("hms_notification_templates", JSON.stringify(MOCK_TEMPLATES));
+    }
     return MOCK_TEMPLATES;
   },
   async getTemplateById(id: string): Promise<Template> {
-    
-    const template = MOCK_TEMPLATES.find(t => t.id === id);
+    let list = MOCK_TEMPLATES;
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hms_notification_templates");
+      if (saved) list = JSON.parse(saved);
+    }
+    const template = list.find(t => t.id === id);
     if (!template) throw new Error('Template not found');
     return template;
+  },
+  async saveTemplates(data: Template[]): Promise<Template[]> {
+    await delay(100);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hms_notification_templates", JSON.stringify(data));
+    }
+    return data;
   },
 
   // Broadcasts
   async getBroadcasts(): Promise<Broadcast[]> {
-    
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hms_broadcasts");
+      if (saved) return JSON.parse(saved);
+      localStorage.setItem("hms_broadcasts", JSON.stringify(MOCK_BROADCASTS));
+    }
     return MOCK_BROADCASTS;
+  },
+  async saveBroadcasts(data: Broadcast[]): Promise<Broadcast[]> {
+    await delay(100);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hms_broadcasts", JSON.stringify(data));
+    }
+    return data;
   },
 
   // Delivery Logs
