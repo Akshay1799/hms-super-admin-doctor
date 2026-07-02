@@ -22,9 +22,26 @@ export default function DoctorsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [inviteModal, setInviteModal] = useState<{ doctorName: string; link: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const isProduction = typeof window !== "undefined" && 
+    !window.location.hostname.includes("localhost") && 
+    !window.location.hostname.includes("127.0.0.1");
   const [doctorPortalUrl, setDoctorPortalUrl] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("hms_doctor_portal_url") || "http://localhost:3000";
+      const override = localStorage.getItem("hms_doctor_portal_url");
+      if (override) return override;
+
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
+      if (!hostname.includes("localhost") && !hostname.includes("127.0.0.1")) {
+        let guessed = hostname;
+        if (guessed.includes("super-admin")) {
+          guessed = guessed.replace("super-admin", "doctor-portal");
+        } else if (guessed.includes("admin")) {
+          guessed = guessed.replace("admin", "doctor");
+        }
+        return `${protocol}//${guessed}`;
+      }
     }
     return "http://localhost:3000";
   });
@@ -299,11 +316,21 @@ export default function DoctorsPage() {
                   type="url"
                   value={doctorPortalUrl}
                   onChange={(e) => handleUrlChange(e.target.value)}
-                  placeholder="e.g. https://doctor-portal.vercel.app"
+                  placeholder="e.g. https://doctor-portal.netlify.app"
                   className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  Update this value to match your deployed Vercel Doctor Portal URL to avoid broken links.
+                {isProduction && (doctorPortalUrl.includes("localhost") || doctorPortalUrl.includes("127.0.0.1")) && (
+                  <div className="rounded-lg bg-amber-500/15 border border-amber-500/30 p-2.5 text-[11px] text-amber-600 font-medium leading-normal mt-1.5 animate-in fade-in duration-200">
+                    ⚠️ <span className="font-bold">Important:</span> You are on a deployed production site but the URL is set to <span className="font-mono">localhost</span>. Replace it with your deployed Doctor Portal link (e.g. <span className="font-mono">https://your-doctor-portal.netlify.app</span>) so it connects correctly.
+                  </div>
+                )}
+                {!isProduction && (doctorPortalUrl.includes("localhost") || doctorPortalUrl.includes("127.0.0.1")) && (
+                  <p className="text-[10px] text-amber-600 mt-1 font-semibold leading-normal">
+                    💡 **Local Dev Tip:** Make sure you start the Doctor Portal dev server (<span className="font-mono">npm run dev:doctor-portal</span>) in a separate terminal tab so that <span className="font-mono">localhost:3000</span> is online.
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Update this value to match your deployed Doctor Portal URL (e.g. Netlify/Vercel) to avoid broken links.
                 </p>
               </div>
 

@@ -44,6 +44,18 @@ function getDoctorPortalBaseUrl(): string {
   if (typeof window !== "undefined") {
     const override = localStorage.getItem("hms_doctor_portal_url");
     if (override) return override;
+
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    if (!hostname.includes("localhost") && !hostname.includes("127.0.0.1")) {
+      let guessed = hostname;
+      if (guessed.includes("super-admin")) {
+        guessed = guessed.replace("super-admin", "doctor-portal");
+      } else if (guessed.includes("admin")) {
+        guessed = guessed.replace("admin", "doctor");
+      }
+      return `${protocol}//${guessed}`;
+    }
     
     return (
       (process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL as string) ||
