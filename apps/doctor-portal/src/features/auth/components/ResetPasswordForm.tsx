@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { resetPasswordSchema, ResetPasswordSchemaType } from "../schemas/auth.schema";
 import { useResetPassword } from "../hooks/useResetPassword";
 import { FormField } from "@/components/ui/form-field";
@@ -14,6 +14,8 @@ import { toast } from "sonner";
 
 export function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "";
   const resetPasswordMutation = useResetPassword();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -32,18 +34,25 @@ export function ResetPasswordForm() {
 
   const onSubmit = (data: ResetPasswordSchemaType) => {
     setErrorMessage(null);
-    resetPasswordMutation.mutate(data, {
-      onSuccess: () => {
-        setIsSuccess(true);
-        toast.success("Password reset successfully! Redirecting to login...");
-        setTimeout(() => {
-          router.push(ROUTES.login);
-        }, 1500);
+    resetPasswordMutation.mutate(
+      {
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+        token: token,
       },
-      onError: (error: any) => {
-        setErrorMessage(error.message || "Failed to reset password.");
-      },
-    });
+      {
+        onSuccess: () => {
+          setIsSuccess(true);
+          toast.success("Password reset successfully! Redirecting to login...");
+          setTimeout(() => {
+            router.push(ROUTES.login);
+          }, 1500);
+        },
+        onError: (error: any) => {
+          setErrorMessage(error.message || "Failed to reset password.");
+        },
+      }
+    );
   };
 
   if (isSuccess) {

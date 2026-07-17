@@ -1,6 +1,4 @@
-"use client";
-
-import React from "react";
+import React, { Suspense } from "react";
 import { ResetPasswordForm } from "@/features/auth/components/ResetPasswordForm";
 
 export default function ResetPasswordPage() {
@@ -26,7 +24,9 @@ export default function ResetPasswordPage() {
 
       {/* Right side: Reset Password Form */}
       <div className="flex-1 flex items-center justify-center bg-background px-6 py-12 lg:w-1/2">
-        <ResetPasswordForm />
+        <Suspense fallback={<div>Loading form...</div>}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
     </main>
   );

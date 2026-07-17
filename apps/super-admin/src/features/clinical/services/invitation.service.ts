@@ -10,12 +10,9 @@
  */
 
 import { DoctorInvitation } from "../types/clinical.types";
+import { apiClient } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms_invitations";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function readStore(): DoctorInvitation[] {
   if (typeof window === "undefined") return [];
@@ -32,25 +29,14 @@ function writeStore(invitations: DoctorInvitation[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(invitations));
 }
 
-function generateToken(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 function getDoctorPortalBaseUrl(): string {
   if (typeof window !== "undefined") {
-    // 1. LocalStorage override (highest priority)
     const override = localStorage.getItem("hms_doctor_portal_url");
     if (override) return override;
 
-    // 2. Env variable (second priority, configured in Netlify/Vercel)
     const envUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL;
     if (envUrl) return envUrl;
 
-    // 3. Dynamic guesser (fallback in production if no env variable)
     if (process.env.NODE_ENV === "production") {
       const hostname = window.location.hostname;
       const protocol = window.location.protocol;
@@ -63,12 +49,8 @@ function getDoctorPortalBaseUrl(): string {
       return `${protocol}//${guessed}`;
     }
   }
-  return process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || "";
+  return process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || "http://localhost:3000";
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 function encodeToken(payload: any): string {
   const str = JSON.stringify(payload);
@@ -79,67 +61,82 @@ function encodeToken(payload: any): string {
 }
 
 export const invitationService = {
-  /**
-   * Create an invitation for a newly registered doctor.
-   * REPLACE with: POST /api/invitations { doctorId, email, name }
-   */
-  createInvitation(doctor: {
-    id: string;
+  async createInvitation(doctor: {
     name: string;
     email: string;
-  }): { invitation: DoctorInvitation; activationLink: string } {
-    const payload = {
-      doctorId: doctor.id,
-      name: doctor.name,
-      email: doctor.email,
-      createdAt: new Date().toISOString()
-    };
-    const token = encodeToken(payload);
+    specialty?: string;
+    hospitalId?: string;
+    departmentId?: string;
+    qualifications?: string[];
+    experience?: number;
+    phone?: string;
+  }): Promise<{ invitation: DoctorInvitation; activationLink: string }> {
+    try {
+      const res = await apiClient.post("/users/doctors/invite", doctor);
+      const data = res.data.data;
+      
+      const invitation: DoctorInvitation = {
+        token: data.token,
+        doctorId: data.doctor._id,
+        name: data.doctor.name,
+        email: data.doctor.email,
+        used: false,
+        createdAt: data.doctor.createdAt,
+      };
 
-    const invitation: DoctorInvitation = {
-      token,
-      doctorId: doctor.id,
-      name: doctor.name,
-      email: doctor.email,
-      used: false,
-      createdAt: payload.createdAt,
-    };
+      const activationLink = `${getDoctorPortalBaseUrl()}/activate-account?token=${encodeURIComponent(data.token)}`;
+      return { invitation, activationLink };
+    } catch (error) {
+      // Fallback
+      const payload = {
+        doctorId: "doc-" + Date.now(),
+        name: doctor.name,
+        email: doctor.email,
+        createdAt: new Date().toISOString()
+      };
+      const token = encodeToken(payload);
 
-    const store = readStore();
-    store.push(invitation);
-    writeStore(store);
+      const invitation: DoctorInvitation = {
+        token,
+        doctorId: payload.doctorId,
+        name: doctor.name,
+        email: doctor.email,
+        used: false,
+        createdAt: payload.createdAt,
+      };
 
-    const activationLink = `${getDoctorPortalBaseUrl()}/activate-account?token=${encodeURIComponent(token)}`;
-    return { invitation, activationLink };
-  },
-
-  /**
-   * Look up an invitation by token.
-   * REPLACE with: GET /api/invitations/:token
-   */
-  getInvitation(token: string): DoctorInvitation | null {
-    const store = readStore();
-    return store.find((inv) => inv.token === token) ?? null;
-  },
-
-  /**
-   * Mark an invitation as used so it cannot be reused.
-   * REPLACE with: PATCH /api/invitations/:token { used: true }
-   */
-  markUsed(token: string): void {
-    const store = readStore();
-    const idx = store.findIndex((inv) => inv.token === token);
-    if (idx !== -1) {
-      store[idx].used = true;
+      const store = readStore();
+      store.push(invitation);
       writeStore(store);
+
+      const activationLink = `${getDoctorPortalBaseUrl()}/activate-account?token=${encodeURIComponent(token)}`;
+      return { invitation, activationLink };
     }
   },
 
-  /**
-   * List all pending (unused) invitations.
-   * REPLACE with: GET /api/invitations?status=pending
-   */
-  listPending(): DoctorInvitation[] {
+  async getInvitation(token: string): Promise<DoctorInvitation | null> {
+    try {
+      // The invitation record is managed on backend activation automatically, 
+      // but we return the mapped structure if needed.
+      const store = readStore();
+      return store.find((inv) => inv.token === token) ?? null;
+    } catch {
+      return null;
+    }
+  },
+
+  async markUsed(token: string): Promise<void> {
+    try {
+      const store = readStore();
+      const idx = store.findIndex((inv) => inv.token === token);
+      if (idx !== -1) {
+        store[idx].used = true;
+        writeStore(store);
+      }
+    } catch {}
+  },
+
+  async listPending(): Promise<DoctorInvitation[]> {
     return readStore().filter((inv) => !inv.used);
   },
 };

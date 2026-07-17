@@ -42,7 +42,7 @@ export function AppTable<TData>({
   });
 
   return (
-    <div className="w-full overflow-x-auto rounded-t-[var(--radius-card)] border border-border bg-card">
+    <div className="w-full rounded-t-[var(--radius-card)] border border-border bg-card overflow-visible">
       <table className="w-full border-collapse text-left text-sm">
         <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
           {table.getHeaderGroups().map((headerGroup) => (

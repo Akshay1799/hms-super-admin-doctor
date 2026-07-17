@@ -9,8 +9,18 @@
   "scripts": {
     "dev:super-admin": "npm run dev -w super-admin -- --port 3001",
     "dev:doctor-portal": "npm run dev -w doctor-portal -- --port 3000",
+    "dev:hospital-admin": "npm run dev -w hospital-admin -- --port 3002",
+    "dev:patient-portal": "npm run dev -w patient-portal -- --port 3003",
+    "dev:api": "npm run dev -w api",
+    "dev:all": "concurrently \"npm run dev:super-admin\" \"npm run dev:doctor-portal\" \"npm run dev:hospital-admin\" \"npm run dev:patient-portal\" \"npm run dev:api\"",
     "build:super-admin": "npm run build -w super-admin",
     "build:doctor-portal": "npm run build -w doctor-portal",
-    "build:all": "npm run build -w super-admin && npm run build -w doctor-portal"
+    "build:hospital-admin": "npm run build -w hospital-admin",
+    "build:patient-portal": "npm run build -w patient-portal",
+    "build:api": "npm run build -w api",
+    "build:all": "npm run build -w super-admin && npm run build -w doctor-portal && npm run build -w hospital-admin && npm run build -w patient-portal && npm run build -w api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

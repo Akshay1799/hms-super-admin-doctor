@@ -13,7 +13,7 @@ const COUNTDOWN_TIME = 30; // 30 seconds
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, logout } = useAuthStore();
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [countdown, setCountdown] = useState(COUNTDOWN_TIME);
@@ -47,8 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push(ROUTES.login);
     } else if (isAuthenticated && pathname === ROUTES.login) {
       router.push(ROUTES.dashboard);
+    } else if (isAuthenticated && user) {
+      const allowedRoles = ["SUPER_ADMIN", "TENANT_ADMIN"];
+      if (user.role && !allowedRoles.includes(user.role)) {
+        logout();
+        router.push(ROUTES.login);
+      }
     }
-  }, [isAuthenticated, pathname, isPublicRoute, router, hasHydrated]);
+  }, [isAuthenticated, user, pathname, isPublicRoute, router, hasHydrated]);
 
   // Inactivity tracking
   const resetInactivityTimer = () => {
