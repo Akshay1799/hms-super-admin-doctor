@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { AppointmentTable } from "@/features/clinical/components/AppointmentTable";
 import { useAppointments } from "@/features/clinical/hooks/useClinical";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { useRealHospitals } from "@/features/hospitals/hooks/useRealHospitals";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Calendar, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 
@@ -23,10 +23,11 @@ export default function AppointmentsPage() {
   const { data: allAppointments = [] } = useAppointments({
     hospitalId: hospitalId || undefined,
   });
+  const { data: realHospitals = [] } = useRealHospitals();
 
   const completed = allAppointments.filter((a) => a.status === "Completed").length;
-  const pending = allAppointments.filter((a) => a.status === "Pending").length;
-  const rescheduled = allAppointments.filter((a) => a.status === "Rescheduled").length;
+  const scheduled = allAppointments.filter((a) => a.status === "Scheduled").length;
+  const waiting = allAppointments.filter((a) => a.status === "Waiting").length;
   const cancelled = allAppointments.filter((a) => a.status === "Cancelled").length;
 
   return (
@@ -49,17 +50,17 @@ export default function AppointmentsPage() {
             className="border-success/30"
           />
           <StatsCard
-            title="Pending Approval"
-            value={pending}
+            title="Scheduled"
+            value={scheduled}
             icon={Calendar}
             description="Upcoming appointments"
             className="border-primary/30"
           />
           <StatsCard
-            title="Rescheduled"
-            value={rescheduled}
+            title="Waiting"
+            value={waiting}
             icon={AlertCircle}
-            description="Adjusted consultation slots"
+            description="Patients awaiting consultation"
             className="border-warning/30"
           />
           <StatsCard
@@ -81,7 +82,7 @@ export default function AppointmentsPage() {
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">All Locations</option>
-              {MOCK_HOSPITALS.map((h) => (
+              {realHospitals.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name}
                 </option>
@@ -98,9 +99,11 @@ export default function AppointmentsPage() {
             >
               <option value="">All Statuses</option>
               <option value="Completed">Completed</option>
-              <option value="Pending">Pending</option>
-              <option value="Rescheduled">Rescheduled</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Waiting">Waiting</option>
+              <option value="In Progress">In Progress</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="No Show">No Show</option>
             </select>
           </div>
         </div>

@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Patient } from '../models/Patient';
 import { Department } from '../models/Department';
 import { Hospital } from '../models/Hospital';
+import { Invitation } from '../models/AuthToken';
+import { sendPatientInvitationEmail } from '../utils/email';
+import { generateInvitationToken } from '../utils/jwt';
+import { env } from '../config/env';
 import { sendSuccess, sendCreated, NotFoundError, ForbiddenError } from '../utils/response';
 
 function buildPatientFilter(req: Request): Record<string, unknown> {
@@ -31,16 +36,25 @@ function buildPatientFilter(req: Request): Record<string, unknown> {
 
 export async function listPatients(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, hospitalId, departmentId, doctorId, assignedDoctorId, search, page = '1', limit = '20' } = req.query;
+    const { status, hospitalId, departmentId, doctorId, assignedDoctorId, gender, search, page = '1', limit = '20' } = req.query;
     const filter = buildPatientFilter(req);
 
     if (status) filter.status = status;
+    if (gender) filter.gender = gender;
     if (hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = hospitalId;
     if (departmentId) filter.departmentId = departmentId;
 
     const targetDoctorId = doctorId || assignedDoctorId;
     if (targetDoctorId) filter.assignedDoctorId = targetDoctorId;
     if (search) filter.name = { $regex: search, $options: 'i' };
+
+    // Find emails of patient users who are still Pending activation
+    const { User } = await import('../models/User');
+    const pendingPatientUsers = await User.find({ role: 'PATIENT', status: 'Pending' }).select('email');
+    const pendingEmails = pendingPatientUsers.map(u => u.email.toLowerCase()).filter(Boolean);
+    if (pendingEmails.length > 0) {
+      filter.email = { $nin: pendingEmails };
+    }
 
     console.log('[DEBUG] listPatients query filter:', JSON.stringify(filter));
 
@@ -136,6 +150,48 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
       await patient.save();
     }
 
+    // Create User record and send patient invitation email
+    if (patient.email) {
+      const { User } = await import('../models/User');
+      let dbUser = await User.findOne({ email: patient.email.toLowerCase() });
+      if (!dbUser) {
+        dbUser = await User.create({
+          name: patient.name,
+          email: patient.email.toLowerCase(),
+          password: 'password123',
+          role: 'PATIENT',
+          status: 'Active',
+          tenantId: patient.tenantId,
+          hospitalId: patient.hospitalId,
+          departmentId: patient.departmentId,
+          phone: patient.phone,
+        });
+      }
+
+      const { token, hash } = generateInvitationToken(dbUser._id.toString(), dbUser.email);
+
+      await Invitation.create({
+        tokenHash: hash,
+        userId: dbUser._id,
+        email: dbUser.email,
+        role: 'PATIENT',
+        hospitalId: dbUser.hospitalId,
+        departmentId: dbUser.departmentId,
+        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
+      });
+
+      try {
+        await sendPatientInvitationEmail({
+          to: dbUser.email,
+          name: dbUser.name,
+          invitationToken: token,
+          portalUrl: env.frontends.patientPortal || 'http://localhost:3000',
+        });
+      } catch (mailErr: any) {
+        console.warn(`📧 Failed to send patient invitation email to ${dbUser.email}:`, mailErr.message);
+      }
+    }
+
     sendCreated(res, patient, 'Patient created successfully');
   } catch (err) {
     next(err);
@@ -170,13 +226,9 @@ export async function updatePatient(req: Request, res: Response, next: NextFunct
 
 export async function deletePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const patient = await Patient.findByIdAndUpdate(
-      req.params.id,
-      { status: 'Discharged' },
-      { new: true }
-    );
+    const patient = await Patient.findByIdAndDelete(req.params.id);
     if (!patient) throw new NotFoundError('Patient not found');
-    sendSuccess(res, null, 'Patient discharged');
+    sendSuccess(res, null, 'Patient deleted completely from database');
   } catch (err) {
     next(err);
   }

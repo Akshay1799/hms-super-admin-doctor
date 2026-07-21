@@ -1,25 +1,26 @@
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Patient } from "@/features/clinical/types/clinical.types";
+import { Doctor, Patient } from "@/features/clinical/types/clinical.types";
 import { AppTable } from "@/components/ui/app-table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Eye, Users } from "lucide-react";
 import Link from "next/link";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
-import { MOCK_DOCTORS } from "../mocks/clinical.mocks";
+import { RealHospital, resolveHospitalName } from "@/features/hospitals/hooks/useRealHospitals";
 
 interface PatientTableProps {
   data: Patient[];
   isLoading: boolean;
+  hospitals?: RealHospital[];
+  doctors?: Doctor[];
 }
 
-export function PatientTable({ data, isLoading }: PatientTableProps) {
-  const getHospitalName = (hId: string) => {
-    return MOCK_HOSPITALS.find((h) => h.id === hId)?.name || `Hospital #${hId}`;
-  };
+export function PatientTable({ data, isLoading, hospitals = [], doctors = [] }: PatientTableProps) {
+  const getHospitalName = (hId: string) => resolveHospitalName(hospitals, hId);
 
-  const getDoctorName = (docId: string) => {
-    return MOCK_DOCTORS.find((d) => d.id === docId)?.name || `Doctor #${docId}`;
+  const getDoctorName = (docVal: Patient["doctorId"], doctorName?: string) => {
+    if (doctorName) return doctorName;
+    if (!docVal) return "Pending Allocation";
+    return doctors.find((doctor) => doctor.id === docVal)?.name || `Doctor #${docVal}`;
   };
 
   const columns: ColumnDef<Patient, any>[] = [
@@ -59,7 +60,7 @@ export function PatientTable({ data, isLoading }: PatientTableProps) {
     {
       accessorKey: "doctorId",
       header: "Primary Physician",
-      cell: ({ row }) => <span className="text-sm text-foreground font-medium">{getDoctorName(row.original.doctorId)}</span>,
+      cell: ({ row }) => <span className="text-sm text-foreground font-medium">{getDoctorName(row.original.doctorId, row.original.doctorName)}</span>,
     },
     {
       accessorKey: "status",

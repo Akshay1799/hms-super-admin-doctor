@@ -134,3 +134,49 @@ export async function sendPasswordResetEmail(options: {
     text: `Reset your MediChain HMS password at: ${resetLink}`,
   });
 }
+
+export async function sendPatientInvitationEmail(options: {
+  to: string;
+  name: string;
+  invitationToken: string;
+  portalUrl: string;
+}): Promise<void> {
+  const activationLink = `${options.portalUrl}/activate-account?token=${options.invitationToken}`;
+
+  await sendEmail({
+    to: options.to,
+    subject: `Welcome to MediChain HMS - Set up your Patient Portal`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 10px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h1 style="color: #0ea5e9; margin-bottom: 8px;">MediChain HMS</h1>
+          <h2 style="color: #1e293b; margin-bottom: 24px;">Welcome, ${options.name}!</h2>
+          <p style="color: #475569; line-height: 1.6;">
+            A patient account has been created for you at MediChain Hospital Management System.
+          </p>
+          <p style="color: #475569; line-height: 1.6;">
+            Click the button below to activate your patient portal account and set your password. 
+            This link expires in <strong>72 hours</strong>.
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${activationLink}" 
+               style="background: #0ea5e9; color: #fff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+              Activate Account
+            </a>
+          </div>
+          <p style="color: #94a3b8; font-size: 13px;">
+            Or copy this link: <a href="${activationLink}" style="color: #0ea5e9;">${activationLink}</a>
+          </p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">
+            If you did not expect this, please ignore this email.
+          </p>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `Welcome to MediChain HMS! Activate your patient portal account at: ${activationLink}`,
+  });
+}

@@ -6,17 +6,16 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Star, Eye, Calendar, Stethoscope } from "lucide-react";
 import Link from "next/link";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { RealHospital, resolveHospitalName } from "@/features/hospitals/hooks/useRealHospitals";
 
 interface DoctorTableProps {
   data: Doctor[];
   isLoading: boolean;
+  hospitals?: RealHospital[];
 }
 
-export function DoctorTable({ data, isLoading }: DoctorTableProps) {
-  const getHospitalName = (hId: string) => {
-    return MOCK_HOSPITALS.find((h) => h.id === hId)?.name || `Hospital #${hId}`;
-  };
+export function DoctorTable({ data, isLoading, hospitals = [] }: DoctorTableProps) {
+  const getHospitalName = (hId: string) => resolveHospitalName(hospitals, hId);
 
   const columns: ColumnDef<Doctor, any>[] = [
     {

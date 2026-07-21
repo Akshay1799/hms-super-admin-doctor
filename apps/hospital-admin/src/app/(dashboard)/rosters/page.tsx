@@ -241,6 +241,7 @@ export default function RostersPage() {
 
                 <div className="mt-2 space-y-1.5 flex-1">
                   {dayRosters.map((roster) => {
+                    if (!roster.userId) return null;
                     const isDoctor = roster.userId.role === "DOCTOR";
                     const badgeColor =
                       roster.shiftType === "Day"

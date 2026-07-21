@@ -7,23 +7,18 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useNurses } from "@/features/clinical/hooks/useClinical";
 import { AppTable } from "@/components/ui/app-table";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { useRealHospitals, resolveHospitalName } from "@/features/hospitals/hooks/useRealHospitals";
 import { ShieldCheck, CalendarRange } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Nurse } from "@/features/clinical/types/clinical.types";
 
 export default function NursesPage() {
   const [hospitalId, setHospitalId] = useState("");
-  const [shift, setShift] = useState("");
-
   const { data: nurses = [], isLoading } = useNurses({
     hospitalId: hospitalId || undefined,
-    shift: shift || undefined,
   });
-
-  const getHospitalName = (hId: string) => {
-    return MOCK_HOSPITALS.find((h) => h.id === hId)?.name || `Hospital #${hId}`;
-  };
+  const { data: realHospitals = [] } = useRealHospitals();
+  const getHospitalName = (hId: string) => resolveHospitalName(realHospitals, hId);
 
   const columns: ColumnDef<Nurse, any>[] = [
     {
@@ -68,7 +63,7 @@ export default function NursesPage() {
         />
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-muted-foreground">Hospital Location</label>
             <select
@@ -77,7 +72,7 @@ export default function NursesPage() {
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">All Locations</option>
-              {MOCK_HOSPITALS.map((h) => (
+              {realHospitals.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name}
                 </option>
@@ -85,19 +80,6 @@ export default function NursesPage() {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Duty Shift</label>
-            <select
-              value={shift}
-              onChange={(e) => setShift(e.target.value)}
-              className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">All Shifts</option>
-              <option value="Morning">Morning</option>
-              <option value="Evening">Evening</option>
-              <option value="Night">Night</option>
-            </select>
-          </div>
         </div>
 
         <AppTable

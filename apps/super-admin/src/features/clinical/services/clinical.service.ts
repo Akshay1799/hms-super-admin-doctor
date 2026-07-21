@@ -46,6 +46,7 @@ export const clinicalService = {
       const params: Record<string, string> = {};
       if (filters?.search) params.search = filters.search;
       if (filters?.hospitalId && filters.hospitalId !== "All") params.hospitalId = filters.hospitalId;
+      if (filters?.specialization && filters.specialization !== "All") params.specialty = filters.specialization;
       if (filters?.status && filters.status !== "All") params.status = filters.status;
 
       const res = await apiClient.get("/users/doctors", { params });
@@ -215,6 +216,7 @@ export const clinicalService = {
       const params: Record<string, string> = {};
       if (filters?.search) params.search = filters.search;
       if (filters?.hospitalId && filters.hospitalId !== "All") params.hospitalId = filters.hospitalId;
+      if (filters?.gender && filters.gender !== "All") params.gender = filters.gender;
       if (filters?.status && filters.status !== "All") params.status = filters.status;
 
       const res = await apiClient.get("/patients", { params });
@@ -225,7 +227,8 @@ export const clinicalService = {
         gender: p.gender || "Male",
         status: p.status || "Active",
         hospitalId: p.hospitalId || "",
-        doctorId: p.assignedDoctorId || "",
+        doctorId: p.assignedDoctorId?._id || p.assignedDoctorId || "",
+        doctorName: p.assignedDoctorId?.name || "",
         lastVisit: p.updatedAt ? new Date(p.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
         bloodGroup: p.bloodGroup || "O+",
       }));
@@ -346,10 +349,11 @@ export const clinicalService = {
     }
   },
 
-  async getStaff(filters?: { hospitalId?: string; type?: string }): Promise<Staff[]> {
+  async getStaff(filters?: { hospitalId?: string; role?: string }): Promise<Staff[]> {
     try {
       const params: Record<string, string> = {};
       if (filters?.hospitalId && filters.hospitalId !== "All") params.hospitalId = filters.hospitalId;
+      if (filters?.role && filters.role !== "All") params.role = filters.role;
 
       const res = await apiClient.get("/users/staff", { params });
       return res.data.data.map((s: any) => ({
@@ -360,7 +364,14 @@ export const clinicalService = {
         hospitalId: s.hospitalId || "",
         branchId: "branch-1",
         departmentId: s.departmentId || "",
-        type: s.role === "RECEPTIONIST" ? "Administrative" : "Clinical",
+        type: ({
+          DOCTOR: "Doctor",
+          NURSE: "Nurse",
+          RECEPTIONIST: "Receptionist",
+          HOSPITAL_ADMIN: "Hospital Admin",
+          DEPT_ADMIN: "Department Admin",
+          STAFF: "Staff",
+        } as Record<string, string>)[s.role] || s.role || "Staff",
         status: s.status || "Active",
       }));
     } catch {
@@ -368,8 +379,16 @@ export const clinicalService = {
       if (filters?.hospitalId && filters.hospitalId !== "All") {
         result = result.filter((s) => s.hospitalId === filters.hospitalId);
       }
-      if (filters?.type && filters.type !== "All") {
-        result = result.filter((s) => s.type === filters.type);
+      if (filters?.role && filters.role !== "All") {
+        const roleLabels: Record<string, string> = {
+          DOCTOR: "Doctor",
+          NURSE: "Nurse",
+          RECEPTIONIST: "Receptionist",
+          HOSPITAL_ADMIN: "Hospital Admin",
+          DEPT_ADMIN: "Department Admin",
+          STAFF: "Staff",
+        };
+        result = result.filter((s) => s.type === roleLabels[filters.role!]);
       }
       return result;
     }
@@ -388,7 +407,7 @@ export const clinicalService = {
         doctorName: a.doctorName,
         date: new Date(a.date).toISOString().split("T")[0],
         time: a.time,
-        status: a.status === "Scheduled" ? "Scheduled" : a.status === "Completed" ? "Completed" : "Cancelled",
+        status: a.status || "Scheduled",
         hospitalId: a.hospitalId || "",
         doctorId: a.doctorId || "",
         patientId: a.patientId || "",

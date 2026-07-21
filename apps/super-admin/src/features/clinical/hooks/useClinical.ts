@@ -58,7 +58,7 @@ export function useNurses(filters?: { hospitalId?: string; shift?: string }) {
   });
 }
 
-export function useStaff(filters?: { hospitalId?: string; type?: string }) {
+export function useStaff(filters?: { hospitalId?: string; role?: string }) {
   return useQuery({
     queryKey: ["staff", filters],
     queryFn: () => clinicalService.getStaff(filters),

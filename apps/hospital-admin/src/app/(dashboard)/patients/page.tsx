@@ -19,6 +19,7 @@ import {
   Edit3,
   LayoutGrid,
   List,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,6 +48,7 @@ export default function PatientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [newPatient, setNewPatient] = useState({
     name: "",
     age: "",
@@ -54,7 +56,13 @@ export default function PatientsPage() {
     status: "Active",
     ward: "",
     bedNumber: "",
+    assignedDoctorId: "",
+    email: "",
+    phone: "",
   });
+  const [customWard, setCustomWard] = useState("");
+  const [customDoctor, setCustomDoctor] = useState("");
+  const [patientDeleteConfirmId, setPatientDeleteConfirmId] = useState<string | null>(null);
 
   const [doctors, setDoctors] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -87,6 +95,16 @@ export default function PatientsPage() {
     fetchPatients();
   }, [searchQuery]);
 
+  const handleDeletePatient = async (id: string) => {
+    try {
+      await apiClient.delete(`/patients/${id}`);
+      toast.error("Patient record successfully deleted.");
+      fetchPatients();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete patient record");
+    }
+  };
+
   useEffect(() => {
     fetchDoctorsAndDepts();
   }, []);
@@ -98,13 +116,32 @@ export default function PatientsPage() {
       return;
     }
 
+    const finalWard = newPatient.ward === "CUSTOM_WARD" ? customWard : newPatient.ward;
+    const finalDoctor = newPatient.assignedDoctorId === "CUSTOM_DOC" ? customDoctor : newPatient.assignedDoctorId;
+
+    // Resolve departmentId based on selected ward if it matches a department
+    let finalDeptId = undefined;
+    if (newPatient.ward !== "CUSTOM_WARD" && newPatient.ward !== "") {
+      const selectedDept = departments.find(d => d.name === newPatient.ward);
+      if (selectedDept) {
+        finalDeptId = selectedDept._id;
+      }
+    } else if (newPatient.ward === "CUSTOM_WARD" && customWard !== "") {
+      const selectedDept = departments.find(d => d.name.toLowerCase() === customWard.toLowerCase());
+      if (selectedDept) {
+        finalDeptId = selectedDept._id;
+      }
+    }
+
     try {
       await apiClient.post("/patients", {
         ...newPatient,
+        ward: finalWard,
+        assignedDoctorId: finalDoctor || undefined,
+        departmentId: finalDeptId || (user?.role === "DEPT_ADMIN" ? user?.departmentId : undefined),
         age: parseInt(newPatient.age) || 0,
         hospitalId: user?.hospitalId,
         tenantId: user?.tenantId,
-        departmentId: user?.role === "DEPT_ADMIN" ? user?.departmentId : undefined,
       });
 
       toast.success("Patient record created successfully!");
@@ -116,7 +153,12 @@ export default function PatientsPage() {
         status: "Active",
         ward: "",
         bedNumber: "",
+        assignedDoctorId: "",
+        email: "",
+        phone: "",
       });
+      setCustomWard("");
+      setCustomDoctor("");
       fetchPatients();
     } catch (err: any) {
       toast.error(err.message || "Failed to create patient");
@@ -202,6 +244,30 @@ export default function PatientsPage() {
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="rahul@gmail.com"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={newPatient.email}
+                    onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="+91 9988776655"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={newPatient.phone}
+                    onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Age *</label>
                   <input
                     type="number"
@@ -228,14 +294,20 @@ export default function PatientsPage() {
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Ward Name</label>
-                  <input
-                    type="text"
-                    placeholder="General Ward"
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Ward Name / Dept</label>
+                  <select
                     className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     value={newPatient.ward}
                     onChange={(e) => setNewPatient({ ...newPatient, ward: e.target.value })}
-                  />
+                  >
+                    <option value="">None / Outpatient</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept.name}>
+                        {dept.name}
+                      </option>
+                    ))}
+                    <option value="CUSTOM_WARD">Other (Type custom...)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Bed Number</label>
@@ -248,6 +320,53 @@ export default function PatientsPage() {
                   />
                 </div>
               </div>
+
+              {/* Conditional Custom Ward Input */}
+              {newPatient.ward === "CUSTOM_WARD" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Ward Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Isolation Ward C"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={customWard}
+                    onChange={(e) => setCustomWard(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Attending Physician</label>
+                <select
+                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={newPatient.assignedDoctorId}
+                  onChange={(e) => setNewPatient({ ...newPatient, assignedDoctorId: e.target.value })}
+                >
+                  <option value="">Unassigned</option>
+                  {doctors.map((doc) => (
+                    <option key={doc._id} value={doc._id}>
+                      {doc.name} ({doc.specialty || "Physician"})
+                    </option>
+                  ))}
+                  <option value="CUSTOM_DOC">Other (Type custom...)</option>
+                </select>
+              </div>
+
+              {/* Conditional Custom Doctor Input */}
+              {newPatient.assignedDoctorId === "CUSTOM_DOC" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Physician Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. Jane Doe"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={customDoctor}
+                    onChange={(e) => setCustomDoctor(e.target.value)}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Admission Status</label>
@@ -338,38 +457,61 @@ export default function PatientsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pt-3 border-t border-border mt-3">
-                <button
-                  onClick={() => {
-                    setEditingPatient({
-                      _id: pat._id,
-                      name: pat.name,
-                      age: pat.age.toString(),
-                      gender: pat.gender,
-                      bloodGroup: (pat as any).bloodGroup || "O+",
-                      email: (pat as any).email || "",
-                      phone: (pat as any).phone || "",
-                      status: pat.status,
-                      ward: pat.ward || "",
-                      bedNumber: pat.bedNumber || "",
-                      assignedDoctorId: pat.assignedDoctorId?._id || "",
-                      departmentId: typeof (pat as any).departmentId === "string" ? (pat as any).departmentId : ((pat as any).departmentId as any)?._id || "",
-                    });
-                    setIsEditOpen(true);
-                  }}
-                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  Edit Registry
-                </button>
+              <div className="flex justify-between items-center pt-3 border-t border-border mt-3 relative">
                 <button
                   onClick={() => setSelectedPatient(pat)}
-                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-bold focus:outline-hidden"
                 >
                   <ClipboardList className="h-4 w-4" />
                   View EMR Details
-                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
+                <div className="relative text-left">
+                  <button
+                    onClick={() => setActiveDropdownId(activeDropdownId === pat._id ? null : pat._id)}
+                    className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none transition-colors ml-auto"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  {activeDropdownId === pat._id && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setActiveDropdownId(null)} />
+                      <div className="absolute right-0 mt-1 w-36 rounded-lg border border-border bg-card shadow-lg z-20 py-1 text-left animate-in fade-in slide-in-from-top-1 duration-100">
+                        <button
+                          onClick={() => {
+                            setActiveDropdownId(null);
+                            setEditingPatient({
+                              _id: pat._id,
+                              name: pat.name,
+                              age: pat.age.toString(),
+                              gender: pat.gender,
+                              bloodGroup: (pat as any).bloodGroup || "O+",
+                              email: (pat as any).email || "",
+                              phone: (pat as any).phone || "",
+                              status: pat.status,
+                              ward: pat.ward || "",
+                              bedNumber: pat.bedNumber || "",
+                              assignedDoctorId: pat.assignedDoctorId?._id || "",
+                              departmentId: typeof (pat as any).departmentId === "string" ? (pat as any).departmentId : ((pat as any).departmentId as any)?._id || "",
+                            });
+                            setIsEditOpen(true);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-foreground flex items-center gap-2 cursor-pointer"
+                        >
+                          Edit Registry
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveDropdownId(null);
+                            setPatientDeleteConfirmId(pat._id);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-red-600 flex items-center gap-2 cursor-pointer border-t border-border mt-1 pt-2"
+                        >
+                          Delete Patient
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -421,35 +563,63 @@ export default function PatientsPage() {
                     <td className="p-4 text-foreground font-semibold">
                       {pat.assignedDoctorId?.name || "Pending Allocation"}
                     </td>
-                    <td className="p-4 text-right space-x-3">
-                      <button
-                        onClick={() => {
-                          setEditingPatient({
-                            _id: pat._id,
-                            name: pat.name,
-                            age: pat.age.toString(),
-                            gender: pat.gender,
-                            bloodGroup: (pat as any).bloodGroup || "O+",
-                            email: (pat as any).email || "",
-                            phone: (pat as any).phone || "",
-                            status: pat.status,
-                            ward: pat.ward || "",
-                            bedNumber: pat.bedNumber || "",
-                            assignedDoctorId: pat.assignedDoctorId?._id || "",
-                            departmentId: typeof (pat as any).departmentId === "string" ? (pat as any).departmentId : ((pat as any).departmentId as any)?._id || "",
-                          });
-                          setIsEditOpen(true);
-                        }}
-                        className="text-xs font-bold text-primary hover:underline cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setSelectedPatient(pat)}
-                        className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-                      >
-                        EMR Details
-                      </button>
+                    <td className="p-4 text-right relative">
+                      <div className="inline-block text-left">
+                        <button
+                          onClick={() => setActiveDropdownId(activeDropdownId === pat._id ? null : pat._id)}
+                          className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none transition-colors ml-auto"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        {activeDropdownId === pat._id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setActiveDropdownId(null)} />
+                            <div className="absolute right-0 mt-1 w-36 rounded-lg border border-border bg-card shadow-lg z-20 py-1 text-left animate-in fade-in slide-in-from-top-1 duration-100">
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setSelectedPatient(pat);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-blue-600 flex items-center gap-2 cursor-pointer"
+                              >
+                                EMR Details
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setEditingPatient({
+                                    _id: pat._id,
+                                    name: pat.name,
+                                    age: pat.age.toString(),
+                                    gender: pat.gender,
+                                    bloodGroup: (pat as any).bloodGroup || "O+",
+                                    email: (pat as any).email || "",
+                                    phone: (pat as any).phone || "",
+                                    status: pat.status,
+                                    ward: pat.ward || "",
+                                    bedNumber: pat.bedNumber || "",
+                                    assignedDoctorId: pat.assignedDoctorId?._id || "",
+                                    departmentId: typeof (pat as any).departmentId === "string" ? (pat as any).departmentId : ((pat as any).departmentId as any)?._id || "",
+                                  });
+                                  setIsEditOpen(true);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-foreground flex items-center gap-2 cursor-pointer border-t border-border mt-1 pt-2"
+                              >
+                                Edit Registry
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setPatientDeleteConfirmId(pat._id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-red-600 flex items-center gap-2 cursor-pointer border-t border-border mt-1 pt-2"
+                              >
+                                Delete Patient
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -769,6 +939,36 @@ export default function PatientsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Delete Confirmation Modal */}
+      {patientDeleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-foreground">Confirm Patient Deletion</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete this patient record? This action cannot be undone and will purge all EMR details.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setPatientDeleteConfirmId(null)}
+                className="h-9 px-4 border border-border hover:bg-muted text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const id = patientDeleteConfirmId;
+                  setPatientDeleteConfirmId(null);
+                  handleDeletePatient(id);
+                }}
+                className="h-9 px-4 bg-destructive hover:bg-destructive/90 text-white rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

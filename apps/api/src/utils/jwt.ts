@@ -54,9 +54,9 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-export function generateInvitationToken(userId: string, email: string): { token: string; hash: string } {
+export function generateInvitationToken(userId: string, email: string, name?: string): { token: string; hash: string } {
   const token = jwt.sign(
-    { userId, email, type: 'invitation' },
+    { userId, doctorId: userId, email, name: name || 'User', type: 'invitation' },
     env.jwt.accessSecret,
     { expiresIn: '72h' }
   );

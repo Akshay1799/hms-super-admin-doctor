@@ -32,6 +32,7 @@ export interface Patient {
   age: number;
   hospitalId: string;
   doctorId: string;
+  doctorName?: string;
   status: "Active" | "Inactive" | string;
   lastVisit: string;
   bloodGroup: string;

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { DoctorTable } from "@/features/clinical/components/DoctorTable";
 import { useDoctors, useCreateDoctor } from "@/features/clinical/hooks/useClinical";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { useRealHospitals } from "@/features/hospitals/hooks/useRealHospitals";
 import { Plus, X, Stethoscope, Copy, CheckCheck, Link2, ExternalLink } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,6 +75,8 @@ export default function DoctorsPage() {
     specialization: specialization || undefined,
     status: status || undefined,
   });
+
+  const { data: realHospitals = [] } = useRealHospitals();
 
   const createDoctorMutation = useCreateDoctor();
 
@@ -161,7 +163,7 @@ export default function DoctorsPage() {
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">All Locations</option>
-              {MOCK_HOSPITALS.map((h) => (
+              {realHospitals.map((h) => (
                 <option key={h.id} value={h.id}>{h.name}</option>
               ))}
             </select>
@@ -189,13 +191,13 @@ export default function DoctorsPage() {
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-              <option value="On Leave">On Leave</option>
               <option value="Suspended">Suspended</option>
+              <option value="Pending">Pending</option>
             </select>
           </div>
         </div>
 
-        <DoctorTable data={doctors} isLoading={isLoading} />
+        <DoctorTable data={doctors} isLoading={isLoading} hospitals={realHospitals} />
       </div>
 
       {/* Register Doctor Drawer */}
@@ -257,7 +259,7 @@ export default function DoctorsPage() {
                 {...register("hospitalId")}
               >
                 <option value="">Select Hospital Location</option>
-                {MOCK_HOSPITALS.map((h) => (
+                {realHospitals.map((h) => (
                   <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </FormField>

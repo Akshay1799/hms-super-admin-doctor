@@ -18,6 +18,7 @@ import {
   Heart,
   LayoutGrid,
   List,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,6 +49,11 @@ function StaffPageContent() {
   const [editingStaff, setEditingStaff] = useState<any>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<StaffMember | null>(null);
   const [doctorPatients, setDoctorPatients] = useState<any[]>([]);
+  const [customRole, setCustomRole] = useState("");
+  const [customDept, setCustomDept] = useState("");
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deactivateConfirmId, setDeactivateConfirmId] = useState<string | null>(null);
   const [inviteInput, setInviteInput] = useState({
     name: "",
     email: "",
@@ -111,10 +117,20 @@ function StaffPageContent() {
       return;
     }
 
+    const finalRole = inviteInput.role === "CUSTOM_ROLE" ? customRole : inviteInput.role;
+    const finalDepartmentId = inviteInput.departmentId === "CUSTOM_DEPT" ? customDept : inviteInput.departmentId;
+
+    if (!finalRole) {
+      toast.error("Please select or type a role");
+      return;
+    }
+
     try {
-      const endpoint = inviteInput.role === "DOCTOR" ? "/users/doctors/invite" : "/users/staff/invite";
+      const endpoint = finalRole.toUpperCase() === "DOCTOR" ? "/users/doctors/invite" : "/users/staff/invite";
       await apiClient.post(endpoint, {
         ...inviteInput,
+        role: finalRole,
+        departmentId: finalDepartmentId,
         hospitalId: user?.hospitalId,
         tenantId: user?.tenantId,
       });
@@ -129,6 +145,8 @@ function StaffPageContent() {
         specialty: "",
         phone: "",
       });
+      setCustomRole("");
+      setCustomDept("");
       fetchStaff();
     } catch (err: any) {
       toast.error(err.message || "Failed to send invitation");
@@ -159,11 +177,19 @@ function StaffPageContent() {
     }
   };
 
-  const handleStatusChange = async (id: string, currentStatus: string, action: 'suspend' | 'activate' | 'delete') => {
+  const handleStatusChange = async (id: string, currentStatus: string, action: 'suspend' | 'activate' | 'deactivate' | 'delete') => {
     try {
-      const endpoint = `/users/info/${id}/${action}`;
-      await apiClient.patch(endpoint);
-      toast.success(`Staff member successfully updated.`);
+      if (action === 'delete') {
+        await apiClient.delete(`/users/info/${id}`);
+        toast.error("Staff member successfully deleted.");
+      } else if (action === 'deactivate') {
+        await apiClient.patch(`/users/info/${id}`, { status: 'Inactive' });
+        toast.success("Staff member successfully deactivated.");
+      } else {
+        const endpoint = `/users/info/${id}/${action}`;
+        await apiClient.patch(endpoint);
+        toast.success(`Staff member successfully ${action === 'suspend' ? 'suspended' : 'activated'}.`);
+      }
       fetchStaff();
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
@@ -264,6 +290,7 @@ function StaffPageContent() {
                     <option value="RECEPTIONIST">Receptionist</option>
                     <option value="DEPT_ADMIN">Department Admin</option>
                     <option value="STAFF">Generic Staff</option>
+                    <option value="CUSTOM_ROLE">Other (Type custom role...)</option>
                   </select>
                 </div>
                 <div>
@@ -279,9 +306,44 @@ function StaffPageContent() {
                         {d.name}
                       </option>
                     ))}
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Emergency Medicine">Emergency Medicine</option>
+                    <option value="CUSTOM_DEPT">Other (Type custom department...)</option>
                   </select>
                 </div>
               </div>
+
+              {/* Conditional Custom Inputs if "Other" is chosen */}
+              {inviteInput.role === "CUSTOM_ROLE" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Role *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. LAB_TECHNICIAN, ACCOUNTANT"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={customRole}
+                    onChange={(e) => setCustomRole(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {inviteInput.departmentId === "CUSTOM_DEPT" && (
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Department *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dentistry, Nephrology Ward"
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={customDept}
+                    onChange={(e) => setCustomDept(e.target.value)}
+                  />
+                </div>
+              )}
 
               {inviteInput.role === "DOCTOR" && (
                 <div>
@@ -507,46 +569,80 @@ function StaffPageContent() {
                         {member.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right space-x-1.5 text-xs">
-                      {member.status === "Active" ? (
+                    <td className="p-4 text-right relative">
+                      <div className="inline-block text-left">
                         <button
-                          onClick={() => handleStatusChange(member._id, member.status, 'suspend')}
-                          className="px-2 h-7 border border-border text-[10px] font-bold text-destructive hover:bg-destructive/10 rounded cursor-pointer transition-colors"
+                          onClick={() => setActiveDropdownId(activeDropdownId === member._id ? null : member._id)}
+                          className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none transition-colors ml-auto"
                         >
-                          Suspend
+                          <MoreVertical className="h-4 w-4" />
                         </button>
-                      ) : member.status === "Suspended" ? (
-                        <button
-                          onClick={() => handleStatusChange(member._id, member.status, 'activate')}
-                          className="px-2 h-7 border border-border text-[10px] font-bold text-green-600 hover:bg-green-500/10 rounded cursor-pointer transition-colors"
-                        >
-                          Activate
-                        </button>
-                      ) : null}
-                      <button
-                        onClick={() => {
-                          setEditingStaff({
-                            _id: member._id,
-                            name: member.name,
-                            phone: member.phone || "",
-                            specialty: member.specialty || "",
-                            departmentId: member.departmentId?._id || "",
-                            status: member.status,
-                            role: member.role,
-                            email: member.email,
-                          });
-                          setIsEditOpen(true);
-                        }}
-                        className="px-2 h-7 border border-border text-[10px] font-bold text-primary hover:bg-primary/10 rounded cursor-pointer transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(member._id, member.status, 'delete')}
-                        className="px-2 h-7 border border-border text-[10px] font-bold text-muted-foreground hover:bg-muted rounded cursor-pointer transition-colors"
-                      >
-                        Deactivate
-                      </button>
+                        {activeDropdownId === member._id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setActiveDropdownId(null)} />
+                            <div className="absolute right-0 mt-1 w-32 rounded-lg border border-border bg-card shadow-lg z-20 py-1 text-left animate-in fade-in slide-in-from-top-1 duration-100">
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setEditingStaff({
+                                    _id: member._id,
+                                    name: member.name,
+                                    phone: member.phone || "",
+                                    specialty: member.specialty || "",
+                                    departmentId: member.departmentId?._id || "",
+                                    status: member.status,
+                                    role: member.role,
+                                    email: member.email,
+                                  });
+                                  setIsEditOpen(true);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-foreground flex items-center gap-2 cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              {member.status === "Active" ? (
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleStatusChange(member._id, member.status, 'suspend');
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-destructive flex items-center gap-2 cursor-pointer"
+                                >
+                                  Suspend
+                                </button>
+                              ) : (member.status === "Suspended" || member.status === "Inactive") ? (
+                                <button
+                                  onClick={() => {
+                                    setActiveDropdownId(null);
+                                    handleStatusChange(member._id, member.status, 'activate');
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-green-600 flex items-center gap-2 cursor-pointer"
+                                >
+                                  Activate
+                                </button>
+                              ) : null}
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setDeactivateConfirmId(member._id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-amber-600 flex items-center gap-2 cursor-pointer"
+                              >
+                                Deactivate
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownId(null);
+                                  setDeleteConfirmId(member._id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted font-bold text-red-600 flex items-center gap-2 cursor-pointer border-t border-border mt-1 pt-2"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -744,6 +840,66 @@ function StaffPageContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-foreground">Confirm Deletion</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete this staff member? This action cannot be undone and will revoke all access.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="h-9 px-4 border border-border hover:bg-muted text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const id = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  handleStatusChange(id, "", 'delete');
+                }}
+                className="h-9 px-4 bg-destructive hover:bg-destructive/90 text-white rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate Confirmation Modal */}
+      {deactivateConfirmId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-foreground">Confirm Deactivation</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to deactivate this staff member? This will set their status to Inactive and suspend their access.
+            </p>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setDeactivateConfirmId(null)}
+                className="h-9 px-4 border border-border hover:bg-muted text-foreground rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const id = deactivateConfirmId;
+                  setDeactivateConfirmId(null);
+                  handleStatusChange(id, "", 'deactivate');
+                }}
+                className="h-9 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Confirm Deactivate
+              </button>
+            </div>
           </div>
         </div>
       )}

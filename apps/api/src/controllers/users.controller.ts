@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { User } from '../models/User';
 import { Invitation } from '../models/AuthToken';
 import { Department } from '../models/Department';
@@ -35,6 +36,12 @@ function buildUserFilter(req: Request, roleFilter?: string | string[]): Record<s
   } else {
     // Exclude patients from general user lists (e.g. staff directories) by default
     filter.role = { $ne: 'PATIENT' };
+  }
+
+  // Super Admins can see all users including Pending (to monitor invitations).
+  // Other roles only see Active users unless they explicitly pass a status filter.
+  if (req.user?.role !== 'SUPER_ADMIN' && !req.query.status) {
+    filter.status = { $ne: 'Pending' };
   }
 
   return filter;
@@ -182,11 +189,9 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
 
     if (req.user) verifyAdminScope(req.user, targetUser);
 
-    targetUser.status = 'Inactive';
-    await targetUser.save();
+    await User.findByIdAndDelete(req.params.id);
 
-    const userRes = await User.findById(targetUser._id).select('-password');
-    sendSuccess(res, userRes, 'User deactivated successfully');
+    sendSuccess(res, null, 'User deleted completely from database');
   } catch (err) {
     next(err);
   }
@@ -199,11 +204,11 @@ export async function suspendUser(req: Request, res: Response, next: NextFunctio
 
     if (req.user) verifyAdminScope(req.user, targetUser);
 
-    targetUser.status = 'Suspended';
+    targetUser.status = 'Inactive';
     await targetUser.save();
 
     const userRes = await User.findById(targetUser._id).select('-password');
-    sendSuccess(res, userRes, 'User suspended');
+    sendSuccess(res, userRes, 'User status set to Inactive');
   } catch (err) {
     next(err);
   }
@@ -230,12 +235,13 @@ export async function activateUser(req: Request, res: Response, next: NextFuncti
 
 export async function listDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, hospitalId, departmentId, search, page = '1', limit = '20' } = req.query;
+    const { status, hospitalId, departmentId, specialty, search, page = '1', limit = '20' } = req.query;
     const filter = buildUserFilter(req, 'DOCTOR');
 
     if (status) filter.status = status;
     if (hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = hospitalId;
     if (departmentId) filter.departmentId = departmentId;
+    if (specialty) filter.specialty = specialty;
     if (search) filter.$or = [
       { name: { $regex: search, $options: 'i' } },
       { specialty: { $regex: search, $options: 'i' } },
@@ -271,10 +277,35 @@ export async function getDoctor(req: Request, res: Response, next: NextFunction)
   }
 }
 
-// Create doctor record + send invitation email
 export async function inviteDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { name, email, specialty, hospitalId, departmentId, tenantId, qualifications, experience, phone } = req.body;
+
+    // Clean empty strings for Mongoose ObjectId validation
+    let cleanDepartmentId = departmentId && departmentId !== "" ? departmentId : undefined;
+    const cleanHospitalId = hospitalId && hospitalId !== "" ? hospitalId : undefined;
+    const cleanTenantId = tenantId && tenantId !== "" ? tenantId : (req.user?.tenantId || undefined);
+
+    // Resolve or create department by name if a custom string is typed instead of a valid ObjectId
+    if (cleanDepartmentId && !mongoose.Types.ObjectId.isValid(cleanDepartmentId)) {
+      let dept = await Department.findOne({
+        name: { $regex: new RegExp(`^${cleanDepartmentId}$`, 'i') },
+        tenantId: cleanTenantId,
+      });
+      if (!dept) {
+        dept = await Department.create({
+          name: cleanDepartmentId,
+          tenantId: cleanTenantId,
+          hospitalId: cleanHospitalId,
+          status: 'Active',
+          doctorCount: 0,
+          patientCount: 0,
+          staffCount: 0,
+          nurseCount: 0
+        });
+      }
+      cleanDepartmentId = dept._id.toString();
+    }
 
     // Check for duplicate email
     const existing = await User.findOne({ email: email.toLowerCase() });
@@ -286,10 +317,10 @@ export async function inviteDoctor(req: Request, res: Response, next: NextFuncti
       email,
       password: 'password123',
       role: 'DOCTOR',
-      status: 'Active',
-      tenantId: tenantId || req.user?.tenantId,
-      hospitalId,
-      departmentId,
+      status: 'Pending',
+      tenantId: cleanTenantId,
+      hospitalId: cleanHospitalId,
+      departmentId: cleanDepartmentId,
       specialty,
       qualifications,
       experience,
@@ -297,7 +328,7 @@ export async function inviteDoctor(req: Request, res: Response, next: NextFuncti
     });
 
     // Generate invitation token
-    const { token, hash } = generateInvitationToken(doctor._id.toString(), doctor.email);
+    const { token, hash } = generateInvitationToken(doctor._id.toString(), doctor.email, name);
 
     // Store invitation in DB
     await Invitation.create({
@@ -305,28 +336,32 @@ export async function inviteDoctor(req: Request, res: Response, next: NextFuncti
       userId: doctor._id,
       email: doctor.email,
       role: 'DOCTOR',
-      hospitalId,
-      departmentId,
+      hospitalId: cleanHospitalId,
+      departmentId: cleanDepartmentId,
       expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
     });
 
     // Send invitation email
-    await sendDoctorInvitationEmail({
-      to: email,
-      name,
-      invitationToken: token,
-      portalUrl: env.frontends.doctorPortal,
-      role: 'DOCTOR',
-    });
+    try {
+      await sendDoctorInvitationEmail({
+        to: email,
+        name,
+        invitationToken: token,
+        portalUrl: env.frontends.doctorPortal,
+        role: 'DOCTOR',
+      });
+    } catch (mailErr: any) {
+      console.warn(`📧 Failed to send doctor invitation email to ${email}:`, mailErr.message);
+    }
 
     // Update department doctor count if department is assigned
-    if (departmentId) {
-      await Department.findByIdAndUpdate(departmentId, { $inc: { doctorCount: 1 } });
+    if (cleanDepartmentId) {
+      await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { doctorCount: 1 } });
     }
 
     // Update hospital doctor count
-    if (hospitalId) {
-      await Hospital.findByIdAndUpdate(hospitalId, { $inc: { doctorCount: 1 } });
+    if (cleanHospitalId) {
+      await Hospital.findByIdAndUpdate(cleanHospitalId, { $inc: { doctorCount: 1 } });
     }
 
     sendCreated(
@@ -356,13 +391,9 @@ export async function updateDoctor(req: Request, res: Response, next: NextFuncti
 
 export async function deleteDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const doctor = await User.findOneAndUpdate(
-      { _id: req.params.id, role: 'DOCTOR' },
-      { status: 'Inactive' },
-      { new: true }
-    ).select('-password');
+    const doctor = await User.findOneAndDelete({ _id: req.params.id, role: 'DOCTOR' });
     if (!doctor) throw new NotFoundError('Doctor not found');
-    sendSuccess(res, doctor, 'Doctor removed successfully');
+    sendSuccess(res, null, 'Doctor deleted completely from database');
   } catch (err) {
     next(err);
   }
@@ -374,6 +405,7 @@ export async function listNurses(req: Request, res: Response, next: NextFunction
   try {
     const filter = buildUserFilter(req, 'NURSE');
     if (req.query.status) filter.status = req.query.status;
+    if (req.query.hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = req.query.hospitalId;
     if (req.query.departmentId) filter.departmentId = req.query.departmentId;
 
     const nurses = await User.find(filter).select('-password').sort({ name: 1 });
@@ -387,9 +419,14 @@ export async function listNurses(req: Request, res: Response, next: NextFunction
 
 export async function listStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const filter = buildUserFilter(req, ['NURSE', 'RECEPTIONIST', 'STAFF']);
+    // Super Admin sees ALL non-patient staff (including doctors). Other roles see NURSE/RECEPTIONIST/STAFF only.
+    const roles = req.user?.role === 'SUPER_ADMIN'
+      ? ['NURSE', 'RECEPTIONIST', 'STAFF', 'DOCTOR', 'HOSPITAL_ADMIN', 'DEPT_ADMIN']
+      : ['NURSE', 'RECEPTIONIST', 'STAFF'];
+    const filter = buildUserFilter(req, roles);
     if (req.query.role) filter.role = req.query.role;
     if (req.query.status) filter.status = req.query.status;
+    if (req.query.hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = req.query.hospitalId;
     if (req.query.departmentId) filter.departmentId = req.query.departmentId;
 
     const staff = await User.find(filter).select('-password').sort({ name: 1 });
@@ -398,55 +435,80 @@ export async function listStaff(req: Request, res: Response, next: NextFunction)
     next(err);
   }
 }
-
-// Invite any non-doctor staff (nurse, receptionist, etc.)
 export async function inviteStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { name, email, role, hospitalId, departmentId, tenantId, phone } = req.body;
 
-    const validRoles = ['NURSE', 'RECEPTIONIST', 'STAFF', 'HOSPITAL_ADMIN', 'DEPT_ADMIN'];
-    if (!validRoles.includes(role)) {
-      throw new ForbiddenError(`Invalid role: ${role}`);
-    }
+    const validRoles = ['NURSE', 'RECEPTIONIST', 'STAFF', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'DOCTOR'];
+    const cleanedRole = role && typeof role === 'string' ? role.toUpperCase() : 'STAFF';
+    
+    // If it's not a standard system role, fallback to 'STAFF' for database schema compatibility
+    const dbRole = validRoles.includes(cleanedRole) ? cleanedRole : 'STAFF';
 
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) throw new ConflictError('A user with this email already exists');
+
+    // Clean empty strings for Mongoose ObjectId validation
+    let cleanDepartmentId = departmentId && departmentId !== "" ? departmentId : undefined;
+    const cleanHospitalId = hospitalId && hospitalId !== "" ? hospitalId : undefined;
+    const cleanTenantId = tenantId && tenantId !== "" ? tenantId : (req.user?.tenantId || undefined);
+
+    // Resolve or create department by name if a custom string is typed instead of a valid ObjectId
+    if (cleanDepartmentId && !mongoose.Types.ObjectId.isValid(cleanDepartmentId)) {
+      let dept = await Department.findOne({
+        name: { $regex: new RegExp(`^${cleanDepartmentId}$`, 'i') },
+        tenantId: cleanTenantId,
+      });
+      if (!dept) {
+        dept = await Department.create({
+          name: cleanDepartmentId,
+          tenantId: cleanTenantId,
+          hospitalId: cleanHospitalId,
+          status: 'Active',
+          doctorCount: 0,
+          patientCount: 0,
+          staffCount: 0,
+          nurseCount: 0
+        });
+      }
+      cleanDepartmentId = dept._id.toString();
+    }
 
     const staff = await User.create({
       name,
       email,
       password: 'password123',
-      role,
-      status: 'Active',
-      tenantId: tenantId || req.user?.tenantId,
-      hospitalId,
-      departmentId,
+      role: dbRole,
+      status: 'Pending',
+      tenantId: cleanTenantId,
+      hospitalId: cleanHospitalId,
+      departmentId: cleanDepartmentId,
       phone,
     });
 
-    const { token, hash } = generateInvitationToken(staff._id.toString(), staff.email);
+    const { token, hash } = generateInvitationToken(staff._id.toString(), staff.email, name);
 
     await Invitation.create({
       tokenHash: hash,
       userId: staff._id,
       email: staff.email,
-      role,
-      hospitalId,
-      departmentId,
+      role: dbRole,
+      hospitalId: cleanHospitalId,
+      departmentId: cleanDepartmentId,
       expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
     });
 
     // Determine portal URL based on role
-    const portalUrl = ['HOSPITAL_ADMIN', 'DEPT_ADMIN'].includes(role)
+    const portalUrl = ['HOSPITAL_ADMIN', 'DEPT_ADMIN'].includes(dbRole)
       ? env.frontends.hospitalAdmin
       : env.frontends.doctorPortal;
 
-    await sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role });
+    await sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role: dbRole });
 
     // Update department counts
-    if (departmentId) {
-      if (role === 'NURSE') await Department.findByIdAndUpdate(departmentId, { $inc: { nurseCount: 1 } });
-      else await Department.findByIdAndUpdate(departmentId, { $inc: { staffCount: 1 } });
+    if (cleanDepartmentId) {
+      if (dbRole === 'NURSE') await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { nurseCount: 1 } });
+      else await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { staffCount: 1 } });
     }
 
     sendCreated(res, { staff: staff.toJSON(), token }, 'Staff invited successfully');

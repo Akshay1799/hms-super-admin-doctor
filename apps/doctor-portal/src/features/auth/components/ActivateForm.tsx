@@ -27,14 +27,18 @@ interface DoctorInvitation {
 
 function decodeToken(token: string): any {
   try {
-    const cleaned = token.replace(/ /g, "+");
+    const parts = token.split('.');
+    const base64Str = parts.length === 3 ? parts[1] : token;
+    const cleaned = base64Str.replace(/-/g, '+').replace(/_/g, '/').replace(/ /g, "+");
     const str = typeof window !== "undefined"
       ? decodeURIComponent(escape(atob(cleaned)))
       : Buffer.from(cleaned, "base64").toString("utf-8");
     return JSON.parse(str);
   } catch {
     try {
-      const cleaned = token.replace(/ /g, "+");
+      const parts = token.split('.');
+      const base64Str = parts.length === 3 ? parts[1] : token;
+      const cleaned = base64Str.replace(/-/g, '+').replace(/_/g, '/').replace(/ /g, "+");
       const str = typeof window !== "undefined" ? atob(cleaned) : Buffer.from(cleaned, "base64").toString("utf-8");
       return JSON.parse(str);
     } catch {

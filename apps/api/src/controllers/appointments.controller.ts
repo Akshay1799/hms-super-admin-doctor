@@ -13,10 +13,11 @@ function buildFilter(req: Request): Record<string, unknown> {
 
 export async function listAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, type, doctorId, patientId, date, from, to, page = '1', limit = '50' } = req.query;
+    const { status, type, doctorId, patientId, hospitalId, date, from, to, page = '1', limit = '50' } = req.query;
     const filter = buildFilter(req);
 
     if (status) filter.status = status;
+    if (hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = hospitalId;
     if (type) filter.type = type;
     if (doctorId && req.user?.role !== 'DOCTOR') filter.doctorId = doctorId;
     if (patientId) filter.patientId = patientId;

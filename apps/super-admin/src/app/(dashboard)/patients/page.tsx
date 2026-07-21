@@ -5,8 +5,8 @@ import { PageContainer } from "@/components/ui/page-container";
 import { PageHeader } from "@/components/ui/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { PatientTable } from "@/features/clinical/components/PatientTable";
-import { usePatients } from "@/features/clinical/hooks/useClinical";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { useDoctors, usePatients } from "@/features/clinical/hooks/useClinical";
+import { useRealHospitals } from "@/features/hospitals/hooks/useRealHospitals";
 
 export default function PatientsPage() {
   const [search, setSearch] = useState("");
@@ -20,6 +20,8 @@ export default function PatientsPage() {
     gender: gender || undefined,
     status: status || undefined,
   });
+  const { data: doctors = [] } = useDoctors();
+  const { data: realHospitals = [] } = useRealHospitals();
 
   return (
     <PageContainer>
@@ -52,7 +54,7 @@ export default function PatientsPage() {
               className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="">All Locations</option>
-              {MOCK_HOSPITALS.map((h) => (
+              {realHospitals.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name}
                 </option>
@@ -83,12 +85,16 @@ export default function PatientsPage() {
             >
               <option value="">All Statuses</option>
               <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="Admitted">Admitted</option>
+              <option value="ICU">ICU</option>
+              <option value="Follow-up Due">Follow-up Due</option>
+              <option value="Discharged">Discharged</option>
+              <option value="Deceased">Deceased</option>
             </select>
           </div>
         </div>
 
-        <PatientTable data={patients} isLoading={isLoading} />
+        <PatientTable data={patients} isLoading={isLoading} hospitals={realHospitals} doctors={doctors} />
       </div>
     </PageContainer>
   );
