@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProd = nodeEnv === 'production';
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -11,9 +14,9 @@ function requireEnv(name: string): string {
 
 export const env = {
   port: parseInt(process.env.PORT || '5000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isDev: process.env.NODE_ENV !== 'production',
-  isProd: process.env.NODE_ENV === 'production',
+  nodeEnv,
+  isDev: !isProd,
+  isProd,
 
   mongoUri: requireEnv('MONGODB_URI'),
 
@@ -26,7 +29,7 @@ export const env = {
 
   frontends: {
     superAdmin: process.env.SUPER_ADMIN_URL || 'http://localhost:3001',
-    doctorPortal: process.env.DOCTOR_PORTAL_URL || 'http://localhost:3000',
+    doctorPortal: process.env.DOCTOR_PORTAL_URL || 'https://hms-super-admin-doctor-doctor-porta.vercel.app',
     hospitalAdmin: process.env.HOSPITAL_ADMIN_URL || 'http://localhost:3002',
     patientPortal: process.env.PATIENT_PORTAL_URL || 'http://localhost:3003',
   },
@@ -42,8 +45,8 @@ export const env = {
   },
 
   cookie: {
-    secure: process.env.COOKIE_SECURE === 'true',
-    sameSite: (process.env.COOKIE_SAME_SITE || 'lax') as 'lax' | 'strict' | 'none',
+    secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === 'true' : isProd,
+    sameSite: (process.env.COOKIE_SAME_SITE || (isProd ? 'none' : 'lax')) as 'lax' | 'strict' | 'none',
   },
 
   rateLimit: {

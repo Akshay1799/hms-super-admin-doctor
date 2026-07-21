@@ -30,12 +30,20 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration supporting all frontends
-const allowedOrigins = [
+const configuredOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const deployedDoctorPortalOrigin = 'https://hms-super-admin-doctor-doctor-porta.vercel.app';
+
+const allowedOrigins = [...new Set([
   env.frontends.superAdmin,
   env.frontends.doctorPortal,
   env.frontends.hospitalAdmin,
   env.frontends.patientPortal,
-];
+  deployedDoctorPortalOrigin,
+  ...configuredOrigins,
+])];
 
 app.use(
   cors({
