@@ -49,7 +49,7 @@ export interface Appointment {
   hospitalName: string;
   date: string;
   timeSlot: string;
-  status: "Completed" | "Pending" | "Cancelled" | "Rescheduled";
+  status: "Scheduled" | "Waiting" | "In Progress" | "Completed" | "Cancelled" | "No Show" | "Pending" | "Rescheduled";
 }
 
 export interface Nurse {
