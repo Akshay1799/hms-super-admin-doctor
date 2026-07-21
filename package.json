@@ -21,6 +21,10 @@
     "build:all": "npm run build -w super-admin && npm run build -w doctor-portal && npm run build -w hospital-admin && npm run build -w patient-portal && npm run build -w api"
   },
   "devDependencies": {
-    "concurrently": "^10.0.3"
+    "concurrently": "^9.2.4"
+  },
+  "dependencies": {
+    "next": "^16.2.10",
+    "nodemailer": "9.0.3"
   }
 }
