@@ -4,24 +4,31 @@ import { logger } from './logger';
 
 // Create transporter only if SMTP is configured
 const transporter = env.smtp.enabled
-  ? nodemailer.createTransport({
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      host: env.smtp.host,
-      port: env.smtp.port,
-      secure: env.smtp.port === 465,
-      auth: {
-        user: env.smtp.user,
-        pass: env.smtp.pass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 5000,
-      socketTimeout: 15000,
-    })
+  ? nodemailer.createTransport(
+      (env.smtp.host.includes('gmail')
+        ? {
+            service: 'gmail',
+            auth: {
+              user: env.smtp.user,
+              pass: env.smtp.pass,
+            },
+          }
+        : {
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100,
+            host: env.smtp.host,
+            port: env.smtp.port,
+            secure: env.smtp.port === 465,
+            auth: {
+              user: env.smtp.user,
+              pass: env.smtp.pass,
+            },
+            tls: {
+              rejectUnauthorized: false,
+            },
+          }) as any
+    )
   : null;
 
 async function sendEmail(options: {
@@ -45,11 +52,6 @@ async function sendEmail(options: {
     subject: options.subject,
     html: options.html,
     text: options.text || options.subject,
-    headers: {
-      'X-Priority': '1 (Highest)',
-      'X-MSMail-Priority': 'High',
-      'Importance': 'High',
-    },
   });
 
   logger.info(`📧 Email sent to ${options.to}: ${options.subject}`);

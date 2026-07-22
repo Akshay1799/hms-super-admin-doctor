@@ -200,11 +200,15 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
       ? env.frontends.hospitalAdmin
       : env.frontends.superAdmin;
 
-    await sendPasswordResetEmail({
-      to: user.email,
-      name: user.name,
-      resetToken: token,
-      portalUrl,
+    setImmediate(() => {
+      sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetToken: token,
+        portalUrl,
+      }).catch((mailErr: any) => {
+        console.warn(`📧 Failed to send password reset email to ${user.email}:`, mailErr?.message || mailErr);
+      });
     });
 
     sendSuccess(res, null, 'If this email exists, a reset link has been sent.');
