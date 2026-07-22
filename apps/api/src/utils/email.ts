@@ -33,12 +33,20 @@ async function sendEmail(options: {
     return;
   }
 
+  const senderEmail = env.smtp.user || env.smtp.from;
+
   await transporter.sendMail({
-    from: `"${env.smtp.fromName}" <${env.smtp.from}>`,
+    from: `"${env.smtp.fromName}" <${senderEmail}>`,
+    replyTo: senderEmail,
     to: options.to,
     subject: options.subject,
     html: options.html,
-    text: options.text,
+    text: options.text || options.subject,
+    headers: {
+      'X-Priority': '1 (Highest)',
+      'X-MSMail-Priority': 'High',
+      'Importance': 'High',
+    },
   });
 
   logger.info(`📧 Email sent to ${options.to}: ${options.subject}`);

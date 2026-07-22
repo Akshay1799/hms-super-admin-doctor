@@ -160,7 +160,7 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
           email: patient.email.toLowerCase(),
           password: 'password123',
           role: 'PATIENT',
-          status: 'Active',
+          status: 'Pending',
           tenantId: patient.tenantId,
           hospitalId: patient.hospitalId,
           departmentId: patient.departmentId,
@@ -168,7 +168,7 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
         });
       }
 
-      const { token, hash } = generateInvitationToken(dbUser._id.toString(), dbUser.email);
+      const { token, hash } = generateInvitationToken(dbUser._id.toString(), dbUser.email, dbUser.name);
 
       await Invitation.create({
         tokenHash: hash,
@@ -180,16 +180,16 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
         expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
       });
 
-      try {
-        await sendPatientInvitationEmail({
+      setImmediate(() => {
+        sendPatientInvitationEmail({
           to: dbUser.email,
           name: dbUser.name,
           invitationToken: token,
-          portalUrl: env.frontends.patientPortal || 'http://localhost:3000',
+          portalUrl: env.frontends.patientPortal || 'http://localhost:3003',
+        }).catch((mailErr: any) => {
+          console.warn(`📧 Failed to send patient invitation email to ${dbUser.email}:`, mailErr?.message || mailErr);
         });
-      } catch (mailErr: any) {
-        console.warn(`📧 Failed to send patient invitation email to ${dbUser.email}:`, mailErr.message);
-      }
+      });
     }
 
     sendCreated(res, patient, 'Patient created successfully');

@@ -3,7 +3,7 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 
-// Trigger restart to reload non-blocking email transport & SMTP configurations
+// Trigger restart to reload email deliverability configurations & patient invitation fixes
 async function startServer() {
   try {
     // 1. Connect to MongoDB Atlas
