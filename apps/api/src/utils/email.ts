@@ -48,11 +48,15 @@ export async function sendDoctorInvitationEmail(options: {
   role?: string;
 }): Promise<void> {
   const activationLink = `${options.portalUrl}/activate-account?token=${options.invitationToken}`;
-  const roleLabel = options.role === 'HOSPITAL_ADMIN'
-    ? 'Hospital Administrator'
-    : options.role === 'DEPT_ADMIN'
-    ? 'Department Administrator'
-    : 'Doctor';
+  const roleLabels: Record<string, string> = {
+    HOSPITAL_ADMIN: 'Hospital Administrator',
+    DEPT_ADMIN: 'Department Administrator',
+    DOCTOR: 'Doctor',
+    NURSE: 'Nurse',
+    RECEPTIONIST: 'Receptionist',
+    STAFF: 'Staff Member',
+  };
+  const roleLabel = (options.role && roleLabels[options.role]) ? roleLabels[options.role] : (options.role || 'Staff Member');
 
   await sendEmail({
     to: options.to,

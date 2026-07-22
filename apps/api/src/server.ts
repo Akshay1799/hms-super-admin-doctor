@@ -3,7 +3,7 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 
-// Trigger restart to reload SMTP configurations & JWT parameters
+// Trigger restart to reload server with yn dependency ready
 async function startServer() {
   try {
     // 1. Connect to MongoDB Atlas

@@ -450,7 +450,7 @@ export async function inviteStaff(req: Request, res: Response, next: NextFunctio
 
     // Clean empty strings for Mongoose ObjectId validation
     let cleanDepartmentId = departmentId && departmentId !== "" ? departmentId : undefined;
-    const cleanHospitalId = hospitalId && hospitalId !== "" ? hospitalId : undefined;
+    const cleanHospitalId = hospitalId && hospitalId !== "" ? hospitalId : (req.user?.hospitalId || undefined);
     const cleanTenantId = tenantId && tenantId !== "" ? tenantId : (req.user?.tenantId || undefined);
 
     // Resolve or create department by name if a custom string is typed instead of a valid ObjectId
@@ -503,12 +503,24 @@ export async function inviteStaff(req: Request, res: Response, next: NextFunctio
       ? env.frontends.hospitalAdmin
       : env.frontends.doctorPortal;
 
-    await sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role: dbRole });
+    // Send invitation email (wrapped in try/catch to ensure API succeeds even if mail transport encounters network issues)
+    try {
+      await sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role: dbRole });
+    } catch (mailErr: any) {
+      console.warn(`📧 Failed to send staff invitation email to ${email}:`, mailErr?.message || mailErr);
+    }
 
     // Update department counts
     if (cleanDepartmentId) {
       if (dbRole === 'NURSE') await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { nurseCount: 1 } });
+      else if (dbRole === 'DOCTOR') await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { doctorCount: 1 } });
       else await Department.findByIdAndUpdate(cleanDepartmentId, { $inc: { staffCount: 1 } });
+    }
+
+    // Update hospital counts
+    if (cleanHospitalId) {
+      if (dbRole === 'DOCTOR') await Hospital.findByIdAndUpdate(cleanHospitalId, { $inc: { doctorCount: 1 } });
+      else await Hospital.findByIdAndUpdate(cleanHospitalId, { $inc: { staffCount: 1 } });
     }
 
     sendCreated(res, { staff: staff.toJSON(), token }, 'Staff invited successfully');
