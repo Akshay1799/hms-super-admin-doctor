@@ -12,6 +12,12 @@ const transporter = env.smtp.enabled
         user: env.smtp.user,
         pass: env.smtp.pass,
       },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 15000,
     })
   : null;
 

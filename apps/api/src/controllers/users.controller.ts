@@ -341,18 +341,18 @@ export async function inviteDoctor(req: Request, res: Response, next: NextFuncti
       expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
     });
 
-    // Send invitation email
-    try {
-      await sendDoctorInvitationEmail({
+    // Send invitation email asynchronously so API responds immediately to client
+    setImmediate(() => {
+      sendDoctorInvitationEmail({
         to: email,
         name,
         invitationToken: token,
         portalUrl: env.frontends.doctorPortal,
         role: 'DOCTOR',
+      }).catch((mailErr: any) => {
+        console.warn(`📧 Failed to send doctor invitation email to ${email}:`, mailErr?.message || mailErr);
       });
-    } catch (mailErr: any) {
-      console.warn(`📧 Failed to send doctor invitation email to ${email}:`, mailErr.message);
-    }
+    });
 
     // Update department doctor count if department is assigned
     if (cleanDepartmentId) {
@@ -503,12 +503,12 @@ export async function inviteStaff(req: Request, res: Response, next: NextFunctio
       ? env.frontends.hospitalAdmin
       : env.frontends.doctorPortal;
 
-    // Send invitation email (wrapped in try/catch to ensure API succeeds even if mail transport encounters network issues)
-    try {
-      await sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role: dbRole });
-    } catch (mailErr: any) {
-      console.warn(`📧 Failed to send staff invitation email to ${email}:`, mailErr?.message || mailErr);
-    }
+    // Send invitation email asynchronously so API responds immediately to client
+    setImmediate(() => {
+      sendDoctorInvitationEmail({ to: email, name, invitationToken: token, portalUrl, role: dbRole }).catch((mailErr: any) => {
+        console.warn(`📧 Failed to send staff invitation email to ${email}:`, mailErr?.message || mailErr);
+      });
+    });
 
     // Update department counts
     if (cleanDepartmentId) {

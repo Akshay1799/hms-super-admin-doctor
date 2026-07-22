@@ -45,6 +45,7 @@ function StaffPageContent() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<StaffMember | null>(null);
@@ -125,6 +126,7 @@ function StaffPageContent() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const endpoint = finalRole.toUpperCase() === "DOCTOR" ? "/users/doctors/invite" : "/users/staff/invite";
       await apiClient.post(endpoint, {
@@ -150,6 +152,8 @@ function StaffPageContent() {
       fetchStaff();
     } catch (err: any) {
       toast.error(err.message || "Failed to send invitation");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -379,9 +383,17 @@ function StaffPageContent() {
                 </button>
                 <button
                   type="submit"
-                  className="h-10 px-4 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-semibold cursor-pointer"
+                  disabled={isSubmitting}
+                  className="h-10 px-4 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
-                  Send Invitation
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    "Send Invitation"
+                  )}
                 </button>
               </div>
             </form>
