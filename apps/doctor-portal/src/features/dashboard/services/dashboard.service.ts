@@ -9,7 +9,8 @@ export const dashboardService = {
 
     // Fetch the list of patients under this doctor to generate real telemetry alerts and prescriptions
     const patRes = await apiClient.get('/patients');
-    const patientList = patRes.data.data || [];
+    const rawPat = patRes.data?.data;
+    const patientList = Array.isArray(rawPat) ? rawPat : (rawPat?.data || []);
 
     // Generate real alerts from patients
     const alerts = patientList

@@ -98,10 +98,29 @@ export async function getHospitalDashboard(req: Request, res: Response, next: Ne
 export async function getDoctorDashboard(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const doctorId = req.user?._id;
+    const hospitalId = req.user?.hospitalId;
+    const tenantId = req.user?.tenantId;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const docFilter = {
+      $or: [
+        { assignedDoctorId: doctorId },
+        { hospitalId: hospitalId },
+        { tenantId: tenantId },
+      ].filter(cond => Object.values(cond)[0] !== undefined)
+    };
+
+    const aptFilter = {
+      $or: [
+        { doctorId: doctorId },
+        { hospitalId: hospitalId },
+      ].filter(cond => Object.values(cond)[0] !== undefined),
+      date: { $gte: today, $lt: tomorrow },
+    };
 
     const [
       totalPatients,
@@ -110,19 +129,11 @@ export async function getDoctorDashboard(req: Request, res: Response, next: Next
       criticalPatients,
       followUpDue,
     ] = await Promise.all([
-      Patient.countDocuments({ assignedDoctorId: doctorId }),
-      Appointment.countDocuments({
-        doctorId,
-        date: { $gte: today, $lt: tomorrow },
-        status: { $ne: 'Cancelled' },
-      }),
-      Appointment.countDocuments({
-        doctorId,
-        date: { $gte: today, $lt: tomorrow },
-        status: 'Waiting',
-      }),
-      Patient.countDocuments({ assignedDoctorId: doctorId, status: 'ICU' }),
-      Patient.countDocuments({ assignedDoctorId: doctorId, status: 'Follow-up Due' }),
+      Patient.countDocuments(docFilter),
+      Appointment.countDocuments({ ...aptFilter, status: { $ne: 'Cancelled' } }),
+      Appointment.countDocuments({ ...aptFilter, status: 'Waiting' }),
+      Patient.countDocuments({ ...docFilter, status: 'ICU' }),
+      Patient.countDocuments({ ...docFilter, status: { $in: ['Follow-up Due', 'Active', 'Admitted'] } }),
     ]);
 
     sendSuccess(res, {

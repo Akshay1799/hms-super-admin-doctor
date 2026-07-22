@@ -460,11 +460,16 @@ export async function inviteStaff(req: Request, res: Response, next: NextFunctio
         tenantId: cleanTenantId,
       });
       if (!dept) {
+        const generatedCode = cleanDepartmentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'DEPT';
         dept = await Department.create({
           name: cleanDepartmentId,
+          code: `${generatedCode}-${Date.now().toString().slice(-4)}`,
+          type: 'other',
           tenantId: cleanTenantId,
           hospitalId: cleanHospitalId,
           status: 'Active',
+          totalBeds: 0,
+          occupiedBeds: 0,
           doctorCount: 0,
           patientCount: 0,
           staffCount: 0,

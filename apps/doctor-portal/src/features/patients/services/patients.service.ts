@@ -27,7 +27,9 @@ function normalizePatient(p: any): Patient {
 export const patientsService = {
   async getPatients(doctorId?: string): Promise<Patient[]> {
     const res = await apiClient.get('/patients');
-    return (res.data.data || []).map(normalizePatient);
+    const rawData = res.data?.data;
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return list.map(normalizePatient);
   },
 
   async getPatientById(id: string): Promise<Patient> {

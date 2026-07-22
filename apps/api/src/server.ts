@@ -3,7 +3,7 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 
-// Trigger restart to reload verified clean Gmail deliverability transport
+// Trigger restart to reload Department schema validation fixes for custom department creation
 async function startServer() {
   try {
     // 1. Connect to MongoDB Atlas

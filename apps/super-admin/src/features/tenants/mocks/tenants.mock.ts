@@ -4,14 +4,20 @@ export const MOCK_TENANTS: Tenant[] = [
   { id: "1", name: "Apollo Health Group", code: "APOLLO", plan: "Enterprise", status: "Active", hospitalCount: 14, branchCount: 28, userCount: 1840, storageUsed: 1420, createdAt: "2026-01-12" },
   { id: "2", name: "CareFirst Clinics", code: "CAREFIRST", plan: "Professional", status: "Trial", hospitalCount: 3, branchCount: 6, userCount: 120, storageUsed: 92, createdAt: "2026-05-20" },
   { id: "3", name: "Sutter Regional Labs", code: "SUTTER", plan: "Basic", status: "Inactive", hospitalCount: 1, branchCount: 2, userCount: 45, storageUsed: 22, createdAt: "2026-04-15" },
-  { id: "4", name: "Max Medical Solutions", code: "MAXMED", plan: "Enterprise", status: "Suspended", hospitalCount: 22, branchCount: 44, userCount: 2900, storageUsed: 3100, createdAt: "2025-11-01" },
+  { id: "4", name: "Max Medical Solutions", code: "MAXMED", plan: "Enterprise", status: "Active", hospitalCount: 22, branchCount: 44, userCount: 2900, storageUsed: 3100, createdAt: "2025-11-01" },
+  { id: "5", name: "Fortis Healthcare Network", code: "FORTIS", plan: "Enterprise", status: "Active", hospitalCount: 18, branchCount: 36, userCount: 2150, storageUsed: 2400, createdAt: "2026-02-10" },
+  { id: "6", name: "CityCare Hospital System", code: "CITYCARE", plan: "Professional", status: "Active", hospitalCount: 5, branchCount: 10, userCount: 380, storageUsed: 310, createdAt: "2026-03-15" },
+  { id: "7", name: "Metro Health Institute", code: "METRO", plan: "Professional", status: "Active", hospitalCount: 4, branchCount: 8, userCount: 290, storageUsed: 215, createdAt: "2026-03-28" },
 ];
 
 export const MOCK_SUBSCRIPTIONS: Record<string, TenantSubscription> = {
   "1": { plan: "Enterprise", renewalDate: "2027-01-12", billingCycle: "Yearly", status: "Active", amount: 15000 },
   "2": { plan: "Professional", renewalDate: "2026-06-20", billingCycle: "Monthly", status: "Trial", amount: 450 },
   "3": { plan: "Basic", renewalDate: "2026-07-15", billingCycle: "Monthly", status: "Inactive", amount: 150 },
-  "4": { plan: "Enterprise", renewalDate: "2026-11-01", billingCycle: "Yearly", status: "Suspended", amount: 12000 },
+  "4": { plan: "Enterprise", renewalDate: "2026-11-01", billingCycle: "Yearly", status: "Active", amount: 12000 },
+  "5": { plan: "Enterprise", renewalDate: "2027-02-10", billingCycle: "Yearly", status: "Active", amount: 14000 },
+  "6": { plan: "Professional", renewalDate: "2026-09-15", billingCycle: "Monthly", status: "Active", amount: 650 },
+  "7": { plan: "Professional", renewalDate: "2026-09-28", billingCycle: "Monthly", status: "Active", amount: 550 },
 };
 
 export const MOCK_DOMAINS: Record<string, TenantDomain> = {
@@ -19,6 +25,9 @@ export const MOCK_DOMAINS: Record<string, TenantDomain> = {
   "2": { id: "d-2", primaryDomain: "carefirst.medichain.com", sslEnabled: true, verified: true },
   "3": { id: "d-3", primaryDomain: "sutter.medichain.com", sslEnabled: true, verified: false },
   "4": { id: "d-4", primaryDomain: "maxmed.medichain.com", customDomain: "governance.maxmedical.com", sslEnabled: true, verified: true },
+  "5": { id: "d-5", primaryDomain: "fortis.medichain.com", customDomain: "portal.fortishealthcare.com", sslEnabled: true, verified: true },
+  "6": { id: "d-6", primaryDomain: "citycare.medichain.com", sslEnabled: true, verified: true },
+  "7": { id: "d-7", primaryDomain: "metrohealth.medichain.com", sslEnabled: true, verified: true },
 };
 
 export const MOCK_FEATURE_FLAGS: Record<string, FeatureFlags> = {
@@ -26,6 +35,9 @@ export const MOCK_FEATURE_FLAGS: Record<string, FeatureFlags> = {
   "2": { emr: true, appointments: true, billing: true, pharmacy: false, inventory: false, laboratory: false, radiology: false, insurance: false, telemedicine: false, notifications: true, reports: true },
   "3": { emr: true, appointments: true, billing: true, pharmacy: false, inventory: false, laboratory: false, radiology: false, insurance: false, telemedicine: false, notifications: false, reports: false },
   "4": { emr: true, appointments: true, billing: true, pharmacy: true, inventory: true, laboratory: true, radiology: true, insurance: true, telemedicine: true, notifications: true, reports: true },
+  "5": { emr: true, appointments: true, billing: true, pharmacy: true, inventory: true, laboratory: true, radiology: true, insurance: true, telemedicine: true, notifications: true, reports: true },
+  "6": { emr: true, appointments: true, billing: true, pharmacy: true, inventory: true, laboratory: true, radiology: false, insurance: true, telemedicine: false, notifications: true, reports: true },
+  "7": { emr: true, appointments: true, billing: true, pharmacy: true, inventory: true, laboratory: true, radiology: false, insurance: true, telemedicine: true, notifications: true, reports: true },
 };
 
 export const MOCK_QUOTAS: Record<string, UsageQuota> = {
@@ -63,7 +75,34 @@ export const MOCK_QUOTAS: Record<string, UsageQuota> = {
     staff: { current: 2340, max: 3000 },
     patients: { current: 45600, max: 50000 },
     storage: { current: 3100, max: 5000 },
-    apiCalls: { current: 890000, max: 1000000 },
+    apiCalls: { current: 780000, max: 1000000 },
+  },
+  "5": {
+    hospitals: { current: 18, max: 20 },
+    branches: { current: 36, max: 40 },
+    doctors: { current: 420, max: 500 },
+    staff: { current: 1730, max: 2000 },
+    patients: { current: 31200, max: 40000 },
+    storage: { current: 2400, max: 4000 },
+    apiCalls: { current: 620000, max: 800000 },
+  },
+  "6": {
+    hospitals: { current: 5, max: 10 },
+    branches: { current: 10, max: 20 },
+    doctors: { current: 85, max: 150 },
+    staff: { current: 295, max: 400 },
+    patients: { current: 6400, max: 10000 },
+    storage: { current: 310, max: 1000 },
+    apiCalls: { current: 110000, max: 250000 },
+  },
+  "7": {
+    hospitals: { current: 4, max: 8 },
+    branches: { current: 8, max: 15 },
+    doctors: { current: 65, max: 120 },
+    staff: { current: 225, max: 300 },
+    patients: { current: 4800, max: 8000 },
+    storage: { current: 215, max: 800 },
+    apiCalls: { current: 89000, max: 200000 },
   },
 };
 

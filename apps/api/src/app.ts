@@ -27,9 +27,14 @@ import checkoutRoutes from './routes/checkout.routes';
 const app = express();
 
 // Standard middleware
-app.use(helmet());
+// Standard security middleware configured for multi-domain cross-origin API
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
-// CORS configuration supporting all frontends
+// CORS configuration supporting all frontends in local development & production
 const configuredOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -46,15 +51,44 @@ const allowedOrigins = [...new Set([
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or if it matches allowedOrigins
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        logger.warn(`CORS blocked request from origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+      // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
+      if (!origin) {
+        return callback(null, true);
       }
+
+      // Allow explicitly configured origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow all localhost and 127.0.0.1 development ports (3000, 3001, 3002, 3003, etc.)
+      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow all Vercel deployment preview and production domains (*.vercel.app)
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow wildcard if configured in environment
+      if (process.env.CORS_ALLOWED_ORIGINS === '*') {
+        return callback(null, true);
+      }
+
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Portal-Type',
+      'Accept',
+      'Origin',
+    ],
   })
 );
 

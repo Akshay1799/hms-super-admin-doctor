@@ -96,6 +96,52 @@ export default function BedOccupancyPage() {
             </div>
           </ChartCard>
         </div>
+
+        {/* Master Hospital & Tenant Bed Occupancy Table */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4 shadow-sm">
+          <div>
+            <h3 className="text-lg font-bold text-foreground">Multi-Hospital & Tenant Bed Directory</h3>
+            <p className="text-sm text-muted-foreground">Complete capacity distribution across all supervised healthcare facilities.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
+                <tr>
+                  <th className="px-4 py-3">Hospital / Facility</th>
+                  <th className="px-4 py-3">Total Beds</th>
+                  <th className="px-4 py-3">Occupied</th>
+                  <th className="px-4 py-3">Available</th>
+                  <th className="px-4 py-3">ICU Beds</th>
+                  <th className="px-4 py-3">Emergency Beds</th>
+                  <th className="px-4 py-3 text-right">Occupancy Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {hospitalDistribution.map((h: any) => {
+                  const rate = Math.round((h.occupied / h.beds) * 100);
+                  const available = h.beds - h.occupied;
+                  return (
+                    <tr key={h.name} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-foreground">{h.name}</td>
+                      <td className="px-4 py-3 font-mono">{h.beds}</td>
+                      <td className="px-4 py-3 font-mono text-amber-600 font-semibold">{h.occupied}</td>
+                      <td className="px-4 py-3 font-mono text-emerald-600 font-semibold">{available}</td>
+                      <td className="px-4 py-3 font-mono text-sky-600">{h.icuBeds || Math.round(h.beds * 0.15)}</td>
+                      <td className="px-4 py-3 font-mono text-rose-600">{h.emergencyBeds || Math.round(h.beds * 0.05)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          rate > 85 ? "bg-rose-500/15 text-rose-600" : rate > 75 ? "bg-amber-500/15 text-amber-600" : "bg-emerald-500/15 text-emerald-600"
+                        }`}>
+                          {rate}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </PageContainer>
   );

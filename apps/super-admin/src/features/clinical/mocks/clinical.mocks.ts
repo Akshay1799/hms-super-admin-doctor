@@ -44,34 +44,37 @@ export const MOCK_ADMISSIONS: Admission[] = [
 ];
 
 export const MOCK_BED_OCCUPANCY: BedOccupancy = {
-  totalBeds: 910, // Cumulative (h-1: 250 + h-2: 50 + h-3: 0 + h-4: 10 + h-5: 600)
-  occupiedBeds: 717,
-  availableBeds: 193,
-  icuBeds: 155,
-  emergencyBeds: 15,
+  totalBeds: 1540,
+  occupiedBeds: 1195,
+  availableBeds: 345,
+  icuBeds: 240,
+  emergencyBeds: 95,
 };
 
 export const MOCK_CLINICAL_ANALYTICS = {
-  averageWaitTime: 18.5, // in minutes
+  averageWaitTime: 16.8, // in minutes
   occupancyTrend: [
-    { name: "Jan", occupancy: 65 },
-    { name: "Feb", occupancy: 70 },
-    { name: "Mar", occupancy: 75 },
-    { name: "Apr", occupancy: 72 },
-    { name: "May", occupancy: 78 },
-    { name: "Jun", occupancy: 82 },
+    { name: "Jan", occupancy: 68 },
+    { name: "Feb", occupancy: 72 },
+    { name: "Mar", occupancy: 76 },
+    { name: "Apr", occupancy: 74 },
+    { name: "May", occupancy: 80 },
+    { name: "Jun", occupancy: 85 },
   ],
   departmentPerformance: [
-    { name: "Cardiology", appointments: 420, rating: 4.8 },
-    { name: "Neurology", appointments: 310, rating: 4.6 },
-    { name: "Orthopedics", appointments: 280, rating: 4.5 },
-    { name: "Radiology", appointments: 190, rating: 4.4 },
-    { name: "Emergency", appointments: 540, rating: 4.7 },
+    { name: "Cardiology", appointments: 520, rating: 4.8 },
+    { name: "Neurology", appointments: 380, rating: 4.7 },
+    { name: "Orthopedics", appointments: 340, rating: 4.6 },
+    { name: "Radiology", appointments: 260, rating: 4.5 },
+    { name: "Emergency & ICU", appointments: 680, rating: 4.9 },
+    { name: "Pediatrics", appointments: 290, rating: 4.6 },
   ],
   hospitalDistribution: [
-    { name: "Apollo Main", beds: 250, occupied: 190 },
-    { name: "Apollo Cardiac", beds: 50, occupied: 35 },
-    { name: "Sutter Regional", beds: 10, occupied: 6 },
-    { name: "Max Medical", beds: 600, occupied: 480 },
+    { name: "Apollo Main Hospital", beds: 350, occupied: 280, icuBeds: 50, emergencyBeds: 20 },
+    { name: "Apollo Cardiac Clinic", beds: 120, occupied: 95, icuBeds: 30, emergencyBeds: 10 },
+    { name: "Max Medical Center", beds: 450, occupied: 360, icuBeds: 70, emergencyBeds: 25 },
+    { name: "Fortis Healthcare Node", beds: 300, occupied: 230, icuBeds: 45, emergencyBeds: 20 },
+    { name: "CityCare Specialty Hospital", beds: 200, occupied: 150, icuBeds: 30, emergencyBeds: 12 },
+    { name: "Metro Health Institute", beds: 120, occupied: 80, icuBeds: 15, emergencyBeds: 8 },
   ],
 };

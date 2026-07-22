@@ -28,7 +28,15 @@ function buildPatientFilter(req: Request): Record<string, unknown> {
   }
 
   if (req.user?.role === 'DOCTOR') {
-    filter.assignedDoctorId = req.user._id;
+    const docId = req.user._id;
+    const hospId = req.user.hospitalId;
+    const tenId = req.user.tenantId;
+    
+    filter.$or = [
+      { assignedDoctorId: docId },
+      { hospitalId: hospId },
+      { tenantId: tenId }
+    ].filter(cond => Object.values(cond)[0] !== undefined);
   }
 
   return filter;
@@ -128,6 +136,7 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
       tenantId: req.body.tenantId || req.user?.tenantId,
       hospitalId: req.body.hospitalId || req.user?.hospitalId,
       departmentId: req.body.departmentId || (req.user?.role === 'DEPT_ADMIN' ? req.user.departmentId : undefined),
+      assignedDoctorId: req.body.assignedDoctorId || (req.user?.role === 'DOCTOR' ? req.user._id : undefined),
     });
 
     // Update department patient count
