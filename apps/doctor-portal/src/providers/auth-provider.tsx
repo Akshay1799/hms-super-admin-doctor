@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && pathname === ROUTES.login) {
       router.push(ROUTES.dashboard);
     } else if (isAuthenticated && useAuthStore.getState().user) {
-      const allowedRoles = ["DOCTOR", "NURSE", "SUPER_ADMIN"];
+      const allowedRoles = ["DOCTOR", "NURSE", "RECEPTIONIST", "STAFF", "DEPT_ADMIN", "HOSPITAL_ADMIN", "TENANT_ADMIN", "SUPER_ADMIN"];
       const userRole = useAuthStore.getState().user?.role;
       if (userRole && !allowedRoles.includes(userRole)) {
         useAuthStore.getState().logout();

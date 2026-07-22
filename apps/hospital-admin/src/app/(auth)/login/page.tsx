@@ -55,7 +55,7 @@ function LoginFormContent() {
       });
 
       const payload = res.data.data;
-      const allowedRoles = ["SUPER_ADMIN", "HOSPITAL_ADMIN", "DEPT_ADMIN"];
+      const allowedRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "HOSPITAL_ADMIN", "DEPT_ADMIN", "RECEPTIONIST", "NURSE", "STAFF"];
 
       if (!allowedRoles.includes(payload.user.role)) {
         setIsPending(false);

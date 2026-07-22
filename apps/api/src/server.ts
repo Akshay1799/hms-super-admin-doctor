@@ -3,7 +3,7 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 
-// Trigger restart to reload Department schema validation fixes for custom department creation
+// Trigger restart to reload staff invitation portal URL routing for non-doctor roles
 async function startServer() {
   try {
     // 1. Connect to MongoDB Atlas

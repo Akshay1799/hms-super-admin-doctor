@@ -503,10 +503,10 @@ export async function inviteStaff(req: Request, res: Response, next: NextFunctio
       expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
     });
 
-    // Determine portal URL based on role
-    const portalUrl = ['HOSPITAL_ADMIN', 'DEPT_ADMIN'].includes(dbRole)
-      ? env.frontends.hospitalAdmin
-      : env.frontends.doctorPortal;
+    // Determine portal URL based on role (Doctors go to Doctor Portal, all other staff go to Hospital Admin)
+    const portalUrl = req.body.portalUrl || (dbRole === 'DOCTOR'
+      ? env.frontends.doctorPortal
+      : env.frontends.hospitalAdmin);
 
     // Send invitation email asynchronously so API responds immediately to client
     setImmediate(() => {

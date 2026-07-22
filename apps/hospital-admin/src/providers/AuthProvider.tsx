@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/dashboard");
     } else if (isAuthenticated && user) {
       // Ensure only correct roles enter this portal
-      const allowedRoles = ["SUPER_ADMIN", "HOSPITAL_ADMIN", "DEPT_ADMIN", "RECEPTIONIST", "STAFF"];
+      const allowedRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "HOSPITAL_ADMIN", "DEPT_ADMIN", "RECEPTIONIST", "NURSE", "STAFF"];
       if (user.role && !allowedRoles.includes(user.role)) {
         logout();
         router.push("/login");
