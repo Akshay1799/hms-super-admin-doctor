@@ -5,6 +5,9 @@ import { logger } from './logger';
 // Create transporter only if SMTP is configured
 const transporter = env.smtp.enabled
   ? nodemailer.createTransport({
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
       host: env.smtp.host,
       port: env.smtp.port,
       secure: env.smtp.port === 465,

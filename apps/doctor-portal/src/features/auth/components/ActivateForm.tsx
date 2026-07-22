@@ -60,13 +60,13 @@ function isTokenUsed(token: string): boolean {
 
 function getInvitation(token: string): DoctorInvitation | null {
   const payload = decodeToken(token);
-  if (!payload || !payload.doctorId || !payload.name || !payload.email) {
+  if (!payload || (!payload.doctorId && !payload.userId) || !payload.email) {
     return null;
   }
   return {
     token,
-    doctorId: payload.doctorId,
-    name: payload.name,
+    doctorId: payload.doctorId || payload.userId,
+    name: payload.name || payload.email.split('@')[0],
     email: payload.email,
     used: isTokenUsed(token),
     createdAt: payload.createdAt || new Date().toISOString(),
