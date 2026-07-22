@@ -3,7 +3,7 @@ import { env } from './config/env';
 import { connectDB } from './config/db';
 import { logger } from './utils/logger';
 
-// Trigger restart to reload staff invitation portal URL routing for non-doctor roles
+// Trigger restart to reload cross-portal redirection & role-based UI isolation controllers
 async function startServer() {
   try {
     // 1. Connect to MongoDB Atlas

@@ -15,6 +15,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const userParam = urlParams.get("user");
+      if (userParam) {
+        try {
+          const parsedUser = JSON.parse(decodeURIComponent(userParam));
+          useAuthStore.getState().login(parsedUser);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (e) {
+          console.error("Failed to parse cross-portal session", e);
+        }
+      }
+    }
+
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
     } else {
@@ -30,14 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!isPublicRoute && !isAuthenticated) {
       router.push("/login");
-    } else if (isAuthenticated && pathname === "/login") {
-      router.push("/dashboard");
     } else if (isAuthenticated && user) {
-      // Ensure only correct roles enter this portal
-      const allowedRoles = ["SUPER_ADMIN", "TENANT_ADMIN", "HOSPITAL_ADMIN", "DEPT_ADMIN", "RECEPTIONIST", "NURSE", "STAFF"];
-      if (user.role && !allowedRoles.includes(user.role)) {
-        logout();
-        router.push("/login");
+      const userEncoded = encodeURIComponent(JSON.stringify(user));
+      if (user.role === 'DOCTOR') {
+        window.location.href = `http://localhost:3000/dashboard?user=${userEncoded}`;
+      } else if (user.role === 'PATIENT') {
+        window.location.href = `http://localhost:3003/dashboard?user=${userEncoded}`;
+      } else if (pathname === "/login") {
+        router.push("/dashboard");
       }
     }
   }, [isAuthenticated, pathname, isPublicRoute, router, hasHydrated, user]);

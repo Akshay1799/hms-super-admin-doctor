@@ -29,6 +29,9 @@ export function Header() {
           </button>
           
           <Breadcrumb />
+          <span className="hidden md:inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-extrabold tracking-wide uppercase border border-primary/20">
+            Doctor Clinical Portal
+          </span>
         </div>
 
         <div className="flex items-center gap-4">

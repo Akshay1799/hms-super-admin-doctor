@@ -119,22 +119,66 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/login");
   };
 
-  const navLinks = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { 
-      href: "/departments", 
-      label: user?.role === "DEPT_ADMIN" ? "My Department" : "Departments", 
-      icon: Building2 
-    },
-    { href: "/staff", label: "Staff Directory", icon: Users2 },
-    { href: "/patients", label: "Patients EMR", icon: UserIcon },
-    { href: "/appointments", label: "Appointments", icon: Calendar },
-    { href: "/rosters", label: "Shift Roster", icon: Clock },
-    { href: "/billing", label: "Billing Checkout", icon: Receipt },
-    { href: "/beds", label: "Bed Management", icon: Bed },
-    { href: "/reports", label: "Reports & Analytics", icon: FileBarChart2 },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ];
+  const getRoleBadge = (role?: string) => {
+    switch (role) {
+      case "RECEPTIONIST":
+        return "Receptionist Operations Desk";
+      case "NURSE":
+        return "Nursing Care Desk";
+      case "DEPT_ADMIN":
+        return "Department Administration Desk";
+      case "HOSPITAL_ADMIN":
+        return "Hospital Administration Panel";
+      case "SUPER_ADMIN":
+        return "Super Admin Portal";
+      case "TENANT_ADMIN":
+        return "Tenant Governance Portal";
+      default:
+        return "Hospital Operations Portal";
+    }
+  };
+
+  const getFilteredNavLinks = (role?: string) => {
+    if (role === "RECEPTIONIST") {
+      return [
+        { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+        { href: "/patients", label: "Patients & Admissions", icon: UserIcon },
+        { href: "/appointments", label: "Appointments Queue", icon: Calendar },
+        { href: "/beds", label: "Bed Allocation", icon: Bed },
+        { href: "/rosters", label: "Shift Roster", icon: Clock },
+      ];
+    }
+    if (role === "NURSE") {
+      return [
+        { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+        { href: "/patients", label: "Assigned Patients & Vitals", icon: UserIcon },
+      ];
+    }
+    if (role === "DEPT_ADMIN") {
+      return [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/departments", label: "My Department", icon: Building2 },
+        { href: "/staff", label: "Department Staff", icon: Users2 },
+        { href: "/patients", label: "Department Patients", icon: UserIcon },
+        { href: "/rosters", label: "Shift Roster", icon: Clock },
+        { href: "/reports", label: "Department Reports", icon: FileBarChart2 },
+      ];
+    }
+    return [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/departments", label: "Departments", icon: Building2 },
+      { href: "/staff", label: "Staff Directory", icon: Users2 },
+      { href: "/patients", label: "Patients EMR", icon: UserIcon },
+      { href: "/appointments", label: "Appointments", icon: Calendar },
+      { href: "/rosters", label: "Shift Roster", icon: Clock },
+      { href: "/billing", label: "Billing Checkout", icon: Receipt },
+      { href: "/beds", label: "Bed Management", icon: Bed },
+      { href: "/reports", label: "Reports & Analytics", icon: FileBarChart2 },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ];
+  };
+
+  const navLinks = getFilteredNavLinks(user?.role);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground transition-colors duration-200">
@@ -153,7 +197,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               {isSidebarOpen && (
                 <span className="font-extrabold tracking-tight text-foreground text-sm">
-                  {user?.role === "DEPT_ADMIN" ? "Dept Admin" : "HMS Admin"}
+                  {user?.role ? user.role.replace("_", " ") : "HMS Admin"}
                 </span>
               )}
             </div>
@@ -201,12 +245,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Sticky Header */}
         <header className="h-16 shrink-0 bg-card border-b border-border flex items-center justify-between px-6 z-20">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold tracking-tight text-foreground capitalize">
               {pathname === "/dashboard"
                 ? "Overview Dashboard"
                 : pathname.replace("/", "").replace("-", " ")}
             </h1>
+            <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-extrabold tracking-wide uppercase border border-primary/20">
+              {getRoleBadge(user?.role)}
+            </span>
           </div>
 
           <div className="flex items-center gap-4">

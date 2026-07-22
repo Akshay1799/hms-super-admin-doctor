@@ -36,6 +36,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const userParam = urlParams.get("user");
+      if (userParam) {
+        try {
+          const parsedUser = JSON.parse(decodeURIComponent(userParam));
+          useAuthStore.getState().login(parsedUser);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (e) {
+          console.error("Failed to parse cross-portal session", e);
+        }
+      }
+    }
+
     // Check if store has already hydrated
     if (useAuthStore.persist.hasHydrated()) {
       setHasHydrated(true);
@@ -52,14 +66,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!hasHydrated) return;
     if (!isPublicRoute && !isAuthenticated) {
       router.push(ROUTES.login);
-    } else if (isAuthenticated && pathname === ROUTES.login) {
-      router.push(ROUTES.dashboard);
     } else if (isAuthenticated && useAuthStore.getState().user) {
-      const allowedRoles = ["DOCTOR", "NURSE", "RECEPTIONIST", "STAFF", "DEPT_ADMIN", "HOSPITAL_ADMIN", "TENANT_ADMIN", "SUPER_ADMIN"];
-      const userRole = useAuthStore.getState().user?.role;
-      if (userRole && !allowedRoles.includes(userRole)) {
-        useAuthStore.getState().logout();
-        router.push(ROUTES.login);
+      const currentUser = useAuthStore.getState().user;
+      const roleStr = (currentUser?.role as string) || '';
+      const userEncoded = encodeURIComponent(JSON.stringify(currentUser));
+
+      if (['RECEPTIONIST', 'NURSE', 'STAFF', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'].includes(roleStr)) {
+        window.location.href = `http://localhost:3002/dashboard?user=${userEncoded}`;
+      } else if (['SUPER_ADMIN', 'TENANT_ADMIN'].includes(roleStr)) {
+        window.location.href = `http://localhost:3001/dashboard?user=${userEncoded}`;
+      } else if (roleStr === 'PATIENT') {
+        window.location.href = `http://localhost:3003/dashboard?user=${userEncoded}`;
+      } else if (pathname === ROUTES.login) {
+        router.push(ROUTES.dashboard);
       }
     }
   }, [isAuthenticated, pathname, isPublicRoute, router, hasHydrated]);
