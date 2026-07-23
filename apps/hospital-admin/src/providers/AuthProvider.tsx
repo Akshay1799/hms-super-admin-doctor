@@ -9,7 +9,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user, logout } = useAuthStore();
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(() => {
+    if (typeof window !== "undefined" && useAuthStore.persist?.hasHydrated) {
+      return useAuthStore.persist.hasHydrated();
+    }
+    return false;
+  });
 
   const publicRoutes = ["/login", "/forgot-password", "/reset-password", "/activate-account"];
   const isPublicRoute = publicRoutes.includes(pathname);
@@ -29,9 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    if (useAuthStore.persist.hasHydrated()) {
-      setHasHydrated(true);
-    } else {
+    if (!useAuthStore.persist.hasHydrated()) {
       const unsub = useAuthStore.persist.onFinishHydration(() => {
         setHasHydrated(true);
       });
@@ -48,8 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userEncoded = encodeURIComponent(JSON.stringify(user));
       if (user.role === 'DOCTOR') {
         window.location.href = `http://localhost:3000/dashboard?user=${userEncoded}`;
-      } else if (user.role === 'PATIENT') {
-        window.location.href = `http://localhost:3003/dashboard?user=${userEncoded}`;
       } else if (pathname === "/login") {
         router.push("/dashboard");
       }
