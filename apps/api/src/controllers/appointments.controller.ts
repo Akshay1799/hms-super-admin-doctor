@@ -65,11 +65,32 @@ export async function getAppointment(req: Request, res: Response, next: NextFunc
 
 export async function createAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const { doctorId, date, time } = req.body;
+
+    // Convert date string to start-of-day for token counting
+    const apptDate = new Date(date);
+    const dayStart = new Date(apptDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(apptDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    // Atomic token generation: Count existing appointments for this doctor on this day
+    const countToday = await Appointment.countDocuments({
+      doctorId,
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: { $ne: 'Cancelled' },
+    });
+
+    const tokenNumber = countToday + 1;
+
     const appt = await Appointment.create({
       ...req.body,
       tenantId: req.body.tenantId || req.user?.tenantId,
+      tokenNumber,
+      queuePosition: tokenNumber,
     });
-    sendCreated(res, appt, 'Appointment scheduled');
+
+    sendCreated(res, appt, `Appointment scheduled with Token #${tokenNumber}`);
   } catch (err) {
     next(err);
   }
@@ -80,6 +101,21 @@ export async function updateAppointment(req: Request, res: Response, next: NextF
     const appt = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!appt) throw new NotFoundError('Appointment not found');
     sendSuccess(res, appt, 'Appointment updated');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function checkInAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) throw new NotFoundError('Appointment not found');
+
+    appt.status = 'Waiting';
+    appt.checkInTime = new Date();
+    await appt.save();
+
+    sendSuccess(res, appt, `Patient checked in successfully. Added to live queue.`);
   } catch (err) {
     next(err);
   }

@@ -6,6 +6,7 @@ import {
   getAppointment,
   createAppointment,
   updateAppointment,
+  checkInAppointment,
   cancelAppointment,
 } from '../controllers/appointments.controller';
 
@@ -19,6 +20,7 @@ router.get('/', listAppointments);
 router.get('/:id', getAppointment);
 router.post('/', scheduleAuth, createAppointment);
 router.patch('/:id', scheduleAuth, updateAppointment);
+router.post('/:id/check-in', scheduleAuth, checkInAppointment);
 router.post('/:id/cancel', scheduleAuth, cancelAppointment);
 
 export default router;

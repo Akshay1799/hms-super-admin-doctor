@@ -16,10 +16,13 @@ interface Appointment {
   _id: string;
   patientName: string;
   doctorName: string;
+  tokenNumber?: number;
+  queuePosition?: number;
   date: string;
   time: string;
   type: string;
   status: "Scheduled" | "Waiting" | "In Progress" | "Completed" | "Cancelled";
+  priorityLevel?: "Normal" | "VIP" | "Emergency" | "Senior Citizen";
   symptoms?: string;
 }
 
@@ -44,8 +47,13 @@ export default function AppointmentsPage() {
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     try {
-      await apiClient.patch(`/appointments/${id}`, { status: newStatus });
-      toast.success("Appointment status updated");
+      if (newStatus === "Waiting") {
+        await apiClient.post(`/appointments/${id}/check-in`);
+        toast.success("Patient checked in! Generated Queue Token.");
+      } else {
+        await apiClient.patch(`/appointments/${id}`, { status: newStatus });
+        toast.success("Appointment status updated");
+      }
       fetchAppointments();
     } catch {
       toast.error("Failed to update appointment status");
@@ -63,7 +71,7 @@ export default function AppointmentsPage() {
   return (
     <div className="space-y-6">
       <p className="text-xs text-muted-foreground">
-        Track schedules, check patients waiting times, update consultation statuses, or manage cancellations.
+        Track schedules, monitor live OPD Queue tokens, check patient waiting times, update consultation statuses, or manage cancellations.
       </p>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
@@ -71,6 +79,7 @@ export default function AppointmentsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <th className="p-4">Token / Queue</th>
                 <th className="p-4">Patient Name</th>
                 <th className="p-4">Assigned Doctor</th>
                 <th className="p-4">Date & Time</th>
@@ -82,6 +91,11 @@ export default function AppointmentsPage() {
             <tbody className="divide-y divide-border text-xs text-foreground">
               {appointments.map((appt) => (
                 <tr key={appt._id} className="hover:bg-muted/30">
+                  <td className="p-4">
+                    <span className="font-extrabold text-xs px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800/50">
+                      #{appt.tokenNumber || "N/A"}
+                    </span>
+                  </td>
                   <td className="p-4 font-bold text-foreground">{appt.patientName}</td>
                   <td className="p-4 flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-blue-600" />
