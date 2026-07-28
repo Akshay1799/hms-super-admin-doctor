@@ -23,6 +23,7 @@ import auditRoutes from './routes/audit.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import rosterRoutes from './routes/rosters.routes';
 import checkoutRoutes from './routes/checkout.routes';
+import doctorRoutes from './routes/doctors.routes';
 
 const app = express();
 
@@ -133,6 +134,7 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/rosters', rosterRoutes);
 app.use('/api/checkout', checkoutRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);

@@ -45,13 +45,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!hasHydrated) return;
     if (!isPublicRoute && !isAuthenticated) {
       router.push(ROUTES.login);
-    } else if (isAuthenticated && pathname === ROUTES.login) {
-      router.push(ROUTES.dashboard);
     } else if (isAuthenticated && user) {
       const allowedRoles = ["SUPER_ADMIN", "TENANT_ADMIN"];
-      if (user.role && !allowedRoles.includes(user.role)) {
-        logout();
-        router.push(ROUTES.login);
+      const userRoleStr = (user.role as string) || '';
+      if (userRoleStr && !allowedRoles.includes(userRoleStr)) {
+        const userEncoded = encodeURIComponent(JSON.stringify(user));
+        const isDev = process.env.NODE_ENV === 'development';
+        const hospitalAdminUrl = process.env.NEXT_PUBLIC_HOSPITAL_ADMIN_URL || (isDev ? 'http://localhost:3002' : 'https://hms-super-admin-doctor-hospital-adm.vercel.app');
+        const doctorPortalUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || (isDev ? 'http://localhost:3000' : 'https://hms-doctor-portal-phi.vercel.app');
+        const patientPortalUrl = process.env.NEXT_PUBLIC_PATIENT_PORTAL_URL || (isDev ? 'http://localhost:3003' : 'https://hms-patient-portal-iota.vercel.app');
+
+        if (userRoleStr === 'DOCTOR') {
+          window.location.href = `${doctorPortalUrl}/dashboard?user=${userEncoded}`;
+        } else if (userRoleStr === 'PATIENT') {
+          window.location.href = `${patientPortalUrl}/dashboard?user=${userEncoded}`;
+        } else {
+          window.location.href = `${hospitalAdminUrl}/dashboard?user=${userEncoded}`;
+        }
+      } else if (pathname === ROUTES.login) {
+        router.push(ROUTES.dashboard);
       }
     }
   }, [isAuthenticated, user, pathname, isPublicRoute, router, hasHydrated]);

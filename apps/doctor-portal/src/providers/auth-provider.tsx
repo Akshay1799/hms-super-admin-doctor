@@ -42,7 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userParam) {
         try {
           const parsedUser = JSON.parse(decodeURIComponent(userParam));
-          useAuthStore.getState().login(parsedUser);
+          if (parsedUser && parsedUser.role === 'DOCTOR') {
+            useAuthStore.getState().login(parsedUser);
+          } else {
+            // Clear any non-doctor session in doctor-portal store
+            useAuthStore.getState().logout();
+          }
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (e) {
           console.error("Failed to parse cross-portal session", e);
@@ -64,16 +69,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Route protection redirect checks
   useEffect(() => {
     if (!hasHydrated) return;
+
     if (!isPublicRoute && !isAuthenticated) {
       router.push(ROUTES.login);
-    } else if (isAuthenticated && useAuthStore.getState().user) {
+      return;
+    }
+
+    if (isAuthenticated) {
       const currentUser = useAuthStore.getState().user;
-      const roleStr = (currentUser?.role as string) || '';
+      if (!currentUser) return;
+
+      const roleStr = (currentUser.role as string) || '';
       const userEncoded = encodeURIComponent(JSON.stringify(currentUser));
 
-      const hospitalAdminUrl = process.env.NEXT_PUBLIC_HOSPITAL_ADMIN_URL || 'http://localhost:3002';
-      const superAdminUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL || 'http://localhost:3001';
-      const patientPortalUrl = process.env.NEXT_PUBLIC_PATIENT_PORTAL_URL || 'http://localhost:3003';
+      const isDev = process.env.NODE_ENV === 'development';
+      const hospitalAdminUrl = process.env.NEXT_PUBLIC_HOSPITAL_ADMIN_URL || (isDev ? 'http://localhost:3002' : 'https://hms-super-admin-doctor-hospital-adm.vercel.app');
+      const superAdminUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL || (isDev ? 'http://localhost:3001' : 'https://hms-super-admin-amber.vercel.app');
+      const patientPortalUrl = process.env.NEXT_PUBLIC_PATIENT_PORTAL_URL || (isDev ? 'http://localhost:3003' : 'https://hms-patient-portal-iota.vercel.app');
 
       if (['RECEPTIONIST', 'NURSE', 'STAFF', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'].includes(roleStr)) {
         window.location.href = `${hospitalAdminUrl}/dashboard?user=${userEncoded}`;

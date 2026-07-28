@@ -26,7 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userParam) {
         try {
           const parsedUser = JSON.parse(decodeURIComponent(userParam));
-          useAuthStore.getState().login(parsedUser);
+          const roleStr = (parsedUser?.role as string) || '';
+          if (['RECEPTIONIST', 'NURSE', 'STAFF', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'].includes(roleStr)) {
+            useAuthStore.getState().login(parsedUser);
+          } else {
+            // Do not store non-hospital roles in hospital-admin store
+            useAuthStore.getState().logout();
+          }
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (e) {
           console.error("Failed to parse cross-portal session", e);
@@ -49,9 +55,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/login");
     } else if (isAuthenticated && user) {
       const userEncoded = encodeURIComponent(JSON.stringify(user));
-      if (user.role === 'DOCTOR') {
-        const doctorPortalUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3000';
+      const roleStr = (user.role as string) || '';
+      const isDev = process.env.NODE_ENV === 'development';
+      const doctorPortalUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || (isDev ? 'http://localhost:3000' : 'https://hms-doctor-portal-phi.vercel.app');
+      const superAdminUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL || (isDev ? 'http://localhost:3001' : 'https://hms-super-admin-amber.vercel.app');
+      const patientPortalUrl = process.env.NEXT_PUBLIC_PATIENT_PORTAL_URL || (isDev ? 'http://localhost:3003' : 'https://hms-patient-portal-iota.vercel.app');
+
+      if (roleStr === 'DOCTOR') {
         window.location.href = `${doctorPortalUrl}/dashboard?user=${userEncoded}`;
+      } else if (['SUPER_ADMIN', 'TENANT_ADMIN'].includes(roleStr)) {
+        window.location.href = `${superAdminUrl}/dashboard?user=${userEncoded}`;
+      } else if (roleStr === 'PATIENT') {
+        window.location.href = `${patientPortalUrl}/dashboard?user=${userEncoded}`;
       } else if (pathname === "/login") {
         router.push("/dashboard");
       }

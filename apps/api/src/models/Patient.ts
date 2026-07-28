@@ -6,6 +6,8 @@ export interface IPatient extends Document {
   hospitalId: mongoose.Types.ObjectId;
   departmentId?: mongoose.Types.ObjectId;
   // Demographics
+  uhid: string; // Unique Universal Health ID (e.g. UHID-2026-00001)
+  photoUrl?: string;
   name: string;
   age: number;
   dateOfBirth?: Date;
@@ -14,12 +16,17 @@ export interface IPatient extends Document {
   phone?: string;
   email?: string;
   address?: string;
-  // Emergency contact
+  // Emergency contact & Family linking
   emergencyContact?: {
     name: string;
     relation: string;
     phone: string;
   };
+  familyMembers?: Array<{
+    relativePatientId: mongoose.Types.ObjectId;
+    relation: string;
+  }>;
+  chronicDiseases?: string[];
   // Clinical status
   status: 'Active' | 'Admitted' | 'ICU' | 'Follow-up Due' | 'Discharged' | 'Deceased';
   bedNumber?: string;
@@ -101,6 +108,8 @@ const PatientSchema = new Schema<IPatient>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
     departmentId: { type: Schema.Types.ObjectId, ref: 'Department', index: true },
+    uhid: { type: String, unique: true, index: true },
+    photoUrl: String,
     name: { type: String, required: true, trim: true },
     age: { type: Number, required: true },
     dateOfBirth: Date,
@@ -114,6 +123,13 @@ const PatientSchema = new Schema<IPatient>(
       relation: String,
       phone: String,
     },
+    familyMembers: [
+      {
+        relativePatientId: { type: Schema.Types.ObjectId, ref: 'Patient' },
+        relation: String,
+      },
+    ],
+    chronicDiseases: [{ type: String }],
     status: {
       type: String,
       enum: ['Active', 'Admitted', 'ICU', 'Follow-up Due', 'Discharged', 'Deceased'],
@@ -204,8 +220,19 @@ const PatientSchema = new Schema<IPatient>(
   { timestamps: true }
 );
 
+// Auto-generate atomic UHID before validation/saving if missing
+PatientSchema.pre('save', async function (next) {
+  if (!this.uhid) {
+    const year = new Date().getFullYear();
+    const count = await mongoose.model('Patient').countDocuments();
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    this.uhid = `UHID-${year}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
+  }
+  next();
+});
+
 PatientSchema.index({ tenantId: 1, hospitalId: 1 });
 PatientSchema.index({ assignedDoctorId: 1 });
-PatientSchema.index({ name: 'text' }); // text search
+PatientSchema.index({ name: 'text', uhid: 'text', phone: 'text' }); // text search
 
 export const Patient = mongoose.model<IPatient>('Patient', PatientSchema);

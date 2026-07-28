@@ -28,6 +28,12 @@ export interface IUser extends Document {
   specialty?: string;
   qualifications?: string[];
   experience?: number;  // years
+  consultationFee?: number;
+  consultationRoom?: string;
+  availableDays?: string[]; // e.g. ['Monday', 'Tuesday', 'Wednesday']
+  shiftStartTime?: string;  // e.g. '09:00'
+  shiftEndTime?: string;    // e.g. '17:00'
+  bio?: string;
   phone?: string;
   avatar?: string;
   // Preferences
@@ -76,6 +82,12 @@ const UserSchema = new Schema<IUser>(
     specialty: { type: String },
     qualifications: [{ type: String }],
     experience: { type: Number },
+    consultationFee: { type: Number, default: 0 },
+    consultationRoom: { type: String },
+    availableDays: [{ type: String }],
+    shiftStartTime: { type: String, default: '09:00' },
+    shiftEndTime: { type: String, default: '17:00' },
+    bio: { type: String },
     phone: { type: String },
     avatar: { type: String },
     notificationPreferences: {

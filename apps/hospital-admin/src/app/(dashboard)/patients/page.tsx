@@ -413,9 +413,14 @@ export default function PatientsPage() {
                     className="text-left group focus:outline-hidden cursor-pointer"
                   >
                     <h4 className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors">{pat.name}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      {pat.age} Years • {pat.gender}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                        {(pat as any).uhid || "UHID-PENDING"}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {pat.age} Yrs • {pat.gender}
+                      </p>
+                    </div>
                   </button>
                   <span
                     className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase ${
@@ -538,7 +543,10 @@ export default function PatientsPage() {
                         onClick={() => setSelectedPatient(pat)}
                         className="hover:text-blue-600 transition-colors text-left font-bold focus:outline-hidden"
                       >
-                        {pat.name}
+                        <div>{pat.name}</div>
+                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                          {(pat as any).uhid || "UHID-PENDING"}
+                        </span>
                       </button>
                     </td>
                     <td className="p-4 text-muted-foreground">

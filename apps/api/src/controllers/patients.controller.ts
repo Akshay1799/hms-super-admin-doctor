@@ -54,7 +54,13 @@ export async function listPatients(req: Request, res: Response, next: NextFuncti
 
     const targetDoctorId = doctorId || assignedDoctorId;
     if (targetDoctorId) filter.assignedDoctorId = targetDoctorId;
-    if (search) filter.name = { $regex: search, $options: 'i' };
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { uhid: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
 
     // Find emails of patient users who are still Pending activation
     const { User } = await import('../models/User');

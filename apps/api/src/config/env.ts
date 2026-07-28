@@ -28,10 +28,10 @@ export const env = {
   },
 
   frontends: {
-    superAdmin: process.env.SUPER_ADMIN_URL || 'http://localhost:3001',
-    doctorPortal: process.env.DOCTOR_PORTAL_URL || 'https://hms-super-admin-doctor-doctor-porta.vercel.app',
-    hospitalAdmin: process.env.HOSPITAL_ADMIN_URL || 'http://localhost:3002',
-    patientPortal: process.env.PATIENT_PORTAL_URL || 'http://localhost:3003',
+    superAdmin: process.env.SUPER_ADMIN_URL || 'https://hms-super-admin-amber.vercel.app',
+    doctorPortal: process.env.DOCTOR_PORTAL_URL || 'https://hms-doctor-portal-phi.vercel.app',
+    hospitalAdmin: process.env.HOSPITAL_ADMIN_URL || 'https://hms-super-admin-doctor-hospital-adm.vercel.app',
+    patientPortal: process.env.PATIENT_PORTAL_URL || 'https://hms-patient-portal-iota.vercel.app',
   },
 
   smtp: {

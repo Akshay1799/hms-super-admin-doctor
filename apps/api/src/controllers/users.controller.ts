@@ -139,6 +139,7 @@ export async function getUser(req: Request, res: Response, next: NextFunction): 
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) throw new NotFoundError('User not found');
+    if (req.user) verifyAdminScope(req.user, user);
     sendSuccess(res, user);
   } catch (err) {
     next(err);

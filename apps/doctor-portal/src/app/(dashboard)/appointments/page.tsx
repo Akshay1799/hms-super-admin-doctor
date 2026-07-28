@@ -208,6 +208,15 @@ export default function AppointmentsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={app.status} />
+                          <button
+                            onClick={() => {
+                              toast.info(`Opening Digital E-Prescription Writer for ${app.patientName}`);
+                              window.location.href = `/my-patients?patientId=${app.patientId}&appointmentId=${app.id}&prescribe=true`;
+                            }}
+                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-extrabold uppercase tracking-wide cursor-pointer"
+                          >
+                            Write E-Rx
+                          </button>
                           {app.status === "Scheduled" && (
                             <button
                               onClick={() => {
