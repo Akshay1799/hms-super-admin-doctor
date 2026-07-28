@@ -71,12 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const roleStr = (currentUser?.role as string) || '';
       const userEncoded = encodeURIComponent(JSON.stringify(currentUser));
 
+      const hospitalAdminUrl = process.env.NEXT_PUBLIC_HOSPITAL_ADMIN_URL || 'http://localhost:3002';
+      const superAdminUrl = process.env.NEXT_PUBLIC_SUPER_ADMIN_URL || 'http://localhost:3001';
+      const patientPortalUrl = process.env.NEXT_PUBLIC_PATIENT_PORTAL_URL || 'http://localhost:3003';
+
       if (['RECEPTIONIST', 'NURSE', 'STAFF', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'].includes(roleStr)) {
-        window.location.href = `http://localhost:3002/dashboard?user=${userEncoded}`;
+        window.location.href = `${hospitalAdminUrl}/dashboard?user=${userEncoded}`;
       } else if (['SUPER_ADMIN', 'TENANT_ADMIN'].includes(roleStr)) {
-        window.location.href = `http://localhost:3001/dashboard?user=${userEncoded}`;
+        window.location.href = `${superAdminUrl}/dashboard?user=${userEncoded}`;
       } else if (roleStr === 'PATIENT') {
-        window.location.href = `http://localhost:3003/dashboard?user=${userEncoded}`;
+        window.location.href = `${patientPortalUrl}/dashboard?user=${userEncoded}`;
       } else if (pathname === ROUTES.login) {
         router.push(ROUTES.dashboard);
       }

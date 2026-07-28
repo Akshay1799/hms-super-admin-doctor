@@ -50,7 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (isAuthenticated && user) {
       const userEncoded = encodeURIComponent(JSON.stringify(user));
       if (user.role === 'DOCTOR') {
-        window.location.href = `http://localhost:3000/dashboard?user=${userEncoded}`;
+        const doctorPortalUrl = process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3000';
+        window.location.href = `${doctorPortalUrl}/dashboard?user=${userEncoded}`;
       } else if (pathname === "/login") {
         router.push("/dashboard");
       }
