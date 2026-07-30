@@ -24,9 +24,11 @@ import {
   ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Appointment } from "@/features/appointments/types/appointments.types";
 
 export default function AppointmentsPage() {
+  const router = useRouter();
   const { data: appointments, isLoading, error } = useAppointments();
   const createMutation = useCreateAppointment();
   const rescheduleMutation = useRescheduleAppointment();
@@ -211,7 +213,7 @@ export default function AppointmentsPage() {
                           <button
                             onClick={() => {
                               toast.info(`Opening Digital E-Prescription Writer for ${app.patientName}`);
-                              window.location.href = `/my-patients?patientId=${app.patientId}&appointmentId=${app.id}&prescribe=true`;
+                              router.push(`/my-patients/${app.patientId}?prescribe=true&appointmentId=${app.id}`);
                             }}
                             className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-extrabold uppercase tracking-wide cursor-pointer"
                           >

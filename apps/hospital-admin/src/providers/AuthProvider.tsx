@@ -9,12 +9,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, user, logout } = useAuthStore();
-  const [hasHydrated, setHasHydrated] = useState(() => {
-    if (typeof window !== "undefined" && useAuthStore.persist?.hasHydrated) {
-      return useAuthStore.persist.hasHydrated();
-    }
-    return false;
-  });
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const publicRoutes = ["/login", "/forgot-password", "/reset-password", "/activate-account"];
   const isPublicRoute = publicRoutes.includes(pathname);
@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (['RECEPTIONIST', 'NURSE', 'STAFF', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'].includes(roleStr)) {
             useAuthStore.getState().login(parsedUser);
           } else {
-            // Do not store non-hospital roles in hospital-admin store
             useAuthStore.getState().logout();
           }
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -45,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHasHydrated(true);
       });
       return () => unsub();
+    } else {
+      setHasHydrated(true);
     }
   }, []);
 
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, pathname, isPublicRoute, router, hasHydrated, user]);
 
-  if (!hasHydrated) {
+  if (!isMounted || !hasHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -124,9 +124,19 @@ export async function getPatient(req: Request, res: Response, next: NextFunction
     if (!patient) throw new NotFoundError('Patient not found');
 
     // Scope check
-    if (req.user?.role === 'DOCTOR' &&
-      patient.assignedDoctorId?.toString() !== req.user._id.toString()) {
-      throw new ForbiddenError('Access denied to this patient');
+    if (req.user?.role === 'DOCTOR') {
+      const rawDoc: any = patient.assignedDoctorId;
+      const assignedDocId = typeof rawDoc === 'object' && rawDoc !== null
+        ? rawDoc._id?.toString()
+        : rawDoc?.toString();
+
+      const isSameHospital = (patient.hospitalId as any)?.toString() === (req.user.hospitalId as any)?.toString();
+      const isSameTenant = (patient.tenantId as any)?.toString() === (req.user.tenantId as any)?.toString();
+      const isAssignedDoctor = assignedDocId === (req.user._id as any)?.toString();
+
+      if (!isAssignedDoctor && !isSameHospital && !isSameTenant) {
+        throw new ForbiddenError('Access denied to this patient');
+      }
     }
 
     sendSuccess(res, patient);
