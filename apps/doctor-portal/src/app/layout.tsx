@@ -8,6 +8,7 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+  fallback: ["system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {

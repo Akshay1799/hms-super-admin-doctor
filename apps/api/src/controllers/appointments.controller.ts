@@ -86,6 +86,7 @@ export async function createAppointment(req: Request, res: Response, next: NextF
     const appt = await Appointment.create({
       ...req.body,
       tenantId: req.body.tenantId || req.user?.tenantId,
+      hospitalId: req.body.hospitalId || req.user?.hospitalId,
       tokenNumber,
       queuePosition: tokenNumber,
     });

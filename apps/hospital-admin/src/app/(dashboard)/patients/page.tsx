@@ -47,9 +47,26 @@ export default function PatientsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [regStep, setRegStep] = useState<1 | 2>(1);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
-  const [newPatient, setNewPatient] = useState({
+  const [newPatient, setNewPatient] = useState<{
+    name: string;
+    age: string;
+    gender: string;
+    status: string;
+    ward: string;
+    bedNumber: string;
+    assignedDoctorId: string;
+    email: string;
+    phone: string;
+    bloodGroup?: string;
+    address?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    chronicDiseasesStr?: string;
+    allergiesStr?: string;
+  }>({
     name: "",
     age: "",
     gender: "Male",
@@ -59,6 +76,12 @@ export default function PatientsPage() {
     assignedDoctorId: "",
     email: "",
     phone: "",
+    bloodGroup: "",
+    address: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    chronicDiseasesStr: "",
+    allergiesStr: "",
   });
   const [customWard, setCustomWard] = useState("");
   const [customDoctor, setCustomDoctor] = useState("");
@@ -133,6 +156,9 @@ export default function PatientsPage() {
       }
     }
 
+    const chronicArr = newPatient.chronicDiseasesStr ? newPatient.chronicDiseasesStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+    const allergiesArr = newPatient.allergiesStr ? newPatient.allergiesStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
     try {
       await apiClient.post("/patients", {
         ...newPatient,
@@ -140,12 +166,21 @@ export default function PatientsPage() {
         assignedDoctorId: finalDoctor || undefined,
         departmentId: finalDeptId || (user?.role === "DEPT_ADMIN" ? user?.departmentId : undefined),
         age: parseInt(newPatient.age) || 0,
+        address: newPatient.address || undefined,
+        bloodGroup: newPatient.bloodGroup || undefined,
+        emergencyContact: (newPatient.emergencyContactName || newPatient.emergencyContactPhone) ? {
+          name: newPatient.emergencyContactName || "Emergency Contact",
+          phone: newPatient.emergencyContactPhone || ""
+        } : undefined,
+        chronicDiseases: chronicArr.length > 0 ? chronicArr : undefined,
+        allergies: allergiesArr.length > 0 ? allergiesArr : undefined,
         hospitalId: user?.hospitalId,
         tenantId: user?.tenantId,
       });
 
       toast.success("Patient record created successfully!");
       setIsAddOpen(false);
+      setRegStep(1);
       setNewPatient({
         name: "",
         age: "",
@@ -156,6 +191,12 @@ export default function PatientsPage() {
         assignedDoctorId: "",
         email: "",
         phone: "",
+        bloodGroup: "",
+        address: "",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+        chronicDiseasesStr: "",
+        allergiesStr: "",
       });
       setCustomWard("");
       setCustomDoctor("");
@@ -224,178 +265,297 @@ export default function PatientsPage() {
         </div>
       </div>
 
-      {/* Add Modal */}
+      {/* Add Modal (2-Step Wizard) */}
       {isAddOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-foreground">Register Patient</h3>
-            <form onSubmit={handleAddSubmit} className="space-y-3.5">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Wizard Header & Step Indicator */}
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Rahul Sharma"
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={newPatient.name}
-                  onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                />
+                <h3 className="text-base font-extrabold text-foreground">Register Patient Record</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {regStep === 1 ? "Step 1 of 2: Demographics & Contact Info" : "Step 2 of 2: Medical History & Ward Admission"}
+                </p>
               </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="rahul@gmail.com"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.email}
-                    onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    placeholder="+91 9988776655"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.phone}
-                    onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
-                  />
-                </div>
+              <div className="flex items-center gap-1.5">
+                <span className={`h-2.5 w-8 rounded-full transition-all ${regStep === 1 ? "bg-primary" : "bg-primary/30"}`} />
+                <span className={`h-2.5 w-8 rounded-full transition-all ${regStep === 2 ? "bg-primary" : "bg-primary/30"}`} />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Age *</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="32"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.age}
-                    onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Gender *</label>
-                  <select
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.gender}
-                    onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
+            <form onSubmit={handleAddSubmit} className="space-y-4">
+              {/* STEP 1: Demographics & Contact */}
+              {regStep === 1 && (
+                <div className="space-y-3.5 animate-in fade-in slide-in-from-left-2 duration-150">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={newPatient.name}
+                      onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Ward Name / Dept</label>
-                  <select
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.ward}
-                    onChange={(e) => setNewPatient({ ...newPatient, ward: e.target.value })}
-                  >
-                    <option value="">None / Outpatient</option>
-                    {departments.map((dept) => (
-                      <option key={dept._id} value={dept.name}>
-                        {dept.name}
-                      </option>
-                    ))}
-                    <option value="CUSTOM_WARD">Other (Type custom...)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Bed Number</label>
-                  <input
-                    type="text"
-                    placeholder="B-12"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={newPatient.bedNumber}
-                    onChange={(e) => setNewPatient({ ...newPatient, bedNumber: e.target.value })}
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="rahul@example.com"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.email}
+                        onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Phone Number</label>
+                      <input
+                        type="text"
+                        placeholder="+91 9988776655"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.phone}
+                        onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                      />
+                    </div>
+                  </div>
 
-              {/* Conditional Custom Ward Input */}
-              {newPatient.ward === "CUSTOM_WARD" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Ward Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Isolation Ward C"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={customWard}
-                    onChange={(e) => setCustomWard(e.target.value)}
-                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Age *</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="32"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.age}
+                        onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Gender *</label>
+                      <select
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        value={newPatient.gender}
+                        onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Blood Group</label>
+                      <select
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        value={newPatient.bloodGroup || ""}
+                        onChange={(e) => setNewPatient({ ...newPatient, bloodGroup: e.target.value })}
+                      >
+                        <option value="">Unknown</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Residential Address</label>
+                    <input
+                      type="text"
+                      placeholder="123 Main St, Sector 4"
+                      className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      value={newPatient.address || ""}
+                      onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5 border-t border-border pt-3">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Emergency Contact Name</label>
+                      <input
+                        type="text"
+                        placeholder="Karan Sharma (Spouse)"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.emergencyContactName || ""}
+                        onChange={(e) => setNewPatient({ ...newPatient, emergencyContactName: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Emergency Contact Phone</label>
+                      <input
+                        type="text"
+                        placeholder="+91 9876543210"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.emergencyContactPhone || ""}
+                        onChange={(e) => setNewPatient({ ...newPatient, emergencyContactPhone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-3 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddOpen(false)}
+                      className="h-10 px-4 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-xs font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newPatient.name || !newPatient.email || !newPatient.age) {
+                          toast.error("Please fill in Name, Email, and Age to proceed.");
+                          return;
+                        }
+                        setRegStep(2);
+                      }}
+                      className="h-10 px-5 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                    >
+                      Next: Medical & Admission →
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Attending Physician</label>
-                <select
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={newPatient.assignedDoctorId}
-                  onChange={(e) => setNewPatient({ ...newPatient, assignedDoctorId: e.target.value })}
-                >
-                  <option value="">Unassigned</option>
-                  {doctors.map((doc) => (
-                    <option key={doc._id} value={doc._id}>
-                      {doc.name} ({doc.specialty || "Physician"})
-                    </option>
-                  ))}
-                  <option value="CUSTOM_DOC">Other (Type custom...)</option>
-                </select>
-              </div>
+              {/* STEP 2: Medical History & Ward Admission */}
+              {regStep === 2 && (
+                <div className="space-y-3.5 animate-in fade-in slide-in-from-right-2 duration-150">
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Chronic Diseases</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Diabetes, Hypertension"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.chronicDiseasesStr || ""}
+                        onChange={(e) => setNewPatient({ ...newPatient, chronicDiseasesStr: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Known Drug Allergies</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Penicillin, Sulfa"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.allergiesStr || ""}
+                        onChange={(e) => setNewPatient({ ...newPatient, allergiesStr: e.target.value })}
+                      />
+                    </div>
+                  </div>
 
-              {/* Conditional Custom Doctor Input */}
-              {newPatient.assignedDoctorId === "CUSTOM_DOC" && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Physician Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Dr. Jane Doe"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={customDoctor}
-                    onChange={(e) => setCustomDoctor(e.target.value)}
-                  />
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Ward / Department Scope</label>
+                      <select
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                        value={newPatient.ward}
+                        onChange={(e) => setNewPatient({ ...newPatient, ward: e.target.value })}
+                      >
+                        <option value="">None / Outpatient</option>
+                        {departments.map((dept) => (
+                          <option key={dept._id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
+                        <option value="CUSTOM_WARD">Other (Type custom...)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Bed Assignment</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. B-12"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={newPatient.bedNumber}
+                        onChange={(e) => setNewPatient({ ...newPatient, bedNumber: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {newPatient.ward === "CUSTOM_WARD" && (
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Ward Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Isolation Ward C"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={customWard}
+                        onChange={(e) => setCustomWard(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Attending Physician</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      value={newPatient.assignedDoctorId}
+                      onChange={(e) => setNewPatient({ ...newPatient, assignedDoctorId: e.target.value })}
+                    >
+                      <option value="">Unassigned</option>
+                      {doctors.map((doc) => (
+                        <option key={doc._id} value={doc._id}>
+                          {doc.name} ({doc.specialty || "Physician"})
+                        </option>
+                      ))}
+                      <option value="CUSTOM_DOC">Other (Type custom...)</option>
+                    </select>
+                  </div>
+
+                  {newPatient.assignedDoctorId === "CUSTOM_DOC" && (
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground block mb-1">Type Custom Physician Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Dr. Jane Doe"
+                        className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={customDoctor}
+                        onChange={(e) => setCustomDoctor(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Admission Triage Status</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                      value={newPatient.status}
+                      onChange={(e) => setNewPatient({ ...newPatient, status: e.target.value })}
+                    >
+                      <option value="Active">Outpatient (Active OPD)</option>
+                      <option value="Admitted">Inpatient (Admitted IPD)</option>
+                      <option value="ICU">Emergency (ICU Triage)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-3 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setRegStep(1)}
+                      className="h-10 px-4 border border-border hover:bg-muted text-foreground rounded-lg text-xs font-bold cursor-pointer"
+                    >
+                      ← Back to Step 1
+                    </button>
+                    <button
+                      type="submit"
+                      className="h-10 px-6 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-extrabold cursor-pointer transition-all active:scale-95 shadow-md shadow-primary/20"
+                    >
+                      Complete Registration
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Admission Status</label>
-                <select
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={newPatient.status}
-                  onChange={(e) => setNewPatient({ ...newPatient, status: e.target.value })}
-                >
-                  <option value="Active">Outpatient (Active)</option>
-                  <option value="Admitted">Inpatient (Admitted)</option>
-                  <option value="ICU">Emergency (ICU)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddOpen(false)}
-                  className="h-10 px-4 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-semibold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="h-10 px-4 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-semibold cursor-pointer"
-                >
-                  Save Record
-                </button>
-              </div>
             </form>
           </div>
         </div>
