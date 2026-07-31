@@ -209,7 +209,7 @@ export function getRoleFilteredSidebar(role?: string): SidebarGroup[] {
       {
         groupName: "Hospital Network",
         items: [
-          { label: "My Hospitals & Branches", href: "/hospitals", icon: Building },
+          { label: "Hospitals", href: "/hospitals", icon: Building },
         ],
       },
       {

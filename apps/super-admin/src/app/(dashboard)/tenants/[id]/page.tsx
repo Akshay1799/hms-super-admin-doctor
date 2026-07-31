@@ -21,6 +21,7 @@ import { DomainsTab } from "@/features/tenants/components/details/DomainsTab";
 import { FeatureFlagsTab } from "@/features/tenants/components/details/FeatureFlagsTab";
 import { AuditLogsTab } from "@/features/tenants/components/details/AuditLogsTab";
 import { Building2, Users as UsersIcon, ShieldAlert } from "lucide-react";
+import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
 
 type ActiveTab =
   | "overview"
@@ -105,11 +106,15 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     },
   ];
 
-  const mockHospitals: HospitalMock[] = [
-    { id: "h-1", name: `${tenant.name} - General`, type: "General Hospital", location: "New York, USA", status: "Active" },
-    { id: "h-2", name: `${tenant.name} - Cardio Care`, type: "Specialized Clinic", location: "Boston, USA", status: "Active" },
-    { id: "h-3", name: `${tenant.name} - Diagnostics`, type: "Diagnostics Branch", location: "Chicago, USA", status: "Inactive" },
-  ].slice(0, tenant.hospitalCount || 1);
+  const tenantHospitals = MOCK_HOSPITALS.filter((h) => h.tenantId === id || (id === "1" && h.tenantId === "1"));
+
+  const mockHospitals: HospitalMock[] = tenantHospitals.map((h) => ({
+    id: h.id,
+    name: h.name,
+    type: h.type,
+    location: `${h.branchCount} Active Branches`,
+    status: h.status,
+  }));
 
   // Mock User Columns & Data
   const userColumns: ColumnDef<UserMock>[] = [
@@ -131,7 +136,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
   const mockUsers: UserMock[] = [
     { id: "u-1", name: "Alex Mercer", email: `admin@${tenant.code.toLowerCase()}.com`, role: "Tenant Admin", status: "Active" },
-    { id: "u-2", name: "Sarah Connor", email: `sconnor@${tenant.code.toLowerCase()}.com`, role: "Branch Supervisor", status: "Active" },
+    { id: "u-2", name: "Sarah Connor", email: `sconnor@${tenant.code.toLowerCase()}.com`, role: "Hospital Supervisor", status: "Active" },
     { id: "u-3", name: "Dr. Gregory House", email: `house@${tenant.code.toLowerCase()}.com`, role: "Clinician (Doctor)", status: "Active" },
   ];
 

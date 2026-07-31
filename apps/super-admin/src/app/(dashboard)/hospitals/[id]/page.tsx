@@ -202,9 +202,8 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
     },
   ];
 
-  const rawTabs: { id: ActiveTab; label: string }[] = [
+  const tabs: { id: ActiveTab; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "branches", label: "Sub-Units" },
     { id: "departments", label: "Departments" },
     { id: "doctors", label: "Staff & Clinicians" },
     { id: "patients", label: "Patients" },
@@ -213,10 +212,6 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
     { id: "settings", label: "Settings" },
     { id: "audits", label: "Audit Logs" },
   ];
-
-  const tabs = isTenantAdmin
-    ? rawTabs.filter((t) => t.id !== "branches")
-    : rawTabs;
 
   const handleTabChange = (tabId: ActiveTab) => {
     setActiveTab(tabId);

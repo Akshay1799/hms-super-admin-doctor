@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { MoreVertical, Eye, Edit2, ShieldAlert, CheckCircle, Trash2, GitBranch, LayoutGrid, Settings } from "lucide-react";
 import Link from "next/link";
 import { MOCK_TENANTS } from "@/features/tenants/mocks/tenants.mock";
+import { useAuthStore } from "@/store/auth.store";
 
 interface HospitalTableProps {
   data: Hospital[];
@@ -24,6 +25,8 @@ export function HospitalTable({
 }: HospitalTableProps) {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -39,7 +42,7 @@ export function HospitalTable({
     return MOCK_TENANTS.find((t) => t.id === tenantId)?.name || `Tenant #${tenantId}`;
   };
 
-  const columns: ColumnDef<Hospital, any>[] = [
+  const allColumns: ColumnDef<Hospital, any>[] = [
     {
       accessorKey: "name",
       header: "Hospital Name",
@@ -55,14 +58,15 @@ export function HospitalTable({
         );
       },
     },
-    {
+    // Only show Tenant column for Super Admin — Tenant Admin already knows their org
+    ...(!isTenantAdmin ? [{
       accessorKey: "tenantId",
       header: "Tenant",
-      cell: ({ row }) => {
+      cell: ({ row }: any) => {
         const tenantId = row.getValue("tenantId") as string;
         return <span className="text-sm font-medium text-foreground">{getTenantName(tenantId)}</span>;
       },
-    },
+    }] as ColumnDef<Hospital, any>[] : []),
     {
       accessorKey: "type",
       header: "Type",
@@ -75,13 +79,14 @@ export function HospitalTable({
         );
       },
     },
-    {
+    // Only show Branches column for Super Admin — Tenant Admin: each hospital IS the unit
+    ...(!isTenantAdmin ? [{
       accessorKey: "branchCount",
       header: "Branches",
-      cell: ({ row }) => (
+      cell: ({ row }: any) => (
         <span className="text-sm font-semibold text-foreground">{row.getValue("branchCount")}</span>
       ),
-    },
+    }] as ColumnDef<Hospital, any>[] : []),
     {
       accessorKey: "doctorCount",
       header: "Doctors",
@@ -108,7 +113,6 @@ export function HospitalTable({
       header: "Status",
       cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        // Map "under review" -> pending colors, and others accordingly
         const displayStatus = status === "Under Review" ? "pending" : status;
         return <StatusBadge status={displayStatus} />;
       },
@@ -217,7 +221,7 @@ export function HospitalTable({
 
   return (
     <AppTable
-      columns={columns}
+      columns={allColumns}
       data={data}
       isLoading={isLoading}
       emptyState={

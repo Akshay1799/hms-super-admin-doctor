@@ -50,12 +50,12 @@ export default function HospitalsPage() {
 
   return (
     <PageContainer>
-      <Breadcrumbs items={[{ label: isTenantAdmin ? "Hospital Branches" : "Hospitals Network" }]} />
+      <Breadcrumbs items={[{ label: isTenantAdmin ? "Hospitals" : "Hospitals Network" }]} />
 
       <div className="flex flex-col gap-6">
         <PageHeader
-          title={isTenantAdmin ? "Apollo Clinics Hospital Branches" : "SaaS Master Hospitals Directory"}
-          description={isTenantAdmin ? "Manage and supervise your organization's active hospital units and branches." : "Manage clinical nodes, branches, and departments across all SaaS tenants."}
+          title={isTenantAdmin ? "Apollo Hospitals Directory" : "SaaS Master Hospitals Directory"}
+          description={isTenantAdmin ? "Manage and supervise your organization's active hospital units." : "Manage clinical nodes and departments across all SaaS tenants."}
         />
 
         <HospitalFilters
