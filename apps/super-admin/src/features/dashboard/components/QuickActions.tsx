@@ -1,48 +1,35 @@
 "use client";
 
 import React from "react";
-import { PlusCircle, Building, UserPlus, FileBarChart, Radio, ScrollText } from "lucide-react";
+import { PlusCircle, Building, UserPlus, FileBarChart, Radio, ScrollText, Stethoscope, Users } from "lucide-react";
 import Link from "next/link";
+import { useAuthStore } from "@/store/auth.store";
 
 export function QuickActions() {
-  const actions = [
-    { 
-      label: "Create Tenant", 
-      icon: PlusCircle, 
-      href: "/tenants/create", 
-      tooltip: "Provision a new tenant organization subscription" 
-    },
-    { 
-      label: "Add Hospital", 
-      icon: Building, 
-      href: "/hospitals/create", 
-      tooltip: "Register a new clinical facility branch" 
-    },
-    { 
-      label: "Invite Admin", 
-      icon: UserPlus, 
-      href: "/users/create", 
-      tooltip: "Grant platform administrative access credentials" 
-    },
-    { 
-      label: "Generate Report", 
-      icon: FileBarChart, 
-      href: "/reports", 
-      tooltip: "Export platform metrics, bills & audits summaries" 
-    },
-    { 
-      label: "Send Broadcast", 
-      icon: Radio, 
-      href: "/broadcasts/create", 
-      tooltip: "Transmit system-wide notifications instantly" 
-    },
-    { 
-      label: "View Audit Logs", 
-      icon: ScrollText, 
-      href: "/audit/logs", 
-      tooltip: "Review detailed user activities & compliance records" 
-    },
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
+
+  // Super Admin — full platform management shortcuts
+  const superAdminActions = [
+    { label: "Create Tenant",  icon: PlusCircle,   href: "/tenants/create",    tooltip: "Provision a new tenant organization subscription" },
+    { label: "Add Hospital",   icon: Building,      href: "/hospitals/create",  tooltip: "Register a new clinical facility branch" },
+    { label: "Invite Admin",   icon: UserPlus,      href: "/users/create",      tooltip: "Grant platform administrative access credentials" },
+    { label: "Generate Report",icon: FileBarChart,  href: "/reports",           tooltip: "Export platform metrics, bills & audits summaries" },
+    { label: "Send Broadcast", icon: Radio,         href: "/broadcasts/create", tooltip: "Transmit system-wide notifications instantly" },
+    { label: "View Audit Logs",icon: ScrollText,    href: "/audit/logs",        tooltip: "Review detailed user activities & compliance records" },
   ];
+
+  // Tenant Admin — org-level operational shortcuts only
+  const tenantAdminActions = [
+    { label: "Add Hospital",    icon: Building,     href: "/hospitals/create",  tooltip: "Register a new hospital under your organization" },
+    { label: "Add Doctor",      icon: Stethoscope,  href: "/doctors",           tooltip: "Onboard a new clinician or specialist" },
+    { label: "Manage Staff",    icon: Users,        href: "/staff",             tooltip: "View and manage your hospital's staff roster" },
+    { label: "Generate Report", icon: FileBarChart, href: "/reports",           tooltip: "Export organization metrics and audit summaries" },
+    { label: "Send Broadcast",  icon: Radio,        href: "/broadcasts/create", tooltip: "Send notifications across all hospital units" },
+    { label: "View Audit Logs", icon: ScrollText,   href: "/audit/logs",        tooltip: "Review staff activity and compliance records" },
+  ];
+
+  const actions = isTenantAdmin ? tenantAdminActions : superAdminActions;
 
   return (
     <div className="bg-card border border-border rounded-[var(--radius-card)] p-6 shadow-xs space-y-4">
