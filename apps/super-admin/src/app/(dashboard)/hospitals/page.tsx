@@ -16,7 +16,12 @@ import {
 } from "@/features/hospitals/hooks/useHospitals";
 import { Hospital } from "@/features/hospitals/types/hospital.types";
 
+import { useAuthStore } from "@/store/auth.store";
+
 export default function HospitalsPage() {
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
+
   const [search, setSearch] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [type, setType] = useState("");
@@ -28,12 +33,16 @@ export default function HospitalsPage() {
   const [hospToActivate, setHospToActivate] = useState<Hospital | null>(null);
 
   // Queries & Mutations
-  const { data: hospitals = [], isLoading } = useHospitals({
+  const { data: rawHospitals = [], isLoading } = useHospitals({
     search,
-    tenantId: tenantId || undefined,
+    tenantId: isTenantAdmin ? (user.tenantId || "1") : (tenantId || undefined),
     type: type || undefined,
     status: status || undefined,
   });
+
+  const hospitals = isTenantAdmin
+    ? rawHospitals.filter((h) => h.tenantId === (user.tenantId || "1"))
+    : rawHospitals;
 
   const deleteMutation = useDeleteHospital();
   const suspendMutation = useSuspendHospital();
@@ -41,12 +50,12 @@ export default function HospitalsPage() {
 
   return (
     <PageContainer>
-      <Breadcrumbs items={[{ label: "Hospitals" }]} />
+      <Breadcrumbs items={[{ label: isTenantAdmin ? "Hospital Branches" : "Hospitals Network" }]} />
 
       <div className="flex flex-col gap-6">
         <PageHeader
-          title="Hospitals"
-          description="Manage clinical nodes, branches, and departments across SaaS tenants."
+          title={isTenantAdmin ? "Apollo Clinics Hospital Branches" : "SaaS Master Hospitals Directory"}
+          description={isTenantAdmin ? "Manage and supervise your organization's active hospital units and branches." : "Manage clinical nodes, branches, and departments across all SaaS tenants."}
         />
 
         <HospitalFilters

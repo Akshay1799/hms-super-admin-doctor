@@ -24,8 +24,12 @@ import { useAlerts } from "@/features/dashboard/hooks/useAlerts";
 import { toast } from "sonner";
 import { RefreshCw, Download } from "lucide-react";
 
+import { useAuthStore } from "@/store/auth.store";
+
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
 
   const [filters, setFilters] = React.useState({
     dateRange: "last-30",
@@ -34,7 +38,7 @@ export default function DashboardPage() {
   });
 
   // Load isolated query loaders
-  const { data: metrics, isLoading: mLoading, isError: mError, refetch: mRefetch } = useDashboardMetrics();
+  const { data: rawMetrics, isLoading: mLoading, isError: mError, refetch: mRefetch } = useDashboardMetrics();
   const { data: revTrend, isLoading: rLoading, isError: rError, refetch: rRefetch } = useRevenueTrend();
   const { data: activities, isLoading: actLoading, isError: actError, refetch: actRefetch } = useActivities();
   const { data: alerts, isLoading: alLoading, isError: alError, refetch: alRefetch } = useAlerts();
@@ -60,37 +64,49 @@ export default function DashboardPage() {
     );
   };
 
-  // Simulate dashboard metric variations based on active filters
-  const filteredMetrics = metrics?.map(kpi => {
+  // Role-tailored KPI metrics customization
+  const baseMetrics = isTenantAdmin
+    ? [
+        { id: "tkpi-1", title: "Hospital Branches", value: "2 Units", percentage: 5.2, trend: "up", color: "blue", icon: "Building" },
+        { id: "tkpi-2", title: "Active Doctors", value: "57 Specialists", percentage: 8.4, trend: "up", color: "purple", icon: "User" },
+        { id: "tkpi-3", title: "Registered Patients", value: "1,540 Patients", percentage: 12.1, trend: "up", color: "teal", icon: "Users2" },
+        { id: "tkpi-4", title: "Bed Occupancy Rate", value: "78.5%", percentage: 3.2, trend: "up", color: "emerald", icon: "Bed" },
+        { id: "tkpi-5", title: "Monthly Organization Revenue", value: "₹48.2L", percentage: 14.2, trend: "up", color: "emerald", icon: "IndianRupee" },
+        { id: "tkpi-6", title: "Pending Consultations", value: "24 OPD", percentage: 2.1, trend: "down", color: "orange", icon: "Calendar" },
+        { id: "tkpi-7", title: "Staff Shift Rosters", value: "98% Filled", percentage: 0, trend: "neutral", color: "gray", icon: "ClipboardList" },
+        { id: "tkpi-8", title: "Unpaid Invoices", value: "₹2.4L", percentage: 1.5, trend: "down", color: "red", icon: "Receipt" },
+      ]
+    : rawMetrics;
+
+  const filteredMetrics = baseMetrics?.map(kpi => {
     let multiplier = 1.0;
     if (filters.dateRange === "today") multiplier = 0.05;
     else if (filters.dateRange === "last-7") multiplier = 0.25;
     else if (filters.dateRange === "last-90") multiplier = 2.8;
 
     if (filters.status !== "all") multiplier *= 0.6;
-    if (filters.tenant) multiplier *= 0.15;
+    if (filters.tenant && !isTenantAdmin) multiplier *= 0.15;
 
-    // Keep active user stats as integers
     const originalValue = typeof kpi.value === "string" ? parseFloat(kpi.value.replace(/[^0-9.]/g, '')) : kpi.value;
     const computed = Math.round(originalValue * multiplier);
     
     return {
       ...kpi,
-      value: typeof kpi.value === "string" 
-        ? (kpi.value.includes("$") ? `$${computed.toLocaleString()}` : computed.toLocaleString())
-        : computed
+      value: typeof kpi.value === "string" && !kpi.value.includes("%") && !kpi.value.includes("Units") && !kpi.value.includes("Specialists") && !kpi.value.includes("Patients") && !kpi.value.includes("OPD") && !kpi.value.includes("Filled")
+        ? (kpi.value.includes("₹") || kpi.value.includes("$") ? `₹${computed.toLocaleString()}L` : computed.toLocaleString())
+        : kpi.value
     };
   });
 
   return (
     <PageContainer>
       {/* Top Breadcrumb */}
-      <Breadcrumbs items={[{ label: "Governance Overview" }]} />
+      <Breadcrumbs items={[{ label: isTenantAdmin ? "Tenant Organization Overview" : "Governance Master Overview" }]} />
 
       {/* Main Header Panel */}
       <PageHeader
-        title="Dashboard"
-        description="Platform insights and analytics overview."
+        title={isTenantAdmin ? "Apollo Clinics Executive Dashboard" : "HMS SaaS Master Dashboard"}
+        description={isTenantAdmin ? "Organization performance, branch occupancy, and doctor roster metrics." : "Platform insights, SaaS tenant subscriptions, and global infrastructure health."}
         actions={
           <div className="flex gap-2.5">
             <button

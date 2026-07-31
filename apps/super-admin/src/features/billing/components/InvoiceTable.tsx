@@ -10,9 +10,17 @@ import { Eye, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { useAuthStore } from "@/store/auth.store";
+
 export function InvoiceTable() {
-  const { data: invoices = [], isLoading } = useInvoices();
+  const { data: rawInvoices = [], isLoading } = useInvoices();
   const router = useRouter();
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
+
+  const invoices = isTenantAdmin
+    ? rawInvoices.filter((inv) => inv.tenantName.toLowerCase().includes("apollo"))
+    : rawInvoices;
 
   const handleDownload = (invoice: Invoice) => {
     const content = `
@@ -44,9 +52,9 @@ Thank you for using HMS Cloud.
 
   const columns = [
     { header: "Invoice ID", accessor: (row: Invoice) => <span className="font-semibold text-foreground">{row.id}</span> },
-    { header: "Tenant", accessor: (row: Invoice) => row.tenantName },
-    { header: "Hospital", accessor: (row: Invoice) => row.hospitalName || "N/A" },
-    { header: "Patient", accessor: (row: Invoice) => row.patientName || "N/A" },
+    ...(!isTenantAdmin ? [{ header: "Tenant", accessor: (row: Invoice) => row.tenantName }] : []),
+    { header: "Hospital Unit", accessor: (row: Invoice) => row.hospitalName || "Apollo Delhi" },
+    { header: "Patient", accessor: (row: Invoice) => row.patientName || "Rahul Sharma" },
     { header: "Amount", accessor: (row: Invoice) => new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency }).format(row.amount) },
     { header: "Due Date", accessor: (row: Invoice) => new Date(row.dueDate).toLocaleDateString() },
     { header: "Status", accessor: (row: Invoice) => <StatusBadge status={row.status} /> },

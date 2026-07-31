@@ -21,6 +21,19 @@ export const authService = {
             user: MOCK_USER,
           };
         }
+        if (data.email === "tenant@apollo.com" && data.password === "password123") {
+          return {
+            accessToken: "mock-tenant-access-token",
+            refreshToken: "mock-tenant-refresh-token",
+            user: {
+              id: "tenant-1",
+              name: "Apollo Group Executive",
+              email: "tenant@apollo.com",
+              role: "TENANT_ADMIN",
+              tenantId: "1",
+            },
+          };
+        }
       }
       throw error;
     }
