@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: "SUPER_ADMIN";
+  role: "SUPER_ADMIN" | "TENANT_ADMIN" | string;
   tenantId: string | null;
 }
 

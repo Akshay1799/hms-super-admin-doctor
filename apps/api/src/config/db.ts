@@ -59,6 +59,22 @@ export async function connectDB(): Promise<void> {
       logger.info('   -> Created default Tenant (APOLLO)');
     }
 
+    // 2.5 Check/Create Tenant Admin
+    let tenantAdmin = await User.findOne({ email: 'tenant@apollo.com' });
+    if (!tenantAdmin) {
+      await User.create({
+        name: 'Apollo Group Executive',
+        email: 'tenant@apollo.com',
+        password: 'password123',
+        role: 'TENANT_ADMIN',
+        status: 'Active',
+        tenantId: tenant._id,
+        hospitalId: null,
+        departmentId: null
+      });
+      logger.info('   -> Created default Tenant Admin (tenant@apollo.com)');
+    }
+
     // 3. Check/Create Hospital
     let hospital = await Hospital.findOne({ code: 'APOLLO-DEL' });
     if (!hospital) {

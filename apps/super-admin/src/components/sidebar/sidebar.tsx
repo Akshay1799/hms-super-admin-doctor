@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebarStore } from "@/store/sidebar.store";
-import { sidebarConfig } from "@/config/sidebar.config";
+import { getRoleFilteredSidebar } from "@/config/sidebar.config";
 import { cn } from "@/lib/utils";
 import { HelpCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,17 +17,20 @@ export function Sidebar() {
 
   if (!user) return null;
 
+  const currentSidebarConfig = getRoleFilteredSidebar(user.role);
+  const portalBrandTitle = user.role === "TENANT_ADMIN" ? "Tenant Governance" : "HMS Super Admin";
+
   const content = (
     <div className="flex h-full flex-col bg-card border-r border-border text-foreground transition-all duration-200">
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5 font-bold">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white font-extrabold text-base">
-            H
+            {user.role === "TENANT_ADMIN" ? "T" : "H"}
           </div>
           {(!collapsed || mobileOpen) && (
             <span className="text-sm font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-600">
-              HMS Super Admin
+              {portalBrandTitle}
             </span>
           )}
         </Link>
@@ -43,7 +46,7 @@ export function Sidebar() {
 
       {/* Navigation Groups */}
       <div className="flex-1 overflow-y-auto p-3 space-y-6">
-        {sidebarConfig.map((group) => (
+        {currentSidebarConfig.map((group) => (
           <div key={group.groupName} className="space-y-1.5">
             {(!collapsed || mobileOpen) && (
               <h4 className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none">

@@ -197,3 +197,69 @@ export const sidebarConfig: SidebarGroup[] = [
   },
 ];
 
+export function getRoleFilteredSidebar(role?: string): SidebarGroup[] {
+  if (role === "TENANT_ADMIN") {
+    return [
+      {
+        groupName: "Core",
+        items: [
+          { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        ],
+      },
+      {
+        groupName: "Hospital Network",
+        items: [
+          { label: "Hospital Branches", href: "/hospitals", icon: Building },
+        ],
+      },
+      {
+        groupName: "Clinical Oversight",
+        items: [
+          { label: "Clinical Analytics", href: "/clinical-analytics", icon: Activity },
+          { label: "Bed Occupancy", href: "/bed-occupancy", icon: Bed },
+          { label: "Doctors Registry", href: "/doctors", icon: Stethoscope },
+          { label: "Patients Supervision", href: "/patients", icon: Users },
+          { label: "Nurses Duty Roster", href: "/nurses", icon: ClipboardList },
+          { label: "Staff Directory", href: "/staff", icon: Users2 },
+          { label: "Appointments Tracker", href: "/appointments", icon: Calendar },
+          { label: "Admissions Log", href: "/admissions", icon: ClipboardList },
+        ],
+      },
+      {
+        groupName: "Revenue & Invoices",
+        items: [
+          { label: "Revenue Overview", href: "/revenue", icon: PieChart },
+          { label: "Invoices", href: "/invoices", icon: Receipt },
+          { label: "Subscription Plan", href: "/subscriptions", icon: Repeat },
+          { label: "Financial Reports", href: "/financial-reports", icon: FileText },
+        ],
+      },
+      {
+        groupName: "Notifications",
+        items: [
+          { label: "Notifications", href: "/notifications", icon: Bell },
+          { label: "Broadcast Alerts", href: "/broadcasts", icon: Megaphone },
+        ],
+      },
+      {
+        groupName: "Organization Staff",
+        items: [
+          { label: "Users & Access", href: "/users", icon: Users2 },
+        ],
+      },
+      {
+        groupName: "Tenant Settings",
+        items: [
+          { label: "Branding & Logo", href: "/settings/branding", icon: Palette },
+          { label: "Localization", href: "/settings/localization", icon: Globe },
+          { label: "Security Policies", href: "/settings/security", icon: ShieldCheck },
+          { label: "Notifications", href: "/settings/notifications", icon: Bell },
+        ],
+      },
+    ];
+  }
+
+  // Default SUPER_ADMIN view (All SaaS platform management tools)
+  return sidebarConfig;
+}
+
