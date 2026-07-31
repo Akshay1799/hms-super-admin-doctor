@@ -21,9 +21,9 @@ export default function LoginPage() {
             </p>
           </div>
           <div className="border-t border-slate-200 pt-6">
-            <p className="text-xs text-slate-500 font-semibold">Authentication Policy Sandbox Mode:</p>
+            <p className="text-xs text-slate-500 font-semibold">Enterprise Security & Single Sign-On (SSO):</p>
             <p className="text-xs text-slate-600 mt-1">
-              Use <span className="font-mono font-semibold text-primary">admin@medichain.com</span> and password <span className="font-mono font-semibold text-primary">password123</span> to authenticate.
+              Authorized personnel only. Sessions are encrypted using short-lived JWT tokens and HttpOnly cookie authentication policies.
             </p>
           </div>
         </div>

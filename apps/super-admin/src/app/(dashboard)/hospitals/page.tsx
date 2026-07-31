@@ -35,13 +35,13 @@ export default function HospitalsPage() {
   // Queries & Mutations
   const { data: rawHospitals = [], isLoading } = useHospitals({
     search,
-    tenantId: isTenantAdmin ? (user.tenantId || "1") : (tenantId || undefined),
+    tenantId: isTenantAdmin ? (tenantId || "1") : (tenantId || undefined),
     type: type || undefined,
     status: status || undefined,
   });
 
   const hospitals = isTenantAdmin
-    ? rawHospitals.filter((h) => h.tenantId === (user.tenantId || "1"))
+    ? rawHospitals.filter((h) => h.tenantId === "1" || h.tenantId === (user?.tenantId || "1") || h.tenantId === "tenant-1")
     : rawHospitals;
 
   const deleteMutation = useDeleteHospital();

@@ -67,7 +67,7 @@ export default function DashboardPage() {
   // Role-tailored KPI metrics customization
   const baseMetrics = isTenantAdmin
     ? [
-        { id: "tkpi-1", title: "Hospital Branches", value: "2 Units", percentage: 5.2, trend: "up", color: "blue", icon: "Building" },
+        { id: "tkpi-1", title: "Hospital Branches", value: "4 Units", percentage: 5.2, trend: "up", color: "blue", icon: "Building" },
         { id: "tkpi-2", title: "Active Doctors", value: "57 Specialists", percentage: 8.4, trend: "up", color: "purple", icon: "User" },
         { id: "tkpi-3", title: "Registered Patients", value: "1,540 Patients", percentage: 12.1, trend: "up", color: "teal", icon: "Users2" },
         { id: "tkpi-4", title: "Bed Occupancy Rate", value: "78.5%", percentage: 3.2, trend: "up", color: "emerald", icon: "Bed" },

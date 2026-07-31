@@ -16,6 +16,8 @@ interface HospitalFiltersProps {
   onStatusChange: (val: string) => void;
 }
 
+import { useAuthStore } from "@/store/auth.store";
+
 export function HospitalFilters({
   search,
   onSearchChange,
@@ -26,13 +28,23 @@ export function HospitalFilters({
   status,
   onStatusChange,
 }: HospitalFiltersProps) {
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
+
   const dropdowns = [
     {
       name: "tenantId",
-      placeholder: "All Tenants",
+      placeholder: isTenantAdmin ? "All Hospital Groups" : "All Tenants",
       selectedValue: tenantId,
       onChange: onTenantChange,
-      options: MOCK_TENANTS.map((t) => ({ label: t.name, value: t.id })),
+      options: isTenantAdmin
+        ? [
+            { label: "Apollo Healthcare Group", value: "1" },
+            { label: "Medicare Diagnostics", value: "2" },
+            { label: "Fortis Network", value: "3" },
+            { label: "Max Healthcare", value: "4" },
+          ]
+        : MOCK_TENANTS.map((t) => ({ label: t.name, value: t.id })),
     },
     {
       name: "type",

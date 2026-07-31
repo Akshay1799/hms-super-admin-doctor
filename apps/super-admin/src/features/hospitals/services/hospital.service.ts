@@ -57,7 +57,8 @@ export const hospitalService = {
     }
 
     if (filters?.tenantId && filters.tenantId !== "All") {
-      result = result.filter((h) => h.tenantId === filters.tenantId);
+      const targetId = filters.tenantId;
+      result = result.filter((h) => h.tenantId === targetId || (targetId === "1" && h.tenantId === "1") || (targetId === "tenant-1" && h.tenantId === "1"));
     }
 
     if (filters?.type && filters.type !== "All") {

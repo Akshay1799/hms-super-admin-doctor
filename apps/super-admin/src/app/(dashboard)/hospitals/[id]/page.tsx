@@ -54,13 +54,19 @@ interface PatientMock {
   admissionDate: string;
 }
 
+import { useAuthStore } from "@/store/auth.store";
+
 export default function HospitalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryTab = searchParams.get("tab") as ActiveTab;
 
+  const { user } = useAuthStore();
+  const isTenantAdmin = user?.role === "TENANT_ADMIN";
+
   const [activeTab, setActiveTab] = useState<ActiveTab>(queryTab || "overview");
+  const [staffRoleFilter, setStaffRoleFilter] = useState("ALL");
 
   // Dialog triggers
   const [isSuspendOpen, setIsSuspendOpen] = useState(false);
@@ -149,17 +155,68 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
     { id: "pat-3", name: "Bob Smith", gender: "Male", status: "Inactive", admissionDate: "2026-05-20" },
   ];
 
-  const tabs: { id: ActiveTab; label: string }[] = [
+  interface StaffMember {
+    id: string;
+    name: string;
+    role: "DOCTOR" | "NURSE" | "PHARMACIST" | "RECEPTIONIST" | "LAB_TECH";
+    department: string;
+    email: string;
+    status: string;
+  }
+
+  const staffMembers: StaffMember[] = [
+    { id: "s-1", name: "Dr. Shweta", role: "DOCTOR", department: "Cardiology Unit", email: "doctor@medichain.com", status: "Active" },
+    { id: "s-2", name: "Dr. Gregory House", role: "DOCTOR", department: "Diagnostics / Nephrology", email: "house@apollo.com", status: "Active" },
+    { id: "s-3", name: "Nurse Anjali Sharma", role: "NURSE", department: "ICU Ward", email: "anjali.nurse@apollo.com", status: "Active" },
+    { id: "s-4", name: "Nurse Priya Verma", role: "NURSE", department: "Emergency Triage", email: "priya.nurse@apollo.com", status: "Active" },
+    { id: "s-5", name: "Pharmacist Rajesh Kumar", role: "PHARMACIST", department: "Main Pharmacy Store", email: "rajesh.pharm@apollo.com", status: "Active" },
+    { id: "s-6", name: "Receptionist Sunita Patel", role: "RECEPTIONIST", department: "Front Desk Operations", email: "sunita.rec@apollo.com", status: "Active" },
+    { id: "s-7", name: "Lab Tech Vikram Singh", role: "LAB_TECH", department: "Central Pathology Lab", email: "vikram.lab@apollo.com", status: "Active" },
+  ];
+
+  const filteredStaff = staffRoleFilter === "ALL" 
+    ? staffMembers 
+    : staffMembers.filter(s => s.role === staffRoleFilter);
+
+  const staffColumns: ColumnDef<StaffMember>[] = [
+    {
+      accessorKey: "name",
+      header: "Staff Member Name",
+      cell: ({ row }) => <span className="font-semibold text-foreground">{row.original.name}</span>,
+    },
+    {
+      accessorKey: "role",
+      header: "Assigned Role",
+      cell: ({ row }) => (
+        <span className="px-2 py-0.5 rounded text-[11px] font-extrabold uppercase bg-primary/10 text-primary border border-primary/20">
+          {row.original.role.replace("_", " ")}
+        </span>
+      ),
+    },
+    { accessorKey: "department", header: "Department / Unit" },
+    { accessorKey: "email", header: "Email Address" },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+  ];
+
+  const rawTabs: { id: ActiveTab; label: string }[] = [
     { id: "overview", label: "Overview" },
-    { id: "branches", label: "Branches" },
+    { id: "branches", label: "Sub-Units" },
     { id: "departments", label: "Departments" },
-    { id: "doctors", label: "Doctors" },
+    { id: "doctors", label: "Staff & Clinicians" },
     { id: "patients", label: "Patients" },
     { id: "capacity", label: "Capacity" },
     { id: "accreditation", label: "Accreditation" },
     { id: "settings", label: "Settings" },
     { id: "audits", label: "Audit Logs" },
   ];
+
+  const tabs = isTenantAdmin
+    ? rawTabs.filter((t) => t.id !== "branches")
+    : rawTabs;
 
   const handleTabChange = (tabId: ActiveTab) => {
     setActiveTab(tabId);
@@ -213,17 +270,37 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
 
           {activeTab === "doctors" && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <h2 className="text-base font-bold text-foreground">Registered Medical Practitioners</h2>
-                <p className="text-sm text-muted-foreground">List of active clinicians and doctors with diagnostic credentials.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Hospital Medical Staff & Staff Directory</h2>
+                  <p className="text-xs text-muted-foreground">Clinicians, nurses, pharmacists, receptionists, and lab technicians assigned to this unit.</p>
+                </div>
+
+                {/* Role Filter Dropdown */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Filter by Role:</label>
+                  <select
+                    value={staffRoleFilter}
+                    onChange={(e) => setStaffRoleFilter(e.target.value)}
+                    className="h-9 px-3 rounded-lg border border-border bg-background text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  >
+                    <option value="ALL">All Roles ({staffMembers.length})</option>
+                    <option value="DOCTOR">Doctors / Clinicians</option>
+                    <option value="NURSE">Nurses</option>
+                    <option value="PHARMACIST">Pharmacists</option>
+                    <option value="RECEPTIONIST">Receptionists</option>
+                    <option value="LAB_TECH">Lab Technicians</option>
+                  </select>
+                </div>
               </div>
+
               <AppTable
-                columns={doctorColumns}
-                data={mockDoctors}
+                columns={staffColumns}
+                data={filteredStaff}
                 emptyState={
                   <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                     <Stethoscope className="h-8 w-8 mb-2 text-muted-foreground/45" />
-                    <p className="text-sm font-semibold">No doctors onboarded</p>
+                    <p className="text-sm font-semibold">No staff found for selected role filter</p>
                   </div>
                 }
               />
