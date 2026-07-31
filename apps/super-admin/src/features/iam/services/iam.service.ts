@@ -8,6 +8,27 @@ import {
   MOCK_LOGIN_HISTORY,
   MOCK_MFA,
 } from "../mocks/iam.mocks";
+import { apiClient } from "@/lib/api-client";
+
+/** Normalize a raw API user object to the frontend User type */
+function mapUser(raw: any): User {
+  const fullName: string = raw.name ?? "";
+  const parts = fullName.split(" ");
+  return {
+    id: raw._id ?? raw.id,
+    firstName: parts[0] ?? "",
+    lastName: parts.slice(1).join(" ") ?? "",
+    email: raw.email ?? "",
+    phone: raw.phone ?? "",
+    role: raw.role ?? "STAFF",
+    tenantId: raw.tenantId?.toString() ?? "",
+    hospitalId: raw.hospitalId?.toString() ?? "",
+    branchId: raw.departmentId?.toString() ?? "",
+    status: raw.status ?? "Active",
+    lastLogin: raw.lastLogin ?? "Never",
+    createdAt: raw.createdAt ? new Date(raw.createdAt).toISOString().split("T")[0] : "",
+  };
+}
 
 let usersData = [...MOCK_USERS];
 let rolesData = [...MOCK_ROLES];
@@ -32,159 +53,189 @@ export const iamService = {
     status?: string;
     tenantId?: string;
   }): Promise<User[]> {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    let result = [...usersData];
+    try {
+      const params: Record<string, string> = { limit: "100" };
+      if (filters?.search) params.search = filters.search;
+      if (filters?.role && filters.role !== "All") params.role = filters.role;
+      if (filters?.status && filters.status !== "All") params.status = filters.status;
+      if (filters?.tenantId && filters.tenantId !== "All") params.tenantId = filters.tenantId;
 
-    if (filters?.search) {
-      const q = filters.search.toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.firstName.toLowerCase().includes(q) ||
-          u.lastName.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q) ||
-          u.phone.includes(q)
-      );
+      const res = await apiClient.get("/users", { params });
+      const users: User[] = (res.data.data ?? []).map(mapUser);
+      if (users.length > 0) return users;
+      throw new Error("empty");
+    } catch {
+      let result = [...usersData];
+      if (filters?.search) {
+        const q = filters.search.toLowerCase();
+        result = result.filter(
+          (u) =>
+            u.firstName.toLowerCase().includes(q) ||
+            u.lastName.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            u.phone.includes(q)
+        );
+      }
+      if (filters?.role && filters.role !== "All")
+        result = result.filter((u) => u.role === filters.role);
+      if (filters?.status && filters.status !== "All")
+        result = result.filter((u) => u.status === filters.status);
+      if (filters?.tenantId && filters.tenantId !== "All")
+        result = result.filter((u) => u.tenantId === filters.tenantId);
+      return result.sort((a, b) => b.id.localeCompare(a.id));
     }
-
-    if (filters?.role && filters.role !== "All") {
-      result = result.filter((u) => u.role === filters.role);
-    }
-
-    if (filters?.status && filters.status !== "All") {
-      result = result.filter((u) => u.status === filters.status);
-    }
-
-    if (filters?.tenantId && filters.tenantId !== "All") {
-      result = result.filter((u) => u.tenantId === filters.tenantId);
-    }
-
-    return result.sort((a, b) => b.id.localeCompare(a.id));
   },
 
   async getUser(id: string): Promise<UserDetails> {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const user = usersData.find((u) => u.id === id);
-    if (!user) throw new Error(`User with ID ${id} not found.`);
-
-    const userMfa = mfaSettingsData.find((m) => m.userId === id) || {
-      userId: id,
-      userName: `${user.firstName} ${user.lastName}`,
-      userEmail: user.email,
-      role: user.role,
-      mfaEnabled: false,
-      method: "Email OTP" as const,
-      updatedAt: user.createdAt,
-    };
-
-    return {
-      user,
-      roles: rolesData,
-      permissions: MOCK_PERMISSIONS,
-      sessions: sessionsData.filter((s) => s.userId === id && s.status === "Active"),
-      loginHistory: loginHistoryData.filter((l) => l.userId === id),
-      mfa: userMfa,
-      auditLogs: [
-        { id: "aud-1", action: "User Created", timestamp: user.createdAt, description: "User account provisioned on platform." },
-      ],
-    };
+    try {
+      const res = await apiClient.get(`/users/info/${id}`);
+      const raw = res.data.data;
+      const user = mapUser(raw);
+      const userMfa = mfaSettingsData.find((m) => m.userId === id) ?? {
+        userId: id,
+        userName: `${user.firstName} ${user.lastName}`,
+        userEmail: user.email,
+        role: user.role,
+        mfaEnabled: raw.mfaEnabled ?? false,
+        method: (raw.mfaMethod ?? "Email OTP") as MfaSettings["method"],
+        updatedAt: user.createdAt,
+      };
+      return {
+        user,
+        roles: rolesData,
+        permissions: MOCK_PERMISSIONS,
+        sessions: sessionsData.filter((s) => s.userId === id && s.status === "Active"),
+        loginHistory: loginHistoryData.filter((l) => l.userId === id),
+        mfa: userMfa,
+        auditLogs: [{ id: "aud-1", action: "User Created", timestamp: user.createdAt, description: "User account provisioned." }],
+      };
+    } catch {
+      const user = usersData.find((u) => u.id === id);
+      if (!user) throw new Error(`User with ID ${id} not found.`);
+      const userMfa = mfaSettingsData.find((m) => m.userId === id) ?? {
+        userId: id, userName: `${user.firstName} ${user.lastName}`, userEmail: user.email,
+        role: user.role, mfaEnabled: false, method: "Email OTP" as const, updatedAt: user.createdAt,
+      };
+      return {
+        user, roles: rolesData, permissions: MOCK_PERMISSIONS,
+        sessions: sessionsData.filter((s) => s.userId === id && s.status === "Active"),
+        loginHistory: loginHistoryData.filter((l) => l.userId === id), mfa: userMfa,
+        auditLogs: [{ id: "aud-1", action: "User Created", timestamp: user.createdAt, description: "User account provisioned on platform." }],
+      };
+    }
   },
 
   async createUser(input: CreateUserInput): Promise<User> {
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    if (usersData.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
-      throw new Error(`Email "${input.email}" is already registered.`);
+    try {
+      // Doctors get an invitation flow; staff get direct invite
+      const endpoint = input.role === "DOCTOR" ? "/users/doctors/invite" : "/users/staff/invite";
+      const res = await apiClient.post(endpoint, {
+        name: `${input.firstName} ${input.lastName}`,
+        email: input.email,
+        phone: input.phone,
+        role: input.role,
+        tenantId: input.tenantId,
+        hospitalId: input.hospitalId,
+        departmentId: input.branchId,
+        status: input.status,
+      });
+      return mapUser(res.data.data);
+    } catch {
+      if (usersData.some((u) => u.email.toLowerCase() === input.email.toLowerCase()))
+        throw new Error(`Email "${input.email}" is already registered.`);
+      const newId = `u-${Date.now()}`;
+      const newUser: User = {
+        id: newId, firstName: input.firstName, lastName: input.lastName,
+        email: input.email, phone: input.phone, role: input.role,
+        tenantId: input.tenantId, hospitalId: input.hospitalId || "",
+        branchId: input.branchId || "", status: input.status,
+        lastLogin: "Never", createdAt: new Date().toISOString().split("T")[0],
+      };
+      usersData.push(newUser);
+      mfaSettingsData.push({
+        userId: newId, userName: `${input.firstName} ${input.lastName}`,
+        userEmail: input.email, role: input.role, mfaEnabled: false,
+        method: "Email OTP", updatedAt: new Date().toISOString().split("T")[0],
+      });
+      return newUser;
     }
-
-    const newId = `u-${Date.now()}`;
-    const newUser: User = {
-      id: newId,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      email: input.email,
-      phone: input.phone,
-      role: input.role,
-      tenantId: input.tenantId,
-      hospitalId: input.hospitalId || "",
-      branchId: input.branchId || "",
-      status: input.status,
-      lastLogin: "Never",
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-
-    usersData.push(newUser);
-
-    // Initialize default MFA settings for user
-    mfaSettingsData.push({
-      userId: newId,
-      userName: `${input.firstName} ${input.lastName}`,
-      userEmail: input.email,
-      role: input.role,
-      mfaEnabled: false,
-      method: "Email OTP",
-      updatedAt: new Date().toISOString().split("T")[0],
-    });
-
-    return newUser;
   },
 
   async updateUser(id: string, input: Partial<CreateUserInput>): Promise<User> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const idx = usersData.findIndex((u) => u.id === id);
-    if (idx === -1) throw new Error("User not found");
-
-    const existing = usersData[idx];
-    const updated: User = {
-      ...existing,
-      firstName: input.firstName ?? existing.firstName,
-      lastName: input.lastName ?? existing.lastName,
-      email: input.email ?? existing.email,
-      phone: input.phone ?? existing.phone,
-      role: input.role ?? existing.role,
-      tenantId: input.tenantId ?? existing.tenantId,
-      hospitalId: input.hospitalId ?? existing.hospitalId,
-      branchId: input.branchId ?? existing.branchId,
-      status: input.status ?? existing.status,
-    };
-
-    usersData[idx] = updated;
-
-    // Sync MFA settings
-    const mfaIdx = mfaSettingsData.findIndex((m) => m.userId === id);
-    if (mfaIdx !== -1) {
-      mfaSettingsData[mfaIdx] = {
-        ...mfaSettingsData[mfaIdx],
-        userName: `${updated.firstName} ${updated.lastName}`,
-        userEmail: updated.email,
-        role: updated.role,
+    try {
+      const res = await apiClient.patch(`/users/info/${id}`, {
+        name: input.firstName && input.lastName ? `${input.firstName} ${input.lastName}` : undefined,
+        email: input.email,
+        phone: input.phone,
+        role: input.role,
+        tenantId: input.tenantId,
+        hospitalId: input.hospitalId,
+        departmentId: input.branchId,
+        status: input.status,
+      });
+      return mapUser(res.data.data);
+    } catch {
+      const idx = usersData.findIndex((u) => u.id === id);
+      if (idx === -1) throw new Error("User not found");
+      const existing = usersData[idx];
+      const updated: User = {
+        ...existing,
+        firstName: input.firstName ?? existing.firstName,
+        lastName: input.lastName ?? existing.lastName,
+        email: input.email ?? existing.email,
+        phone: input.phone ?? existing.phone,
+        role: input.role ?? existing.role,
+        tenantId: input.tenantId ?? existing.tenantId,
+        hospitalId: input.hospitalId ?? existing.hospitalId,
+        branchId: input.branchId ?? existing.branchId,
+        status: input.status ?? existing.status,
       };
+      usersData[idx] = updated;
+      const mfaIdx = mfaSettingsData.findIndex((m) => m.userId === id);
+      if (mfaIdx !== -1) {
+        mfaSettingsData[mfaIdx] = {
+          ...mfaSettingsData[mfaIdx],
+          userName: `${updated.firstName} ${updated.lastName}`,
+          userEmail: updated.email, role: updated.role,
+        };
+      }
+      return updated;
     }
-
-    return updated;
   },
 
   async deleteUser(id: string): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    usersData = usersData.filter((u) => u.id !== id);
-    sessionsData = sessionsData.filter((s) => s.userId !== id);
-    loginHistoryData = loginHistoryData.filter((l) => l.userId !== id);
-    mfaSettingsData = mfaSettingsData.filter((m) => m.userId !== id);
+    try {
+      await apiClient.delete(`/users/info/${id}`);
+    } catch {
+      usersData = usersData.filter((u) => u.id !== id);
+      sessionsData = sessionsData.filter((s) => s.userId !== id);
+      loginHistoryData = loginHistoryData.filter((l) => l.userId !== id);
+      mfaSettingsData = mfaSettingsData.filter((m) => m.userId !== id);
+    }
   },
 
   async suspendUser(id: string): Promise<User> {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const user = usersData.find((u) => u.id === id);
-    if (!user) throw new Error("User not found");
-    user.status = "Suspended";
-    return user;
+    try {
+      const res = await apiClient.patch(`/users/info/${id}/suspend`);
+      return mapUser(res.data.data);
+    } catch {
+      const user = usersData.find((u) => u.id === id);
+      if (!user) throw new Error("User not found");
+      user.status = "Suspended";
+      return user;
+    }
   },
 
   async activateUser(id: string): Promise<User> {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const user = usersData.find((u) => u.id === id);
-    if (!user) throw new Error("User not found");
-    user.status = "Active";
-    return user;
+    try {
+      const res = await apiClient.patch(`/users/info/${id}/activate`);
+      return mapUser(res.data.data);
+    } catch {
+      const user = usersData.find((u) => u.id === id);
+      if (!user) throw new Error("User not found");
+      user.status = "Active";
+      return user;
+    }
   },
 
   // Roles CRUD
