@@ -21,7 +21,7 @@ import { DomainsTab } from "@/features/tenants/components/details/DomainsTab";
 import { FeatureFlagsTab } from "@/features/tenants/components/details/FeatureFlagsTab";
 import { AuditLogsTab } from "@/features/tenants/components/details/AuditLogsTab";
 import { Building2, Users as UsersIcon, ShieldAlert } from "lucide-react";
-import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
+import { useHospitals } from "@/features/hospitals/hooks/useHospitals";
 
 type ActiveTab =
   | "overview"
@@ -60,6 +60,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const updateQuotasMutation = useUpdateQuotas(id);
   const updateSubMutation = useUpdateSubscription(id);
   const verifyDomainMutation = useVerifyDomain(id);
+
+  const { data: hospitalsData = [], isLoading: isLoadingHospitals } = useHospitals({ tenantId: id });
 
   if (isLoading) {
     return (
@@ -106,13 +108,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     },
   ];
 
-  const tenantHospitals = MOCK_HOSPITALS.filter((h) => h.tenantId === id || (id === "1" && h.tenantId === "1"));
-
-  const mockHospitals: HospitalMock[] = tenantHospitals.map((h) => ({
+  const mockHospitals: HospitalMock[] = hospitalsData.map((h) => ({
     id: h.id,
     name: h.name,
     type: h.type,
-    location: `${h.branchCount} Active Branches`,
+    location: `${h.branchCount || 0} Active Branches`,
     status: h.status,
   }));
 
