@@ -54,7 +54,7 @@ export const useRefunds = () => {
 export const useRevenueChartData = () => {
   return useQuery({
     queryKey: ['revenueChartData'],
-    queryFn: billingService.getRevenueChartData,
+    queryFn: billingService.getRevenueChart,
   });
 };
 

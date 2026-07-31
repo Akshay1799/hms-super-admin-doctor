@@ -22,17 +22,16 @@ export const dashboardService = {
       if (data?.kpis && Array.isArray(data.kpis) && data.kpis.length > 0)
         return data.kpis;
 
-      // If the API returns raw counts, build KPI cards from them
       if (data && typeof data === "object") {
         const built: KPI[] = [];
         if (data.totalTenants !== undefined)
-          built.push({ label: "Total Tenants", value: data.totalTenants, change: 0, changeType: "neutral", icon: "building" });
+          built.push({ id: "dyn-1", title: "Total Tenants", value: data.totalTenants, percentage: 0, trend: "neutral", color: "blue", icon: "Building2" });
         if (data.totalHospitals !== undefined)
-          built.push({ label: "Total Hospitals", value: data.totalHospitals, change: 0, changeType: "neutral", icon: "hospital" });
+          built.push({ id: "dyn-2", title: "Total Hospitals", value: data.totalHospitals, percentage: 0, trend: "neutral", color: "green", icon: "Building" });
         if (data.totalDoctors !== undefined)
-          built.push({ label: "Total Doctors", value: data.totalDoctors, change: 0, changeType: "neutral", icon: "stethoscope" });
+          built.push({ id: "dyn-3", title: "Total Doctors", value: data.totalDoctors, percentage: 0, trend: "neutral", color: "purple", icon: "User" });
         if (data.totalPatients !== undefined)
-          built.push({ label: "Total Patients", value: data.totalPatients, change: 0, changeType: "neutral", icon: "users" });
+          built.push({ id: "dyn-4", title: "Total Patients", value: data.totalPatients, percentage: 0, trend: "neutral", color: "teal", icon: "Users2" });
         if (built.length > 0) return built;
       }
 

@@ -55,7 +55,7 @@ export const billingService = {
     try {
       const res = await apiClient.get("/billing/invoices/revenue-summary");
       const data = res.data.data;
-      if (data) return data;
+      if (data?.metrics && Array.isArray(data.metrics) && data.metrics.length > 0) return data.metrics;
       throw new Error("empty");
     } catch {
       return MOCK_REVENUE_METRICS;

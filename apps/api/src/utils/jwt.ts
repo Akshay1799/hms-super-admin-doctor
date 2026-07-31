@@ -8,7 +8,7 @@ import { IUser } from '../models/User';
 // shared-cookie collisions when running on the same localhost domain.
 export const PORTAL_COOKIE_NAMES = {
   SUPER_ADMIN:    'hms_sa_token',
-  TENANT_ADMIN:   'hms_sa_token', // shares super-admin panel
+  TENANT_ADMIN:   'hms_ta_token', 
   HOSPITAL_ADMIN: 'hms_ha_token',
   DEPT_ADMIN:     'hms_ha_token', // shares hospital-admin panel
   DOCTOR:         'hms_dr_token',
@@ -21,6 +21,7 @@ export const PORTAL_COOKIE_NAMES = {
 // Map X-Portal-Type header value → cookie name
 export const PORTAL_HEADER_COOKIE_MAP: Record<string, string> = {
   'SUPER_ADMIN':    'hms_sa_token',
+  'TENANT_ADMIN':   'hms_ta_token',
   'HOSPITAL_ADMIN': 'hms_ha_token',
   'DOCTOR':         'hms_dr_token',
   'PATIENT':        'hms_pt_token',

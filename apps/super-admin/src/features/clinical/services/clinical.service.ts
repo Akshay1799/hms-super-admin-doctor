@@ -406,9 +406,10 @@ export const clinicalService = {
         patientName: a.patientName,
         doctorName: a.doctorName,
         date: new Date(a.date).toISOString().split("T")[0],
-        time: a.time,
+        timeSlot: a.timeSlot || a.time || "N/A",
         status: a.status || "Scheduled",
         hospitalId: a.hospitalId || "",
+        hospitalName: a.hospitalName || "Apollo Delhi",
         doctorId: a.doctorId || "",
         patientId: a.patientId || "",
       }));

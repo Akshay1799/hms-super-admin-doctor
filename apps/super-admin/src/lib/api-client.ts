@@ -16,8 +16,15 @@ export const apiClient = axios.create({
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
-    'X-Portal-Type': 'SUPER_ADMIN',
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  const role = useAuthStore.getState().user?.role;
+  if (role) {
+    config.headers['X-Portal-Type'] = role;
+  }
+  return config;
 });
 
 let isRefreshing = false;
