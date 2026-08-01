@@ -324,4 +324,4 @@ export function getDBStatus(): { connected: boolean; host: string | undefined } 
     host: mongoose.connection.host,
   };
 }
-// Trigger restart
+// Trigger nodemon reload
