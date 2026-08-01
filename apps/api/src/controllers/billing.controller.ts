@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Invoice, Payment, CreditNote } from '../models/Billing';
+import { Invoice, Payment, CreditNote, DebitNote } from '../models/Billing';
 import { LedgerEntry, CashDrawerShift } from '../models/Ledger';
 import mongoose from 'mongoose';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
@@ -431,6 +431,43 @@ export async function createCreditNote(req: Request, res: Response, next: NextFu
     }
 
     sendCreated(res, creditNote, 'Credit Note issued successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createDebitNote(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const invoice = await Invoice.findById(req.body.invoiceId);
+    if (!invoice) throw new NotFoundError('Invoice not found');
+
+    const Counter = mongoose.model('Counter');
+    const today = new Date();
+    const financialYear = `${String(today.getFullYear()).slice(2)}${String(today.getFullYear() + 1).slice(2)}`;
+    
+    const counter = await Counter.findOneAndUpdate(
+      { tenantId: invoice.tenantId, entityName: 'DebitNote', financialYear },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    const noteNumber = `DN-${financialYear}-${String(counter.seq).padStart(5, '0')}`;
+
+    const debitNote = await DebitNote.create({
+      tenantId: invoice.tenantId,
+      invoiceId: invoice._id,
+      noteNumber,
+      amount: req.body.amount,
+      reason: req.body.reason,
+      status: 'issued',
+      createdBy: req.user?._id
+    });
+
+    if (!invoice.locked) {
+      invoice.locked = true;
+      await invoice.save();
+    }
+
+    sendCreated(res, debitNote, 'Debit Note issued successfully');
   } catch (err) {
     next(err);
   }

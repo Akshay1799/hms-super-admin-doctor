@@ -30,10 +30,13 @@ export interface IInvoice extends Document {
   patientResponsibilityAmount?: number;
   insuranceLiabilityAmount?: number;
   currency: string;
+  exchangeRate?: number;
+  baseCurrencyAmount?: number;
   status: 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'draft' | 'partially_paid';
   locked: boolean;
   issuedDate: Date;
   dueDate: Date;
+  versions?: any[]; // Snapshot version history
   paidDate?: Date;
   paidAmount?: number;
   items: Array<{
@@ -88,14 +91,17 @@ const InvoiceSchema = new Schema<IInvoice>(
     patientResponsibilityAmount: { type: Number },
     insuranceLiabilityAmount: { type: Number },
     currency: { type: String, default: 'INR' },
+    exchangeRate: { type: Number, default: 1 },
+    baseCurrencyAmount: { type: Number },
     status: {
       type: String,
       enum: ['paid', 'unpaid', 'overdue', 'cancelled', 'draft', 'partially_paid'],
-      default: 'unpaid',
+      default: 'draft',
     },
     locked: { type: Boolean, default: false },
     issuedDate: { type: Date, default: Date.now },
     dueDate: { type: Date, required: true },
+    versions: [{ type: Schema.Types.Mixed }], // Stores snapshots when invoice is modified
     paidDate: Date,
     paidAmount: Number,
     items: [
@@ -188,6 +194,7 @@ export interface IPayment extends Document {
   isReconciled: boolean;
   settlementId?: string;
   settlementDate?: Date;
+  allocations?: { itemId: string; amount: number }[]; // Granular line-item allocation
   createdAt: Date;
 }
 
@@ -220,6 +227,39 @@ const PaymentSchema = new Schema<IPayment>(
     isReconciled: { type: Boolean, default: false },
     settlementId: String,
     settlementDate: Date,
+    allocations: [{
+      itemId: { type: Schema.Types.Mixed, required: true },
+      amount: { type: Number, required: true }
+    }]
+  },
+  { timestamps: true }
+);
+
+// ── Debit Note ───────────────────────────────────────────────
+export interface IDebitNote extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  invoiceId: mongoose.Types.ObjectId;
+  noteNumber: string;
+  amount: number;
+  reason: string;
+  status: 'draft' | 'issued' | 'applied';
+  createdBy?: mongoose.Types.ObjectId;
+  createdAt: Date;
+}
+
+const DebitNoteSchema = new Schema<IDebitNote>(
+  {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    invoiceId: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true, index: true },
+    noteNumber: { type: String, required: true, unique: true },
+    amount: { type: Number, required: true },
+    reason: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ['draft', 'issued', 'applied'],
+      default: 'draft',
+    },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
@@ -227,3 +267,4 @@ const PaymentSchema = new Schema<IPayment>(
 export const Invoice = mongoose.models.Invoice || mongoose.model<IInvoice>('Invoice', InvoiceSchema);
 export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);
 export const CreditNote = mongoose.models.CreditNote || mongoose.model<ICreditNote>('CreditNote', CreditNoteSchema);
+export const DebitNote = mongoose.models.DebitNote || mongoose.model<IDebitNote>('DebitNote', DebitNoteSchema);

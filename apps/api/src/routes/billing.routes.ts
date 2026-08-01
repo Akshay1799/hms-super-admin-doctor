@@ -13,6 +13,7 @@ import {
   createPayment,
   refundPayment,
   createCreditNote,
+  createDebitNote,
   openShift,
   closeShift,
   closeDailyLedger,
@@ -34,8 +35,9 @@ router.patch('/invoices/:id', billingAuth, updateInvoice);
 router.post('/invoices/:id/cancel', billingAuth, cancelInvoice);
 router.post('/invoices/:id/pay', payInvoice);
 
-// Credit Notes
+// Credit & Debit Notes
 router.post('/credit-notes', billingAuth, createCreditNote);
+router.post('/debit-notes', billingAuth, createDebitNote);
 
 // Payments
 router.get('/payments', listPayments);
