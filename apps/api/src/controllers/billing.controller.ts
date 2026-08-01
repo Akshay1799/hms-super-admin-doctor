@@ -3,6 +3,7 @@ import { Invoice, Payment, CreditNote, DebitNote } from '../models/Billing';
 import { LedgerEntry, CashDrawerShift } from '../models/Ledger';
 import mongoose from 'mongoose';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
+import { eventBus } from '../utils/DomainEventBus';
 
 function buildFilter(req: Request): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
@@ -617,13 +618,19 @@ export async function createPayment(req: Request, res: Response, next: NextFunct
       tenantId: req.body.tenantId || req.user?.tenantId,
     });
 
-    // Update invoice status
-    if (req.body.invoiceId) {
-      await Invoice.findByIdAndUpdate(req.body.invoiceId, {
-        status: 'paid',
-        paidDate: new Date(),
-        paidAmount: req.body.amount,
-      });
+    // Update Invoice Status
+    const invoice = await Invoice.findById(req.body.invoiceId);
+    if (invoice) {
+      invoice.paidAmount = (invoice.paidAmount || 0) + req.body.amount;
+      if (invoice.paidAmount >= invoice.totalAmount) {
+        invoice.status = 'paid';
+        invoice.paidDate = new Date();
+        // Emit Domain Event for Decoupled Inventory/Pharmacy Sync
+        eventBus.emitEvent('InvoicePaid', { invoiceId: invoice._id, items: invoice.items });
+      } else {
+        invoice.status = 'partially_paid';
+      }
+      await invoice.save();
     }
 
     sendCreated(res, payment, 'Payment recorded');

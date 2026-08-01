@@ -20,6 +20,7 @@ import {
   closeFinancialYear,
   reconcilePayment
 } from '../controllers/billing.controller';
+import { exportBillingData } from '../controllers/export.controller';
 
 const router = Router();
 router.use(authenticate);
@@ -44,6 +45,9 @@ router.get('/payments', listPayments);
 router.post('/payments', billingAuth, createPayment);
 router.post('/payments/:id/refund', billingAuth, refundPayment);
 router.post('/payments/:id/reconcile', billingAuth, reconcilePayment);
+
+// Exports
+router.get('/export', billingAuth, exportBillingData);
 
 // Shifts
 router.post('/shifts/open', billingAuth, openShift);

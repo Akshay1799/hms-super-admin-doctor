@@ -9,6 +9,7 @@ import 'express-async-errors';
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { apiMetricsMiddleware } from './middleware/apiMetrics.middleware';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -103,6 +104,9 @@ app.use(cookieParser());
 
 // Request logging
 app.use(morgan(env.isDev ? 'dev' : 'combined'));
+
+// Observability and Metrics
+app.use(apiMetricsMiddleware);
 
 // Rate limiting (prevent abuse)
 const limiter = rateLimit({

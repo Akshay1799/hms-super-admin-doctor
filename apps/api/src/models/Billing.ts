@@ -1,4 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { auditPlugin } from '../plugins/audit.plugin';
+import { softDeletePlugin } from '../plugins/softDelete.plugin';
 
 // ── Invoice ──────────────────────────────────────────────────
 export interface IInvoice extends Document {
@@ -40,8 +42,8 @@ export interface IInvoice extends Document {
   paidDate?: Date;
   paidAmount?: number;
   items: Array<{
-    itemCategory: 'Consultation' | 'Bed' | 'Operation' | 'Procedure' | 'Medicine' | 'Test' | 'Package' | 'Other';
-    description: string;
+    itemId: string;
+    itemName: string;
     quantity: number;
     unitPrice: number;
     taxRate: number;
@@ -106,14 +108,10 @@ const InvoiceSchema = new Schema<IInvoice>(
     paidAmount: Number,
     items: [
       {
-        itemCategory: {
-          type: String,
-          enum: ['Consultation', 'Bed', 'Operation', 'Procedure', 'Medicine', 'Test', 'Package', 'Other'],
-          default: 'Other',
-        },
-        description: { type: String, required: true },
-        quantity: { type: Number, default: 1 },
-        unitPrice: { type: Number, required: true },
+        itemId: { type: String, required: true },
+        itemName: { type: String, required: true },
+        quantity: { type: Number, required: true, min: 1 },
+        unitPrice: { type: Number, required: true, min: 0 },
         taxRate: { type: Number, default: 0 },
         taxAmount: { type: Number, default: 0 },
         total: { type: Number, required: true },
@@ -124,6 +122,9 @@ const InvoiceSchema = new Schema<IInvoice>(
   },
   { timestamps: true }
 );
+
+InvoiceSchema.plugin(auditPlugin, { module: 'billing' });
+InvoiceSchema.plugin(softDeletePlugin);
 
 // Auto-generate invoice number using Counter
 InvoiceSchema.pre('save', async function (next) {
@@ -176,6 +177,9 @@ const CreditNoteSchema: Schema = new Schema({
   createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now }
 });
+
+CreditNoteSchema.plugin(auditPlugin, { module: 'billing' });
+CreditNoteSchema.plugin(softDeletePlugin);
 
 // ── Payment ──────────────────────────────────────────────────
 export interface IPayment extends Document {
@@ -235,6 +239,9 @@ const PaymentSchema = new Schema<IPayment>(
   { timestamps: true }
 );
 
+PaymentSchema.plugin(auditPlugin, { module: 'billing' });
+PaymentSchema.plugin(softDeletePlugin);
+
 // ── Debit Note ───────────────────────────────────────────────
 export interface IDebitNote extends Document {
   tenantId: mongoose.Types.ObjectId;
@@ -263,6 +270,9 @@ const DebitNoteSchema = new Schema<IDebitNote>(
   },
   { timestamps: true }
 );
+
+DebitNoteSchema.plugin(auditPlugin, { module: 'billing' });
+DebitNoteSchema.plugin(softDeletePlugin);
 
 export const Invoice = mongoose.models.Invoice || mongoose.model<IInvoice>('Invoice', InvoiceSchema);
 export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);

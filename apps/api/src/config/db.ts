@@ -259,31 +259,36 @@ export async function connectDB(): Promise<void> {
     }
 
     // Check/Create Invoice
-    let invoice = await Invoice.findOne({ invoiceNumber: 'INV-2026-0001' });
+    let invoice = await Invoice.findOne({ invoiceNumber: 'INV-2026-0001', isDeleted: false });
     if (!invoice) {
-      await Invoice.create({
-        tenantId: tenant._id,
-        hospitalId: hospital._id,
-        patientId: patientRecord._id,
-        invoiceNumber: 'INV-2026-0001',
-        tenantName: 'Apollo Delhi',
-        patientName: 'Rahul Sharma',
-        amount: 1500,
-        totalAmount: 1500,
-        currency: 'INR',
-        status: 'unpaid',
-        issuedDate: new Date(),
-        dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
-        items: [
-          {
-            description: 'ICU Day Consultation Charges',
-            quantity: 1,
-            unitPrice: 1500,
-            total: 1500
-          }
-        ]
-      });
-      logger.info('   -> Created default Unpaid Invoice (INV-2026-0001)');
+      try {
+        await Invoice.create({
+          tenantId: tenant._id,
+          hospitalId: hospital._id,
+          patientId: patientRecord._id,
+          invoiceNumber: 'INV-2026-0001',
+          tenantName: 'Apollo Delhi',
+          patientName: 'Rahul Sharma',
+          amount: 1500,
+          totalAmount: 1500,
+          currency: 'INR',
+          status: 'unpaid',
+          issuedDate: new Date(),
+          dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          items: [
+            {
+              itemId: 'ITEM-ICU-01',
+              itemName: 'ICU Day Consultation Charges',
+              quantity: 1,
+              unitPrice: 1500,
+              total: 1500
+            }
+          ]
+        });
+        logger.info('   -> Created default Unpaid Invoice (INV-2026-0001)');
+      } catch (err: any) {
+        if (err.code !== 11000) throw err;
+      }
     }
 
     logger.info('🌱 Verification complete! Credentials:');
@@ -319,3 +324,4 @@ export function getDBStatus(): { connected: boolean; host: string | undefined } 
     host: mongoose.connection.host,
   };
 }
+// Trigger restart
