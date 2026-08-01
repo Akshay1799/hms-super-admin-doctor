@@ -181,6 +181,9 @@ export interface IPayment extends Document {
   idempotencyKey?: string;
   gateway?: string;
   paymentDate: Date;
+  isReconciled: boolean;
+  settlementId?: string;
+  settlementDate?: Date;
   createdAt: Date;
 }
 
@@ -210,6 +213,9 @@ const PaymentSchema = new Schema<IPayment>(
     idempotencyKey: { type: String, unique: true, sparse: true },
     gateway: String,
     paymentDate: { type: Date, default: Date.now },
+    isReconciled: { type: Boolean, default: false },
+    settlementId: String,
+    settlementDate: Date,
   },
   { timestamps: true }
 );

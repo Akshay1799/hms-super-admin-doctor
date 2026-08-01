@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Invoice, Payment, CreditNote } from '../models/Billing';
+import { LedgerEntry, CashDrawerShift } from '../models/Ledger';
 import mongoose from 'mongoose';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
 
@@ -72,6 +73,61 @@ export async function getInvoice(req: Request, res: Response, next: NextFunction
   }
 }
 
+function getFinancialYear(date: Date = new Date()): string {
+  const currentYear = date.getFullYear();
+  const isNewFY = date.getMonth() >= 3;
+  const startYear = isNewFY ? currentYear : currentYear - 1;
+  const endYear = startYear + 1;
+  return `${String(startYear).slice(2)}${String(endYear).slice(2)}`;
+}
+
+async function recordLedgerTransaction(params: {
+  tenantId: mongoose.Types.ObjectId;
+  transactionDate?: Date;
+  debitAccount: string;
+  creditAccount: string;
+  amount: number;
+  transactionType: 'INVOICE' | 'PAYMENT' | 'REFUND' | 'DISCOUNT' | 'WRITE_OFF';
+  referenceId: mongoose.Types.ObjectId;
+  referenceModel: 'Invoice' | 'Payment';
+  description: string;
+  createdBy?: mongoose.Types.ObjectId;
+}) {
+  const fy = getFinancialYear(params.transactionDate || new Date());
+  
+  // Create Debit Entry
+  await LedgerEntry.create({
+    tenantId: params.tenantId,
+    transactionDate: params.transactionDate || new Date(),
+    accountId: params.debitAccount,
+    accountName: params.debitAccount.replace(/_/g, ' '),
+    debit: params.amount,
+    credit: 0,
+    transactionType: params.transactionType,
+    referenceId: params.referenceId,
+    referenceModel: params.referenceModel,
+    description: params.description,
+    financialYear: fy,
+    createdBy: params.createdBy
+  });
+
+  // Create Credit Entry
+  await LedgerEntry.create({
+    tenantId: params.tenantId,
+    transactionDate: params.transactionDate || new Date(),
+    accountId: params.creditAccount,
+    accountName: params.creditAccount.replace(/_/g, ' '),
+    debit: 0,
+    credit: params.amount,
+    transactionType: params.transactionType,
+    referenceId: params.referenceId,
+    referenceModel: params.referenceModel,
+    description: params.description,
+    financialYear: fy,
+    createdBy: params.createdBy
+  });
+}
+
 export async function createInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { items, discountAmount = 0 } = req.body;
@@ -108,6 +164,20 @@ export async function createInvoice(req: Request, res: Response, next: NextFunct
       tenantId: req.body.tenantId || req.user?.tenantId,
       createdBy: req.user?._id,
     });
+
+    // Double-Entry Ledger: Debit Accounts Receivable, Credit Revenue
+    await recordLedgerTransaction({
+      tenantId: invoice.tenantId,
+      debitAccount: 'ACCOUNTS_RECEIVABLE',
+      creditAccount: 'REVENUE_CONSULTATION', // In a full ERP, map this per itemCategory
+      amount: invoice.totalAmount,
+      transactionType: 'INVOICE',
+      referenceId: invoice._id,
+      referenceModel: 'Invoice',
+      description: `Invoice ${invoice.invoiceNumber || 'Created'}`,
+      createdBy: req.user?._id
+    });
+
     sendCreated(res, invoice, 'Invoice created');
   } catch (err) {
     next(err);
@@ -197,7 +267,7 @@ export async function payInvoice(req: Request, res: Response, next: NextFunction
       throw new Error('Payment failed due to a concurrency conflict. Please try again.');
     }
 
-    await Payment.create({
+    const payment = await Payment.create({
       tenantId: invoice.tenantId,
       invoiceId: invoice._id,
       amount: paymentAmount,
@@ -206,6 +276,20 @@ export async function payInvoice(req: Request, res: Response, next: NextFunction
       status: 'completed',
       idempotencyKey,
       referenceId: req.body.referenceId || 'txn_' + Math.random().toString(36).substring(2, 11).toUpperCase(),
+    });
+
+    // Ledger: Debit Cash/Bank, Credit Accounts Receivable
+    const assetAccount = ['cash', 'wallet'].includes(paymentMethod) ? 'CASH_IN_HAND' : 'BANK_ACCOUNT';
+    await recordLedgerTransaction({
+      tenantId: invoice.tenantId,
+      debitAccount: assetAccount,
+      creditAccount: 'ACCOUNTS_RECEIVABLE',
+      amount: paymentAmount,
+      transactionType: 'PAYMENT',
+      referenceId: payment._id,
+      referenceModel: 'Payment',
+      description: `Payment received for Invoice ${invoice.invoiceNumber || invoice._id}`,
+      createdBy: req.user?._id
     });
 
     sendSuccess(res, updatedInvoice, 'Payment processed successfully');
@@ -286,6 +370,20 @@ export async function refundPayment(req: Request, res: Response, next: NextFunct
         }
       );
       
+      // Ledger: Debit Revenue (or Refund Clearing), Credit Cash/Bank
+      const assetAccount = ['cash', 'wallet'].includes(method) ? 'CASH_IN_HAND' : 'BANK_ACCOUNT';
+      await recordLedgerTransaction({
+        tenantId: originalPayment.tenantId,
+        debitAccount: 'REFUND_CLEARING', // In strict accounting, debit revenue or a contra-revenue account
+        creditAccount: assetAccount,
+        amount: refundAmount,
+        transactionType: 'REFUND',
+        referenceId: refund._id,
+        referenceModel: 'Payment',
+        description: `Refund processed for Payment ${originalPayment._id}`,
+        createdBy: req.user?._id
+      });
+
       sendSuccess(res, refund, 'Refund processed successfully');
     } else {
       sendSuccess(res, refund, 'Refund request submitted for Manager Approval (Threshold Exceeded)');
@@ -352,7 +450,102 @@ export async function getRevenueSummary(req: Request, res: Response, next: NextF
       paidCount,
       unpaidCount,
       overdueCount,
+    }, 'Revenue summary fetched successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Shift Management ──────────────────────────────────────────
+
+export async function openShift(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { openingBalance } = req.body;
+    
+    const existingShift = await CashDrawerShift.findOne({ userId: req.user?._id, status: 'OPEN' });
+    if (existingShift) {
+      throw new Error('You already have an open shift. Please close it before opening a new one.');
+    }
+
+    const shift = await CashDrawerShift.create({
+      tenantId: req.body.tenantId || req.user?.tenantId,
+      userId: req.user?._id,
+      openingBalance,
+      status: 'OPEN'
     });
+
+    sendCreated(res, shift, 'Shift opened successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function closeShift(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { closingBalance, notes } = req.body;
+    const shiftId = req.params.id;
+
+    const shift = await CashDrawerShift.findById(shiftId);
+    if (!shift) throw new NotFoundError('Shift not found');
+    if (shift.status === 'CLOSED') throw new Error('Shift is already closed');
+    
+    const systemExpectedBalance = shift.openingBalance; 
+    const cashDifference = closingBalance - systemExpectedBalance;
+
+    shift.closingBalance = closingBalance;
+    shift.systemExpectedBalance = systemExpectedBalance;
+    shift.cashDifference = cashDifference;
+    shift.notes = notes;
+    shift.closedAt = new Date();
+    shift.status = 'CLOSED';
+
+    await shift.save();
+
+    sendSuccess(res, shift, 'Shift closed successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Ledger Closing & Reconciliation ──────────────────────────
+
+export async function closeDailyLedger(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { date } = req.body;
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setHours(23, 59, 59, 999); // End of the day
+
+    // Lock all ledger entries up to targetDate that are not already closed
+    const result = await LedgerEntry.updateMany(
+      { 
+        tenantId: req.user?.tenantId,
+        transactionDate: { $lte: targetDate },
+        isClosed: false 
+      },
+      { $set: { isClosed: true } }
+    );
+
+    sendSuccess(res, { closedEntriesCount: result.modifiedCount }, `Daily ledger closed successfully up to ${targetDate.toISOString()}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function closeFinancialYear(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { financialYear } = req.body; // e.g. '2526'
+    if (!financialYear) throw new Error('Financial year is required');
+
+    const result = await LedgerEntry.updateMany(
+      { 
+        tenantId: req.user?.tenantId,
+        financialYear,
+        isClosed: false 
+      },
+      { $set: { isClosed: true } }
+    );
+
+    sendSuccess(res, { closedEntriesCount: result.modifiedCount }, `Financial year ${financialYear} closed successfully`);
   } catch (err) {
     next(err);
   }
@@ -392,6 +585,31 @@ export async function createPayment(req: Request, res: Response, next: NextFunct
     }
 
     sendCreated(res, payment, 'Payment recorded');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reconcilePayment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { settlementId, settlementDate, gatewayStatus } = req.body;
+    const payment = await Payment.findById(req.params.id);
+    
+    if (!payment) throw new NotFoundError('Payment not found');
+    if (payment.isReconciled) throw new Error('Payment is already reconciled');
+
+    payment.settlementId = settlementId;
+    payment.settlementDate = settlementDate ? new Date(settlementDate) : new Date();
+    payment.gateway = payment.gateway || 'reconciled_manual';
+    
+    if (gatewayStatus) {
+      payment.status = gatewayStatus;
+    }
+    
+    payment.isReconciled = true;
+    await payment.save();
+
+    sendSuccess(res, payment, 'Payment reconciled successfully');
   } catch (err) {
     next(err);
   }

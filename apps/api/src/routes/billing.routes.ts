@@ -13,6 +13,11 @@ import {
   createPayment,
   refundPayment,
   createCreditNote,
+  openShift,
+  closeShift,
+  closeDailyLedger,
+  closeFinancialYear,
+  reconcilePayment
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -36,5 +41,14 @@ router.post('/credit-notes', billingAuth, createCreditNote);
 router.get('/payments', listPayments);
 router.post('/payments', billingAuth, createPayment);
 router.post('/payments/:id/refund', billingAuth, refundPayment);
+router.post('/payments/:id/reconcile', billingAuth, reconcilePayment);
+
+// Shifts
+router.post('/shifts/open', billingAuth, openShift);
+router.post('/shifts/:id/close', billingAuth, closeShift);
+
+// Ledger
+router.post('/ledger/close-daily', billingAuth, closeDailyLedger);
+router.post('/ledger/close-fy', billingAuth, closeFinancialYear);
 
 export default router;
