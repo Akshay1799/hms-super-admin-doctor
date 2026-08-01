@@ -241,8 +241,61 @@ const GoodsReceiptNoteSchema = new Schema(
 GoodsReceiptNoteSchema.index({ tenantId: 1, grnNumber: 1 }, { unique: true });
 GoodsReceiptNoteSchema.plugin(auditPlugin, { module: 'procurement' });
 
+// ── Supplier Return ──────────────────────────────────────────
+export interface ISupplierReturnItem {
+  medicineId: mongoose.Types.ObjectId;
+  batchId: mongoose.Types.ObjectId;
+  returnQuantity: number;
+  reason: 'expired' | 'damaged' | 'wrong_item' | 'excess_quantity' | 'recalled';
+  value: number;
+}
+
+export interface ISupplierReturn extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  hospitalId: mongoose.Types.ObjectId;
+  supplierId: mongoose.Types.ObjectId;
+  pharmacyId: mongoose.Types.ObjectId;
+  grnId?: mongoose.Types.ObjectId; // Optional if returning old stock without specific GRN reference
+  returnNumber: string;
+  items: ISupplierReturnItem[];
+  status: 'draft' | 'pending_approval' | 'approved' | 'shipped' | 'completed';
+  totalValue: number;
+  createdBy: mongoose.Types.ObjectId;
+  approvedBy?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const SupplierReturnSchema = new Schema(
+  {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true },
+    supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
+    pharmacyId: { type: Schema.Types.ObjectId, ref: 'PharmacyLocation', required: true },
+    grnId: { type: Schema.Types.ObjectId, ref: 'GoodsReceiptNote' },
+    returnNumber: { type: String, required: true },
+    items: [
+      {
+        medicineId: { type: Schema.Types.ObjectId, ref: 'Medicine', required: true },
+        batchId: { type: Schema.Types.ObjectId, ref: 'InventoryBatch', required: true },
+        returnQuantity: { type: Number, required: true, min: 1 },
+        reason: { type: String, enum: ['expired', 'damaged', 'wrong_item', 'excess_quantity', 'recalled'], required: true },
+        value: { type: Number, required: true },
+      }
+    ],
+    status: { type: String, enum: ['draft', 'pending_approval', 'approved', 'shipped', 'completed'], default: 'draft' },
+    totalValue: { type: Number, required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  },
+  { timestamps: true }
+);
+
+SupplierReturnSchema.index({ tenantId: 1, returnNumber: 1 }, { unique: true });
+SupplierReturnSchema.plugin(auditPlugin, { module: 'procurement' });
 
 export const Supplier = mongoose.model<ISupplier>('Supplier', SupplierSchema);
 export const PurchaseRequisition = mongoose.model<IPurchaseRequisition>('PurchaseRequisition', PurchaseRequisitionSchema);
 export const PurchaseOrder = mongoose.model<IPurchaseOrder>('PurchaseOrder', PurchaseOrderSchema);
 export const GoodsReceiptNote = mongoose.model<IGoodsReceiptNote>('GoodsReceiptNote', GoodsReceiptNoteSchema);
+export const SupplierReturn = mongoose.model<ISupplierReturn>('SupplierReturn', SupplierReturnSchema);

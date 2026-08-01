@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
-import { PurchaseOrder, GoodsReceiptNote, IGRNItem } from '../models/Procurement';
-import { InventoryBatch } from '../models/Pharmacy';
+import { PurchaseOrder, GoodsReceiptNote, IGRNItem, SupplierReturn, Supplier } from '../models/Procurement';
+import { InventoryBatch, InventoryTransaction } from '../models/Pharmacy';
 import { InventoryService } from './inventory.service';
+import { eventBus } from '../utils/DomainEventBus';
 
 export class ProcurementService {
   /**
@@ -79,5 +80,88 @@ export class ProcurementService {
     // 4. Update PO Status
     po.status = allItemsFullyReceived ? 'completed' : 'partially_received';
     await po.save({ session });
+
+    // Emit Domain Event
+    eventBus.emitEvent('GoodsReceived', {
+      grnId: grn._id.toString(),
+      tenantId: grn.tenantId.toString(),
+      poId: po._id.toString()
+    });
+
+    // Background task: update supplier KPI
+    ProcurementService.updateSupplierKPI(grn.tenantId, grn.supplierId, grn._id as mongoose.Types.ObjectId).catch(err => {
+      console.error('Failed to update supplier KPI:', err);
+    });
+  }
+
+  static async updateSupplierKPI(tenantId: mongoose.Types.ObjectId, supplierId: mongoose.Types.ObjectId, grnId: mongoose.Types.ObjectId) {
+    const grn = await GoodsReceiptNote.findById(grnId).populate<{ poId: import('../models/Procurement').IPurchaseOrder }>('poId');
+    if (!grn || !grn.poId) return;
+
+    const po = grn.poId;
+    const expectedDelivery = new Date(po.items[0]?.expectedDeliveryDate || Date.now()).getTime();
+    const actualDelivery = new Date(grn.createdAt).getTime();
+
+    // Calculate delay in days
+    const delayDays = Math.max(0, (actualDelivery - expectedDelivery) / (1000 * 60 * 60 * 24));
+    
+    // Simple KPI logic: drop score by 2 points per delayed day
+    const penalty = delayDays * 2;
+    if (penalty > 0) {
+      await Supplier.findByIdAndUpdate(supplierId, {
+        $inc: { performanceScore: -penalty }
+      });
+    }
+  }
+
+  static async processSupplierReturn(
+    tenantId: mongoose.Types.ObjectId,
+    userId: mongoose.Types.ObjectId,
+    returnPayload: any
+  ) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const supplierReturn = new SupplierReturn({
+        ...returnPayload,
+        tenantId,
+        createdBy: userId,
+        status: 'approved'
+      });
+
+      await supplierReturn.save({ session });
+
+      // Deduct inventory
+      for (const item of supplierReturn.items) {
+        await InventoryBatch.findOneAndUpdate(
+          { _id: item.batchId, quantity: { $gte: item.returnQuantity } },
+          { $inc: { quantity: -item.returnQuantity } },
+          { session, new: true }
+        );
+
+        const transaction = new InventoryTransaction({
+          tenantId,
+          pharmacyId: supplierReturn.pharmacyId,
+          medicineId: item.medicineId,
+          batchId: item.batchId,
+          transactionType: 'supplier_return',
+          previousQuantity: item.returnQuantity,
+          quantityChanged: -item.returnQuantity,
+          newQuantity: 0,
+          referenceDocumentId: supplierReturn._id.toString(),
+          userId
+        });
+        await transaction.save({ session });
+      }
+
+      await session.commitTransaction();
+      return supplierReturn;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

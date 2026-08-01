@@ -41,8 +41,12 @@ export interface IMedicine extends Document {
   scheduleDrugType?: string;
   hsnCode?: string;
   gstCategory: number;
-  storageInstructions?: string;
   unitOfMeasure: string;
+  unitConversion?: {
+    baseUnit: string;     // e.g., 'tablet'
+    purchaseUnit: string; // e.g., 'box'
+    conversionFactor: number; // e.g., 100
+  };
   barcode?: string;
   qrCode?: string;
   internalSku: string;
@@ -73,6 +77,11 @@ const MedicineSchema = new Schema(
     gstCategory: { type: Number, required: true },
     storageInstructions: String,
     unitOfMeasure: { type: String, required: true },
+    unitConversion: {
+      baseUnit: String,
+      purchaseUnit: String,
+      conversionFactor: Number
+    },
     barcode: { type: String, sparse: true },
     qrCode: String,
     internalSku: { type: String, required: true },
@@ -212,9 +221,43 @@ const StockAdjustmentSchema = new Schema(
 );
 StockAdjustmentSchema.plugin(auditPlugin, { module: 'pharmacy' });
 
+// ── Stock Transfer ───────────────────────────────────────────
+export interface IStockTransfer extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  sourcePharmacyId: mongoose.Types.ObjectId;
+  destinationPharmacyId: mongoose.Types.ObjectId;
+  medicineId: mongoose.Types.ObjectId;
+  batchId: mongoose.Types.ObjectId;
+  quantity: number;
+  status: 'requested' | 'in_transit' | 'received' | 'rejected';
+  requestedBy: mongoose.Types.ObjectId;
+  dispatchedBy?: mongoose.Types.ObjectId;
+  receivedBy?: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const StockTransferSchema = new Schema(
+  {
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    sourcePharmacyId: { type: Schema.Types.ObjectId, ref: 'PharmacyLocation', required: true },
+    destinationPharmacyId: { type: Schema.Types.ObjectId, ref: 'PharmacyLocation', required: true },
+    medicineId: { type: Schema.Types.ObjectId, ref: 'Medicine', required: true },
+    batchId: { type: Schema.Types.ObjectId, ref: 'InventoryBatch', required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    status: { type: String, enum: ['requested', 'in_transit', 'received', 'rejected'], default: 'requested' },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    dispatchedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    receivedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  },
+  { timestamps: true }
+);
+StockTransferSchema.plugin(auditPlugin, { module: 'pharmacy' });
+
 // Exports
 export const PharmacyLocation = mongoose.model<IPharmacyLocation>('PharmacyLocation', PharmacyLocationSchema);
 export const Medicine = mongoose.model<IMedicine>('Medicine', MedicineSchema);
 export const InventoryBatch = mongoose.model<IInventoryBatch>('InventoryBatch', InventoryBatchSchema);
 export const InventoryTransaction = mongoose.model<IInventoryTransaction>('InventoryTransaction', InventoryTransactionSchema);
 export const StockAdjustment = mongoose.model<IStockAdjustment>('StockAdjustment', StockAdjustmentSchema);
+export const StockTransfer = mongoose.model<IStockTransfer>('StockTransfer', StockTransferSchema);

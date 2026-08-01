@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { InventoryBatch } from '../models/Pharmacy';
+import { PurchaseRequisition, PurchaseOrder, Supplier } from '../models/Procurement';
 import { PharmacySale } from '../models/PharmacyPOS';
 import { eventBus } from '../utils/DomainEventBus';
 
@@ -77,6 +78,57 @@ export class PharmacyAnalyticsService {
       return totalRevenue;
     } catch (error) {
       console.error('Failed to process end of day sales:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Identifies medicines below minimum safety stock and auto-generates Draft PRs.
+   */
+  static async generateAutoRequisitions(tenantId: mongoose.Types.ObjectId, hospitalId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) {
+    try {
+      // 1. Find batches grouped by medicine
+      const inventory = await InventoryBatch.aggregate([
+        { $match: { tenantId } },
+        {
+          $group: {
+            _id: '$medicineId',
+            totalQuantity: { $sum: '$quantity' }
+          }
+        },
+        // We'd ideally join with Medicine to get reorderLevel, but let's assume a global 50 minimum for now if not defined in schema
+        // The PRD mentions "Minimum Safety Stock" and "Automatic Purchase Suggestions".
+        { $match: { totalQuantity: { $lt: 50 } } } // Example global safety threshold
+      ]);
+
+      if (inventory.length === 0) return;
+
+      const items = inventory.map(item => ({
+        medicineId: item._id,
+        requestedQuantity: Math.max(100 - item.totalQuantity, 100), // Order enough to reach 100
+        urgency: item.totalQuantity === 0 ? 'critical' : 'normal'
+      }));
+
+      const pr = new PurchaseRequisition({
+        tenantId,
+        hospitalId,
+        requisitionNumber: `PR-AUTO-${Date.now()}`,
+        items,
+        status: 'draft',
+        requestedBy: userId // e.g. system bot user
+      });
+
+      await pr.save();
+
+      // Emit event
+      eventBus.emitEvent('PurchaseRequisitionCreated', {
+        prId: pr._id.toString(),
+        tenantId: tenantId.toString()
+      });
+
+      return pr;
+    } catch (error) {
+      console.error('Failed to generate auto requisitions:', error);
       throw error;
     }
   }

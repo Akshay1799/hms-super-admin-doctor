@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { InventoryBatch, InventoryTransaction } from '../models/Pharmacy';
+import { InventoryBatch, InventoryTransaction, StockTransfer, Medicine } from '../models/Pharmacy';
+import { eventBus } from '../utils/DomainEventBus';
 
 export class InventoryService {
   /**
@@ -100,5 +101,78 @@ export class InventoryService {
     }
 
     return allocation;
+  }
+
+  /**
+   * Initiates an inter-pharmacy stock transfer.
+   */
+  static async transferStock(
+    tenantId: mongoose.Types.ObjectId,
+    sourcePharmacyId: mongoose.Types.ObjectId,
+    destinationPharmacyId: mongoose.Types.ObjectId,
+    medicineId: mongoose.Types.ObjectId,
+    batchId: mongoose.Types.ObjectId,
+    quantity: number,
+    userId: mongoose.Types.ObjectId
+  ) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // 1. Deduct from source
+      await this.commitTransaction(
+        session, tenantId, sourcePharmacyId, medicineId, batchId,
+        'transfer', -quantity, userId, undefined, 'Transfer out'
+      );
+
+      // 2. Create Transfer Record
+      const transfer = new StockTransfer({
+        tenantId,
+        sourcePharmacyId,
+        destinationPharmacyId,
+        medicineId,
+        batchId,
+        quantity,
+        status: 'in_transit',
+        requestedBy: userId,
+        dispatchedBy: userId
+      });
+      await transfer.save({ session });
+
+      await session.commitTransaction();
+      return transfer;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
+   * Initiates a Medicine Recall
+   * Globally freezes all batches of the given medicine across all pharmacies.
+   */
+  static async initiateRecall(tenantId: mongoose.Types.ObjectId, medicineId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      await Medicine.findByIdAndUpdate(medicineId, { status: 'recall' }, { session });
+      
+      // We don't delete inventory, we just emit a recall alert that stops POS from selling it.
+      // EMR and POS will check medicine status.
+      
+      eventBus.emitEvent('MedicineDeactivated', {
+        medicineId: medicineId.toString(),
+        tenantId: tenantId.toString()
+      });
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
