@@ -10,7 +10,9 @@ export type UserRole =
   | 'NURSE'
   | 'RECEPTIONIST'
   | 'STAFF'
-  | 'PATIENT';
+  | 'PATIENT'
+  | 'PHARMACY_MANAGER'
+  | 'PHARMACIST';
 
 export type UserStatus = 'Active' | 'Inactive' | 'Suspended' | 'Pending';
 
