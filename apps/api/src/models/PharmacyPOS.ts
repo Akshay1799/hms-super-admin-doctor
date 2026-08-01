@@ -54,6 +54,9 @@ const PharmacyPrescriptionSchema = new Schema(
   },
   { timestamps: true }
 );
+
+PharmacyPrescriptionSchema.index({ patientId: 1, status: 1 });
+PharmacyPrescriptionSchema.index({ doctorId: 1 });
 PharmacyPrescriptionSchema.plugin(auditPlugin, { module: 'pharmacy_pos' });
 
 // ── Pharmacy Sale (POS Invoice) ──────────────────────────────
@@ -118,6 +121,8 @@ const PharmacySaleSchema = new Schema(
 
 PharmacySaleSchema.index({ tenantId: 1, saleNumber: 1 }, { unique: true });
 PharmacySaleSchema.index({ tenantId: 1, idempotencyKey: 1 }, { unique: true }); // Prevent duplicate requests
+PharmacySaleSchema.index({ patientId: 1, createdAt: -1 });
+PharmacySaleSchema.index({ prescriptionId: 1 }, { sparse: true });
 PharmacySaleSchema.plugin(auditPlugin, { module: 'pharmacy_pos' });
 
 // ── Patient Return ───────────────────────────────────────────
@@ -173,6 +178,8 @@ const PatientReturnSchema = new Schema(
 );
 
 PatientReturnSchema.index({ tenantId: 1, returnNumber: 1 }, { unique: true });
+PatientReturnSchema.index({ patientId: 1, createdAt: -1 });
+PatientReturnSchema.index({ saleId: 1 });
 PatientReturnSchema.plugin(auditPlugin, { module: 'pharmacy_pos' });
 
 // ── Damage / Disposal ────────────────────────────────────────

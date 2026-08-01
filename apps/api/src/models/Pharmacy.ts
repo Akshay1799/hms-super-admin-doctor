@@ -88,6 +88,8 @@ const MedicineSchema = new Schema(
 );
 
 MedicineSchema.index({ tenantId: 1, genericName: 1, manufacturer: 1, dosageForm: 1, strength: 1 }, { unique: true });
+MedicineSchema.index({ barcode: 1 }, { unique: true, sparse: true });
+MedicineSchema.index({ internalSku: 1 }, { unique: true });
 MedicineSchema.plugin(auditPlugin, { module: 'pharmacy' });
 MedicineSchema.plugin(softDeletePlugin);
 
@@ -127,6 +129,7 @@ const InventoryBatchSchema = new Schema(
 
 // Protect against duplicate batches at the exact same location
 InventoryBatchSchema.index({ pharmacyId: 1, medicineId: 1, batchNumber: 1 }, { unique: true });
+InventoryBatchSchema.index({ medicineId: 1, pharmacyId: 1, expiryDate: 1 });
 InventoryBatchSchema.plugin(auditPlugin, { module: 'pharmacy' });
 
 // ── Inventory Transaction Ledger ─────────────────────────────
@@ -166,6 +169,8 @@ const InventoryTransactionSchema = new Schema(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 // Transactions are immutable, no updates allowed
+InventoryTransactionSchema.index({ medicineId: 1, pharmacyId: 1, createdAt: -1 });
+InventoryTransactionSchema.index({ batchId: 1 });
 InventoryTransactionSchema.plugin(auditPlugin, { module: 'pharmacy' });
 
 // ── Stock Adjustment ─────────────────────────────────────────

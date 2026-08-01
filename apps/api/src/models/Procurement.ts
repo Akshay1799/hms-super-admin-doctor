@@ -71,6 +71,7 @@ const SupplierSchema = new Schema(
 );
 
 SupplierSchema.index({ tenantId: 1, supplierCode: 1 }, { unique: true });
+SupplierSchema.index({ gstin: 1 }, { sparse: true });
 SupplierSchema.plugin(auditPlugin, { module: 'procurement' });
 SupplierSchema.plugin(softDeletePlugin);
 
@@ -176,6 +177,7 @@ const PurchaseOrderSchema = new Schema(
 );
 
 PurchaseOrderSchema.index({ tenantId: 1, poNumber: 1 }, { unique: true });
+PurchaseOrderSchema.index({ supplierId: 1, status: 1, createdAt: -1 });
 PurchaseOrderSchema.plugin(auditPlugin, { module: 'procurement' });
 
 // ── Goods Receipt Note (GRN) ─────────────────────────────────
