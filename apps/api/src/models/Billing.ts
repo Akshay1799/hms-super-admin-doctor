@@ -27,6 +27,8 @@ export interface IInvoice extends Document {
   discountAmount?: number;
   discountReason?: string;
   totalAmount: number;
+  patientResponsibilityAmount?: number;
+  insuranceLiabilityAmount?: number;
   currency: string;
   status: 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'draft' | 'partially_paid';
   locked: boolean;
@@ -83,6 +85,8 @@ const InvoiceSchema = new Schema<IInvoice>(
     discountAmount: { type: Number, default: 0 },
     discountReason: String,
     totalAmount: { type: Number, required: true },
+    patientResponsibilityAmount: { type: Number },
+    insuranceLiabilityAmount: { type: Number },
     currency: { type: String, default: 'INR' },
     status: {
       type: String,

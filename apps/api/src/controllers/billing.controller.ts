@@ -130,7 +130,7 @@ async function recordLedgerTransaction(params: {
 
 export async function createInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { items, discountAmount = 0 } = req.body;
+    const { items, discountAmount = 0, patientResponsibilityAmount, insuranceLiabilityAmount } = req.body;
     let amount = 0;
     let taxAmount = 0;
     
@@ -160,7 +160,12 @@ export async function createInvoice(req: Request, res: Response, next: NextFunct
       amount,
       taxAmount,
       taxBreakup,
+      discountAmount,
       totalAmount,
+      patientResponsibilityAmount,
+      insuranceLiabilityAmount,
+      status: 'draft', // All new invoices start as draft
+      dueDate: req.body.dueDate,
       tenantId: req.body.tenantId || req.user?.tenantId,
       createdBy: req.user?._id,
     });
