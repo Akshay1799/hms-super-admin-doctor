@@ -6,23 +6,41 @@ export interface IInvoice extends Document {
   tenantId: mongoose.Types.ObjectId;
   hospitalId?: mongoose.Types.ObjectId;
   patientId?: mongoose.Types.ObjectId;
-  invoiceNumber: string;   // auto-generated e.g. INV-2026-0001
+  invoiceNumber?: string;   // auto-generated e.g. INV-2026-0001
+  invoiceType: 'OPD' | 'IPD' | 'Lab' | 'Pharmacy' | 'Package' | 'General';
+  billingMode: 'Self-Pay' | 'Insurance' | 'Corporate';
+  insuranceDetails?: {
+    provider: string;
+    claimId: string;
+    approvedAmount: number;
+    patientResponsibility: number;
+  };
   tenantName: string;
   patientName?: string;
   amount: number;
   taxAmount?: number;
+  taxBreakup?: {
+    cgst: number;
+    sgst: number;
+    igst: number;
+  };
   discountAmount?: number;
+  discountReason?: string;
   totalAmount: number;
   currency: string;
   status: 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'draft' | 'partially_paid';
+  locked: boolean;
   issuedDate: Date;
   dueDate: Date;
   paidDate?: Date;
   paidAmount?: number;
   items: Array<{
+    itemCategory: 'Consultation' | 'Bed' | 'Operation' | 'Procedure' | 'Medicine' | 'Test' | 'Package' | 'Other';
     description: string;
     quantity: number;
     unitPrice: number;
+    taxRate: number;
+    taxAmount: number;
     total: number;
   }>;
   notes?: string;
@@ -36,12 +54,34 @@ const InvoiceSchema = new Schema<IInvoice>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital' },
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient' },
-    invoiceNumber: { type: String, unique: true },
-    tenantName: { type: String, required: true },
     patientName: String,
+    invoiceNumber: { type: String, unique: true, sparse: true },
+    invoiceType: {
+      type: String,
+      enum: ['OPD', 'IPD', 'Lab', 'Pharmacy', 'Package', 'General'],
+      default: 'General',
+    },
+    billingMode: {
+      type: String,
+      enum: ['Self-Pay', 'Insurance', 'Corporate'],
+      default: 'Self-Pay',
+    },
+    insuranceDetails: {
+      provider: String,
+      claimId: String,
+      approvedAmount: Number,
+      patientResponsibility: Number,
+    },
+    tenantName: { type: String, required: true },
     amount: { type: Number, required: true },
     taxAmount: { type: Number, default: 0 },
+    taxBreakup: {
+      cgst: { type: Number, default: 0 },
+      sgst: { type: Number, default: 0 },
+      igst: { type: Number, default: 0 },
+    },
     discountAmount: { type: Number, default: 0 },
+    discountReason: String,
     totalAmount: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
     status: {
@@ -49,15 +89,23 @@ const InvoiceSchema = new Schema<IInvoice>(
       enum: ['paid', 'unpaid', 'overdue', 'cancelled', 'draft', 'partially_paid'],
       default: 'unpaid',
     },
+    locked: { type: Boolean, default: false },
     issuedDate: { type: Date, default: Date.now },
     dueDate: { type: Date, required: true },
     paidDate: Date,
     paidAmount: Number,
     items: [
       {
+        itemCategory: {
+          type: String,
+          enum: ['Consultation', 'Bed', 'Operation', 'Procedure', 'Medicine', 'Test', 'Package', 'Other'],
+          default: 'Other',
+        },
         description: { type: String, required: true },
         quantity: { type: Number, default: 1 },
         unitPrice: { type: Number, required: true },
+        taxRate: { type: Number, default: 0 },
+        taxAmount: { type: Number, default: 0 },
         total: { type: Number, required: true },
       },
     ],
@@ -67,17 +115,57 @@ const InvoiceSchema = new Schema<IInvoice>(
   { timestamps: true }
 );
 
-// Auto-generate invoice number
+// Auto-generate invoice number using Counter
 InvoiceSchema.pre('save', async function (next) {
   if (!this.invoiceNumber) {
-    const count = await mongoose.model('Invoice').countDocuments();
-    const year = new Date().getFullYear();
-    this.invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`;
+    try {
+      const Counter = mongoose.model('Counter');
+      
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const nextYear = currentYear + 1;
+      // Simple FY logic (April to March). If month < 3, it's prev year to current year.
+      const isNewFY = today.getMonth() >= 3;
+      const startYear = isNewFY ? currentYear : currentYear - 1;
+      const endYear = startYear + 1;
+      const financialYear = `${String(startYear).slice(2)}${String(endYear).slice(2)}`; // e.g. '2627'
+
+      const counter = await Counter.findOneAndUpdate(
+        { tenantId: this.tenantId, entityName: 'Invoice', financialYear },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+
+      this.invoiceNumber = `INV-${financialYear}-${String(counter.seq).padStart(5, '0')}`;
+    } catch (err: any) {
+      return next(err);
+    }
   }
   next();
 });
 
-export const Invoice = mongoose.model<IInvoice>('Invoice', InvoiceSchema);
+// ── Credit Note ──────────────────────────────────────────────
+export interface ICreditNote extends Document {
+  tenantId: mongoose.Types.ObjectId;
+  invoiceId: mongoose.Types.ObjectId;
+  noteNumber: string;
+  amount: number;
+  reason: string;
+  status: 'draft' | 'issued' | 'cancelled';
+  createdBy: mongoose.Types.ObjectId;
+  createdAt: Date;
+}
+
+const CreditNoteSchema: Schema = new Schema({
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  invoiceId: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true },
+  noteNumber: { type: String, unique: true, required: true },
+  amount: { type: Number, required: true, min: 0 },
+  reason: { type: String, required: true },
+  status: { type: String, enum: ['draft', 'issued', 'cancelled'], default: 'draft' },
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  createdAt: { type: Date, default: Date.now }
+});
 
 // ── Payment ──────────────────────────────────────────────────
 export interface IPayment extends Document {
@@ -86,9 +174,11 @@ export interface IPayment extends Document {
   patientId?: mongoose.Types.ObjectId;
   amount: number;
   currency: string;
-  method: 'credit_card' | 'debit_card' | 'bank_transfer' | 'cash' | 'insurance' | 'upi' | 'other';
+  type: 'payment' | 'refund' | 'advance';
+  method: 'credit_card' | 'debit_card' | 'bank_transfer' | 'cash' | 'insurance' | 'upi' | 'wallet' | 'other';
   status: 'completed' | 'pending' | 'failed' | 'refunded';
   referenceId?: string;
+  idempotencyKey?: string;
   gateway?: string;
   paymentDate: Date;
   createdAt: Date;
@@ -101,9 +191,14 @@ const PaymentSchema = new Schema<IPayment>(
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient' },
     amount: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
+    type: {
+      type: String,
+      enum: ['payment', 'refund', 'advance'],
+      default: 'payment',
+    },
     method: {
       type: String,
-      enum: ['credit_card', 'debit_card', 'bank_transfer', 'cash', 'insurance', 'upi', 'other'],
+      enum: ['credit_card', 'debit_card', 'bank_transfer', 'cash', 'insurance', 'upi', 'wallet', 'other'],
       required: true,
     },
     status: {
@@ -112,10 +207,13 @@ const PaymentSchema = new Schema<IPayment>(
       default: 'pending',
     },
     referenceId: String,
+    idempotencyKey: { type: String, unique: true, sparse: true },
     gateway: String,
     paymentDate: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
 
-export const Payment = mongoose.model<IPayment>('Payment', PaymentSchema);
+export const Invoice = mongoose.models.Invoice || mongoose.model<IInvoice>('Invoice', InvoiceSchema);
+export const Payment = mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);
+export const CreditNote = mongoose.models.CreditNote || mongoose.model<ICreditNote>('CreditNote', CreditNoteSchema);

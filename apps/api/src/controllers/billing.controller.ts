@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { Invoice, Payment } from '../models/Billing';
+import { Invoice, Payment, CreditNote } from '../models/Billing';
+import mongoose from 'mongoose';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
 
 function buildFilter(req: Request): Record<string, unknown> {
@@ -62,7 +63,10 @@ export async function getInvoice(req: Request, res: Response, next: NextFunction
   try {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new NotFoundError('Invoice not found');
-    sendSuccess(res, invoice);
+
+    const paymentHistory = await Payment.find({ invoiceId: invoice._id }).sort({ createdAt: -1 });
+
+    sendSuccess(res, { ...invoice.toObject(), paymentHistory });
   } catch (err) {
     next(err);
   }
@@ -70,8 +74,37 @@ export async function getInvoice(req: Request, res: Response, next: NextFunction
 
 export async function createInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const { items, discountAmount = 0 } = req.body;
+    let amount = 0;
+    let taxAmount = 0;
+    
+    // Calculate exclusive GST on top of unit price
+    if (items && Array.isArray(items)) {
+      items.forEach(item => {
+        const itemSubtotal = item.quantity * item.unitPrice;
+        const itemTax = (itemSubtotal * (item.taxRate || 0)) / 100;
+        
+        item.taxAmount = itemTax;
+        item.total = itemSubtotal + itemTax;
+        
+        amount += itemSubtotal;
+        taxAmount += itemTax;
+      });
+    }
+    
+    const cgst = taxAmount / 2;
+    const sgst = taxAmount / 2;
+    const taxBreakup = { cgst, sgst, igst: 0 };
+    
+    const totalAmount = amount + taxAmount - discountAmount;
+
     const invoice = await Invoice.create({
       ...req.body,
+      items,
+      amount,
+      taxAmount,
+      taxBreakup,
+      totalAmount,
       tenantId: req.body.tenantId || req.user?.tenantId,
       createdBy: req.user?._id,
     });
@@ -83,9 +116,19 @@ export async function createInvoice(req: Request, res: Response, next: NextFunct
 
 export async function updateInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!invoice) throw new NotFoundError('Invoice not found');
-    sendSuccess(res, invoice, 'Invoice updated');
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) throw new NotFoundError('Invoice not found');
+    
+    // Strict Edit Rules
+    if (existingInvoice.locked) {
+      throw new Error('This invoice is locked and cannot be edited. Please issue a Credit Note or Debit Note for corrections.');
+    }
+    if (existingInvoice.status !== 'draft' && existingInvoice.status !== 'unpaid') {
+      throw new Error('Only Draft or Unpaid invoices can be edited.');
+    }
+
+    const updatedInvoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    sendSuccess(res, updatedInvoice, 'Invoice updated');
   } catch (err) {
     next(err);
   }
@@ -93,13 +136,16 @@ export async function updateInvoice(req: Request, res: Response, next: NextFunct
 
 export async function cancelInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
-      { status: 'cancelled' },
-      { new: true }
-    );
+    const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new NotFoundError('Invoice not found');
-    sendSuccess(res, invoice, 'Invoice cancelled');
+    if ((invoice.paidAmount || 0) > 0) {
+      throw new Error('Cannot cancel an invoice with existing payments. Please process refunds first and reconcile the ledger.');
+    }
+
+    invoice.status = 'cancelled';
+    await invoice.save();
+    
+    sendSuccess(res, invoice, 'Invoice cancelled successfully');
   } catch (err) {
     next(err);
   }
@@ -107,25 +153,181 @@ export async function cancelInvoice(req: Request, res: Response, next: NextFunct
 
 export async function payInvoice(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const idempotencyKey = req.headers['idempotency-key'] as string;
+    
+    if (idempotencyKey) {
+      const existingPayment = await Payment.findOne({ idempotencyKey });
+      if (existingPayment) {
+        // Idempotency hit: return the already processed payment without double charging
+        const invoice = await Invoice.findById(existingPayment.invoiceId);
+        sendSuccess(res, invoice, 'Payment already processed (Idempotency Hit)');
+        return;
+      }
+    }
+
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) throw new NotFoundError('Invoice not found');
+    if (invoice.status === 'cancelled') throw new Error('Cannot pay a cancelled invoice');
+    if (invoice.status === 'paid') throw new Error('Invoice is already fully paid');
 
-    invoice.status = 'paid';
-    await invoice.save();
+    const paymentAmount = req.body.amount;
+    if (!paymentAmount || paymentAmount <= 0) throw new Error('Invalid payment amount');
 
-    const paymentMethod = req.body.method === 'card' ? 'credit_card' : (req.body.method || 'credit_card');
+    const remainingBalance = invoice.totalAmount - (invoice.paidAmount || 0);
+    if (paymentAmount > remainingBalance) {
+      throw new Error(`Overpayment prevented: Cannot pay more than the remaining balance of ₹${remainingBalance}`);
+    }
 
-    // Create corresponding payment log
+    const paymentMethod = req.body.method || 'credit_card';
+
+    // Use atomic update to prevent double-spend race conditions
+    const updatedInvoice = await Invoice.findOneAndUpdate(
+      { _id: invoice._id, status: { $ne: 'paid' } },
+      { 
+        $inc: { paidAmount: paymentAmount },
+        $set: { 
+          paidDate: new Date(),
+          status: (invoice.paidAmount || 0) + paymentAmount >= invoice.totalAmount ? 'paid' : 'partially_paid'
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedInvoice) {
+      throw new Error('Payment failed due to a concurrency conflict. Please try again.');
+    }
+
     await Payment.create({
       tenantId: invoice.tenantId,
       invoiceId: invoice._id,
-      amount: invoice.totalAmount,
+      amount: paymentAmount,
       method: paymentMethod,
+      type: 'payment',
       status: 'completed',
-      referenceId: 'txn_' + Math.random().toString(36).substring(2, 11).toUpperCase(),
+      idempotencyKey,
+      referenceId: req.body.referenceId || 'txn_' + Math.random().toString(36).substring(2, 11).toUpperCase(),
     });
 
-    sendSuccess(res, invoice, 'Payment completed successfully');
+    sendSuccess(res, updatedInvoice, 'Payment processed successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function refundPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const originalPayment = await Payment.findById(req.params.id);
+    if (!originalPayment) throw new NotFoundError('Payment not found');
+    if (originalPayment.type !== 'payment') throw new Error('Can only refund valid payments');
+    if (originalPayment.status !== 'completed') throw new Error('Can only refund completed payments');
+
+    const refundAmount = req.body.amount;
+    if (!refundAmount || refundAmount <= 0) throw new Error('Invalid refund amount');
+
+    // Refund policy checks based on user rules
+    const method = req.body.method || originalPayment.method;
+    if (method === 'cash') throw new Error('Security Policy: Cash refunds are strictly prohibited. Please select bank_transfer or original method.');
+
+    // Aggregate existing refunds to prevent overdrafting the original payment
+    const existingRefunds = await Payment.aggregate([
+      { $match: { referenceId: originalPayment._id.toString(), type: 'refund' } },
+      { $group: { _id: null, totalRefunded: { $sum: { $abs: "$amount" } } } }
+    ]);
+    const totalRefundedSoFar = existingRefunds[0]?.totalRefunded || 0;
+    
+    // Non-refundable items check
+    const invoice = await Invoice.findById(originalPayment.invoiceId);
+    if (!invoice) throw new NotFoundError('Associated invoice not found');
+
+    let nonRefundableAmount = 0;
+    invoice.items.forEach((item: any) => {
+      const desc = item.description.toLowerCase();
+      if (
+        desc.includes('registration') || 
+        desc.includes('admin') || 
+        item.itemCategory === 'Medicine'
+      ) {
+        nonRefundableAmount += item.total;
+      }
+    });
+
+    const absoluteMaxRefundable = originalPayment.amount - totalRefundedSoFar;
+    const policyMaxRefundable = invoice.totalAmount - nonRefundableAmount - totalRefundedSoFar;
+    
+    const maxAllowed = Math.min(absoluteMaxRefundable, policyMaxRefundable);
+
+    if (refundAmount > maxAllowed) {
+      throw new Error(`Refund blocked. Contains non-refundable items or overdraft. Max refundable for this transaction is ₹${maxAllowed.toFixed(2)}`);
+    }
+
+    // Determine refund status based on amount (Mocking an approval threshold of ₹10,000)
+    // In reality, this would map to a roles system
+    const refundStatus = refundAmount >= 10000 ? 'pending' : 'refunded';
+
+    // Create refund log
+    const refund = await Payment.create({
+      tenantId: originalPayment.tenantId,
+      invoiceId: originalPayment.invoiceId,
+      amount: -Math.abs(refundAmount),
+      method: method,
+      type: 'refund',
+      status: refundStatus,
+      referenceId: originalPayment._id.toString(), // Link to original payment
+    });
+
+    // If auto-approved, update the invoice immediately
+    if (refundStatus === 'refunded') {
+      // Atomic update to decrease paidAmount safely
+      await Invoice.updateOne(
+        { _id: invoice._id },
+        {
+          $inc: { paidAmount: -refundAmount },
+          $set: { status: ((invoice.paidAmount || 0) - refundAmount) <= 0 ? 'unpaid' : 'partially_paid' }
+        }
+      );
+      
+      sendSuccess(res, refund, 'Refund processed successfully');
+    } else {
+      sendSuccess(res, refund, 'Refund request submitted for Manager Approval (Threshold Exceeded)');
+    }
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createCreditNote(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const invoice = await Invoice.findById(req.body.invoiceId);
+    if (!invoice) throw new NotFoundError('Invoice not found');
+
+    const Counter = mongoose.model('Counter');
+    const today = new Date();
+    const financialYear = `${String(today.getFullYear()).slice(2)}${String(today.getFullYear() + 1).slice(2)}`;
+    
+    const counter = await Counter.findOneAndUpdate(
+      { tenantId: invoice.tenantId, entityName: 'CreditNote', financialYear },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    const noteNumber = `CN-${financialYear}-${String(counter.seq).padStart(5, '0')}`;
+
+    const creditNote = await CreditNote.create({
+      tenantId: invoice.tenantId,
+      invoiceId: invoice._id,
+      noteNumber,
+      amount: req.body.amount,
+      reason: req.body.reason,
+      status: 'issued',
+      createdBy: req.user?._id
+    });
+
+    // Optionally update invoice.locked = true to prevent further edits if they issue a CN
+    if (!invoice.locked) {
+      invoice.locked = true;
+      await invoice.save();
+    }
+
+    sendCreated(res, creditNote, 'Credit Note issued successfully');
   } catch (err) {
     next(err);
   }

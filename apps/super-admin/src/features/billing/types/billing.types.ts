@@ -1,4 +1,4 @@
-export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'draft';
+export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue' | 'cancelled' | 'draft' | 'partially_paid';
 export type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded';
 export type ClaimStatus = 'approved' | 'pending' | 'rejected' | 'submitted';
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'trialing';
@@ -22,18 +22,41 @@ export interface Invoice {
   hospitalName?: string;
   patientId?: string;
   patientName?: string;
+  invoiceNumber: string;
+  invoiceType: 'OPD' | 'IPD' | 'Lab' | 'Pharmacy' | 'Package' | 'General';
+  billingMode: 'Self-Pay' | 'Insurance' | 'Corporate';
+  insuranceDetails?: {
+    provider: string;
+    claimId: string;
+    approvedAmount: number;
+    patientResponsibility: number;
+  };
   amount: number;
+  taxAmount?: number;
+  taxBreakup?: {
+    cgst: number;
+    sgst: number;
+    igst: number;
+  };
+  discountAmount?: number;
+  discountReason?: string;
+  totalAmount: number;
   currency: string;
   status: InvoiceStatus;
   issuedDate: string;
   dueDate: string;
   paidDate?: string;
+  paidAmount?: number;
   items: Array<{
+    itemCategory: 'Consultation' | 'Bed' | 'Operation' | 'Procedure' | 'Medicine' | 'Test' | 'Package' | 'Other';
     description: string;
     quantity: number;
     unitPrice: number;
+    taxRate: number;
+    taxAmount: number;
     total: number;
   }>;
+  paymentHistory?: Payment[];
 }
 
 export interface Payment {
@@ -43,7 +66,8 @@ export interface Payment {
   tenantName: string;
   amount: number;
   currency: string;
-  method: 'credit_card' | 'bank_transfer' | 'cash' | 'insurance' | 'other';
+  type: 'payment' | 'refund' | 'advance';
+  method: 'credit_card' | 'debit_card' | 'bank_transfer' | 'cash' | 'insurance' | 'upi' | 'wallet' | 'other';
   status: PaymentStatus;
   paymentDate: string;
   referenceId?: string;

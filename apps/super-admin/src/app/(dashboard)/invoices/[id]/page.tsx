@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Download, ArrowLeft, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PaymentModal } from "@/features/billing/components/PaymentModal";
+import { InvoiceReceipt } from "@/features/billing/components/InvoiceReceipt";
+import { useState } from "react";
 
 export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = React.use(params);
   const { data: invoice, isLoading } = useInvoiceDetails(id);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -42,18 +46,17 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Invoice {invoice.id}</h1>
         <StatusBadge status={invoice.status} className="ml-2" />
         <div className="ml-auto flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            Print GST Invoice
           </Button>
-          <Button>
-            <Download className="mr-2 h-4 w-4" />
-            Download PDF
+          <Button onClick={() => setIsPaymentModalOpen(true)}>
+            Make Payment
           </Button>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-8 mt-6">
+      <div className="bg-card rounded-xl border border-border p-8 mt-6 print:hidden">
         <div className="grid grid-cols-2 gap-8 border-b border-border pb-8">
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Billed To</h3>
@@ -98,7 +101,44 @@ export default function InvoiceDetailsPage({ params }: { params: Promise<{ id: s
             </tfoot>
           </table>
         </div>
+
+        {invoice.paymentHistory && invoice.paymentHistory.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-border">
+            <h3 className="text-lg font-semibold mb-4">Payment & Refund History</h3>
+            <div className="space-y-3">
+              {invoice.paymentHistory.map((payment) => (
+                <div key={payment.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-lg border border-border">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${payment.type === 'refund' ? 'text-destructive' : 'text-primary'}`}>
+                        {payment.type === 'refund' ? 'Refund Processed' : 'Payment Received'}
+                      </span>
+                      <StatusBadge status={payment.status} />
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      via {payment.method.replace('_', ' ')} on {new Date(payment.paymentDate).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Ref: {payment.referenceId}</p>
+                  </div>
+                  <div className={`text-lg font-bold ${payment.type === 'refund' ? 'text-destructive' : 'text-foreground'}`}>
+                    {payment.type === 'refund' ? '-' : '+'} {new Intl.NumberFormat("en-US", { style: "currency", currency: invoice.currency }).format(Math.abs(payment.amount))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {invoice && <InvoiceReceipt invoice={invoice} />}
+
+      {isPaymentModalOpen && invoice && (
+        <PaymentModal 
+          invoice={invoice} 
+          onClose={() => setIsPaymentModalOpen(false)} 
+          onSuccess={() => setIsPaymentModalOpen(false)} 
+        />
+      )}
     </PageContainer>
   );
 }

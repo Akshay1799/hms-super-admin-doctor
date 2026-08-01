@@ -11,6 +11,8 @@ import {
   getRevenueSummary,
   listPayments,
   createPayment,
+  refundPayment,
+  createCreditNote,
 } from '../controllers/billing.controller';
 
 const router = Router();
@@ -27,8 +29,12 @@ router.patch('/invoices/:id', billingAuth, updateInvoice);
 router.post('/invoices/:id/cancel', billingAuth, cancelInvoice);
 router.post('/invoices/:id/pay', payInvoice);
 
+// Credit Notes
+router.post('/credit-notes', billingAuth, createCreditNote);
+
 // Payments
 router.get('/payments', listPayments);
 router.post('/payments', billingAuth, createPayment);
+router.post('/payments/:id/refund', billingAuth, refundPayment);
 
 export default router;
