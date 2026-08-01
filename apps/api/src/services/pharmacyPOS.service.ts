@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 import { PharmacyPrescription, PharmacySale, PatientReturn } from '../models/PharmacyPOS';
-import { InventoryBatch } from '../models/Pharmacy';
+import { InventoryBatch, Medicine } from '../models/Pharmacy';
 import { InventoryService } from './inventory.service';
 import { eventBus } from '../utils/DomainEventBus';
+import { ControlledDrugsService } from './controlledDrugs.service';
 
 export class PharmacyPOSService {
   /**
@@ -100,7 +101,8 @@ export class PharmacyPOSService {
   static async confirmDispense(
     session: mongoose.ClientSession,
     saleId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId
+    userId: mongoose.Types.ObjectId,
+    witnessId?: mongoose.Types.ObjectId
   ) {
     const sale = await PharmacySale.findById(saleId).session(session);
     if (!sale) throw new Error('Sale not found');
@@ -128,6 +130,24 @@ export class PharmacyPOSService {
         sale._id.toString(),
         `Dispensed for Sale ${sale.saleNumber}`
       );
+      // 3. Controlled Drug Dual Verification
+      const medicine = await Medicine.findById(item.medicineId).session(session);
+      if (medicine && medicine.controlledDrugFlag) {
+        if (!witnessId) throw new Error(`Dual verification required: Medicine ${medicine.genericName} is a controlled drug. Please provide a witness PIN/ID.`);
+        await ControlledDrugsService.logTransaction(session, {
+          tenantId: sale.tenantId,
+          hospitalId: sale.hospitalId,
+          pharmacyId: sale.pharmacyId,
+          medicineId: item.medicineId,
+          batchId: item.batchId,
+          transactionId: sale._id.toString(),
+          transactionType: 'dispense',
+          quantityChanged: -item.quantity,
+          performedBy: userId,
+          witnessedBy: witnessId,
+          patientId: sale.patientId
+        });
+      }
     }
 
     sale.dispensingStatus = 'dispensed';
@@ -176,7 +196,8 @@ export class PharmacyPOSService {
   static async processPatientReturn(
     session: mongoose.ClientSession,
     returnId: mongoose.Types.ObjectId,
-    userId: mongoose.Types.ObjectId
+    userId: mongoose.Types.ObjectId,
+    witnessId?: mongoose.Types.ObjectId
   ) {
     const returnRecord = await PatientReturn.findById(returnId).session(session);
     if (!returnRecord) throw new Error('Return record not found');
@@ -217,6 +238,25 @@ export class PharmacyPOSService {
           returnRecord._id.toString(),
           `Patient return for ${returnRecord.returnNumber}`
         );
+
+        // 3. Controlled Drug Dual Verification
+        const medicine = await Medicine.findById(item.medicineId).session(session);
+        if (medicine && medicine.controlledDrugFlag) {
+          if (!witnessId) throw new Error(`Dual verification required: Returning controlled drug ${medicine.genericName} requires a witness.`);
+          await ControlledDrugsService.logTransaction(session, {
+            tenantId: returnRecord.tenantId,
+            hospitalId: returnRecord.hospitalId,
+            pharmacyId: returnRecord.pharmacyId,
+            medicineId: item.medicineId,
+            batchId: item.batchId,
+            transactionId: returnRecord._id.toString(),
+            transactionType: 'return',
+            quantityChanged: item.returnQuantity,
+            performedBy: userId,
+            witnessedBy: witnessId,
+            patientId: returnRecord.patientId
+          });
+        }
       }
     }
 

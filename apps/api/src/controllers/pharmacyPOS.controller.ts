@@ -47,6 +47,7 @@ export const confirmDispense = async (req: Request, res: Response, next: NextFun
   try {
     const userId = req.user?._id;
     const { id } = req.params;
+    const { witnessId } = req.body; // Used for controlled drugs
 
     // Simulate payment completion in this endpoint for demonstration
     // (In reality, this would be a webhook or a separate payment flow)
@@ -56,7 +57,7 @@ export const confirmDispense = async (req: Request, res: Response, next: NextFun
     await sale.save({ session });
 
     // Confirm dispensing and commit atomic deduction
-    await PharmacyPOSService.confirmDispense(session, sale._id as any, userId as any);
+    await PharmacyPOSService.confirmDispense(session, sale._id as any, userId as any, witnessId);
 
     await session.commitTransaction();
     session.endSession();
@@ -110,6 +111,7 @@ export const approvePatientReturn = async (req: Request, res: Response, next: Ne
     const tenantId = req.user?.tenantId;
     const userId = req.user?._id;
     const { id } = req.params;
+    const { witnessId } = req.body;
 
     // First inspect
     const returnRecord = await PatientReturn.findOneAndUpdate(
@@ -120,7 +122,7 @@ export const approvePatientReturn = async (req: Request, res: Response, next: Ne
     if (!returnRecord) throw new NotFoundError('Pending return not found');
 
     // Process refund and restore stock
-    await PharmacyPOSService.processPatientReturn(session, returnRecord._id as any, userId as any);
+    await PharmacyPOSService.processPatientReturn(session, returnRecord._id as any, userId as any, witnessId);
 
     await session.commitTransaction();
     session.endSession();
