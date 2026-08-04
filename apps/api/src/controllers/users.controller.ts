@@ -67,7 +67,12 @@ export async function listUsers(req: Request, res: Response, next: NextFunction)
     const skip = (pageNum - 1) * limitNum;
 
     const [users, total] = await Promise.all([
-      User.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+      User.find(filter)
+        .select('-password')
+        .populate('departmentId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
       User.countDocuments(filter),
     ]);
 
@@ -137,7 +142,9 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
 export async function getUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate('departmentId', 'name');
     if (!user) throw new NotFoundError('User not found');
     if (req.user) verifyAdminScope(req.user, user);
     sendSuccess(res, user);

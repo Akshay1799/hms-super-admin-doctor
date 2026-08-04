@@ -142,7 +142,10 @@ export async function listDeptStaff(req: Request, res: Response, next: NextFunct
     if (role) filter.role = role;
     if (status) filter.status = status;
 
-    const staff = await User.find(filter).select('-password').sort({ name: 1 });
+    const staff = await User.find(filter)
+      .select('-password')
+      .populate('departmentId', 'name')
+      .sort({ name: 1 });
     sendSuccess(res, staff);
   } catch (err) {
     next(err);
