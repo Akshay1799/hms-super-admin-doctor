@@ -114,20 +114,31 @@ export async function assignDeptAdmin(req: Request, res: Response, next: NextFun
     const dept = await Department.findById(req.params.id);
     if (!dept) throw new NotFoundError('Department not found');
 
-    const user = await User.findById(userId);
-    if (!user) throw new NotFoundError('User not found');
+    const newAdmin = await User.findById(userId);
+    if (!newAdmin) throw new NotFoundError('User not found');
+
+    // Demote the existing admin if there is one (Single Source of Truth)
+    if (dept.adminId && dept.adminId.toString() !== userId) {
+      const oldAdmin = await User.findById(dept.adminId);
+      if (oldAdmin) {
+        // Revert to a base role. If they have specialty, DOCTOR, else STAFF.
+        oldAdmin.role = oldAdmin.specialty ? 'DOCTOR' : 'STAFF';
+        oldAdmin.departmentId = null;
+        await oldAdmin.save();
+      }
+    }
 
     // Update the department's adminId
-    dept.adminId = user._id;
+    dept.adminId = newAdmin._id;
     await dept.save();
 
-    // Update the user's role and department assignment
-    user.role = 'DEPT_ADMIN';
-    user.departmentId = dept._id;
-    user.hospitalId = dept.hospitalId;
-    await user.save();
+    // Update the new admin's role and department assignment
+    newAdmin.role = 'DEPT_ADMIN';
+    newAdmin.departmentId = dept._id;
+    newAdmin.hospitalId = dept.hospitalId;
+    await newAdmin.save();
 
-    sendSuccess(res, { department: dept, admin: user.toJSON() }, 'Department admin assigned');
+    sendSuccess(res, { department: dept, admin: newAdmin.toJSON() }, 'Department admin assigned');
   } catch (err) {
     next(err);
   }

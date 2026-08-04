@@ -120,7 +120,8 @@ export async function getPatientProfileMe(req: Request, res: Response, next: Nex
 export async function getPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const patient = await Patient.findById(req.params.id)
-      .populate('assignedDoctorId', 'name email specialty');
+      .populate('assignedDoctorId', 'name email specialty')
+      .populate('departmentId', 'name');
     if (!patient) throw new NotFoundError('Patient not found');
 
     // Scope check
@@ -158,6 +159,9 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
     // Update department patient count
     if (patient.departmentId) {
       await Department.findByIdAndUpdate(patient.departmentId, { $inc: { patientCount: 1 } });
+      if (patient.status === 'Admitted' || patient.status === 'ICU') {
+        await Department.findByIdAndUpdate(patient.departmentId, { $inc: { occupiedBeds: 1 } });
+      }
     }
     if (patient.hospitalId) {
       await Hospital.findByIdAndUpdate(patient.hospitalId, { $inc: { patientCount: 1 } });
@@ -225,11 +229,49 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
 
 export async function updatePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const originalPatient = await Patient.findById(req.params.id);
+    if (!originalPatient) throw new NotFoundError('Patient not found');
+
     const patient = await Patient.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
     if (!patient) throw new NotFoundError('Patient not found');
+
+    // HIERARCHICAL SYNC: Department patientCount
+    if (originalPatient.departmentId?.toString() !== patient.departmentId?.toString()) {
+      if (originalPatient.departmentId) {
+        await Department.findByIdAndUpdate(originalPatient.departmentId, { $inc: { patientCount: -1 } });
+      }
+      if (patient.departmentId) {
+        await Department.findByIdAndUpdate(patient.departmentId, { $inc: { patientCount: 1 } });
+      }
+    }
+
+    // HIERARCHICAL SYNC: Hospital patientCount
+    if (originalPatient.hospitalId?.toString() !== patient.hospitalId?.toString()) {
+      if (originalPatient.hospitalId) {
+        await Hospital.findByIdAndUpdate(originalPatient.hospitalId, { $inc: { patientCount: -1 } });
+      }
+      if (patient.hospitalId) {
+        await Hospital.findByIdAndUpdate(patient.hospitalId, { $inc: { patientCount: 1 } });
+      }
+    }
+
+    // HIERARCHICAL SYNC: Occupied beds
+    const oldOccupied = originalPatient.status === 'Admitted' || originalPatient.status === 'ICU';
+    const newOccupied = patient.status === 'Admitted' || patient.status === 'ICU';
+
+    if (oldOccupied !== newOccupied || (oldOccupied && newOccupied && originalPatient.departmentId?.toString() !== patient.departmentId?.toString())) {
+      // Remove from old if it was occupied
+      if (oldOccupied && originalPatient.departmentId) {
+        await Department.findByIdAndUpdate(originalPatient.departmentId, { $inc: { occupiedBeds: -1 } });
+      }
+      // Add to new if it is now occupied
+      if (newOccupied && patient.departmentId) {
+        await Department.findByIdAndUpdate(patient.departmentId, { $inc: { occupiedBeds: 1 } });
+      }
+    }
 
     // HIERARCHICAL SYNC: If Patient details changed, sync name/phone to User account!
     if (patient.email) {
@@ -253,6 +295,18 @@ export async function deletePatient(req: Request, res: Response, next: NextFunct
   try {
     const patient = await Patient.findByIdAndDelete(req.params.id);
     if (!patient) throw new NotFoundError('Patient not found');
+
+    if (patient.departmentId) {
+      const incs: any = { patientCount: -1 };
+      if (patient.status === 'Admitted' || patient.status === 'ICU') {
+        incs.occupiedBeds = -1;
+      }
+      await Department.findByIdAndUpdate(patient.departmentId, { $inc: incs });
+    }
+    if (patient.hospitalId) {
+      await Hospital.findByIdAndUpdate(patient.hospitalId, { $inc: { patientCount: -1 } });
+    }
+
     sendSuccess(res, null, 'Patient deleted completely from database');
   } catch (err) {
     next(err);

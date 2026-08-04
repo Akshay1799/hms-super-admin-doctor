@@ -101,6 +101,23 @@ export async function updateAppointment(req: Request, res: Response, next: NextF
   try {
     const appt = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!appt) throw new NotFoundError('Appointment not found');
+
+    // HIERARCHICAL SYNC: If completed, add to patient timeline
+    if (req.body.status === 'Completed') {
+      const { Patient } = await import('../models/Patient');
+      await Patient.findByIdAndUpdate(appt.patientId, {
+        $push: {
+          timeline: {
+            title: 'Appointment Completed',
+            description: `Consultation with Dr. ${appt.doctorName}`,
+            date: new Date(),
+            type: 'procedure',
+            createdBy: req.user?.name || 'System',
+          }
+        }
+      });
+    }
+
     sendSuccess(res, appt, 'Appointment updated');
   } catch (err) {
     next(err);

@@ -199,6 +199,16 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
 
     await User.findByIdAndDelete(req.params.id);
 
+    // HIERARCHICAL SYNC: Decrement counts
+    if (targetUser.departmentId) {
+      const incField = targetUser.role === 'DOCTOR' ? 'doctorCount' : targetUser.role === 'NURSE' ? 'nurseCount' : 'staffCount';
+      await Department.findByIdAndUpdate(targetUser.departmentId, { $inc: { [incField]: -1 } });
+    }
+    if (targetUser.hospitalId) {
+      const incField = targetUser.role === 'DOCTOR' ? 'doctorCount' : 'staffCount';
+      await Hospital.findByIdAndUpdate(targetUser.hospitalId, { $inc: { [incField]: -1 } });
+    }
+
     sendSuccess(res, null, 'User deleted completely from database');
   } catch (err) {
     next(err);
@@ -260,7 +270,12 @@ export async function listDoctors(req: Request, res: Response, next: NextFunctio
     const skip = (pageNum - 1) * limitNum;
 
     const [doctors, total] = await Promise.all([
-      User.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum),
+      User.find(filter)
+        .select('-password')
+        .populate('departmentId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
       User.countDocuments(filter),
     ]);
 
@@ -401,6 +416,15 @@ export async function deleteDoctor(req: Request, res: Response, next: NextFuncti
   try {
     const doctor = await User.findOneAndDelete({ _id: req.params.id, role: 'DOCTOR' });
     if (!doctor) throw new NotFoundError('Doctor not found');
+
+    // HIERARCHICAL SYNC: Decrement counts
+    if (doctor.departmentId) {
+      await Department.findByIdAndUpdate(doctor.departmentId, { $inc: { doctorCount: -1 } });
+    }
+    if (doctor.hospitalId) {
+      await Hospital.findByIdAndUpdate(doctor.hospitalId, { $inc: { doctorCount: -1 } });
+    }
+
     sendSuccess(res, null, 'Doctor deleted completely from database');
   } catch (err) {
     next(err);
@@ -416,7 +440,10 @@ export async function listNurses(req: Request, res: Response, next: NextFunction
     if (req.query.hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = req.query.hospitalId;
     if (req.query.departmentId) filter.departmentId = req.query.departmentId;
 
-    const nurses = await User.find(filter).select('-password').sort({ name: 1 });
+    const nurses = await User.find(filter)
+      .select('-password')
+      .populate('departmentId', 'name')
+      .sort({ name: 1 });
     sendSuccess(res, nurses, 'Nurses retrieved');
   } catch (err) {
     next(err);
@@ -437,7 +464,10 @@ export async function listStaff(req: Request, res: Response, next: NextFunction)
     if (req.query.hospitalId && req.user?.role === 'SUPER_ADMIN') filter.hospitalId = req.query.hospitalId;
     if (req.query.departmentId) filter.departmentId = req.query.departmentId;
 
-    const staff = await User.find(filter).select('-password').sort({ name: 1 });
+    const staff = await User.find(filter)
+      .select('-password')
+      .populate('departmentId', 'name')
+      .sort({ name: 1 });
     sendSuccess(res, staff, 'Staff retrieved');
   } catch (err) {
     next(err);
