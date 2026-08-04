@@ -10,6 +10,7 @@ export type UserRole =
   | 'NURSE'
   | 'RECEPTIONIST'
   | 'STAFF'
+  | 'HR_ADMIN'
   | 'PATIENT'
   | 'PHARMACY_MANAGER'
   | 'PHARMACIST';

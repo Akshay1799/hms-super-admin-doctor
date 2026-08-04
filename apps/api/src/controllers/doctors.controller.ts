@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
+import { DoctorProfile } from '../models/DoctorProfile';
 import { Roster } from '../models/Roster';
 import { Prescription } from '../models/Prescription';
 import { Patient } from '../models/Patient';
@@ -126,6 +127,183 @@ export async function updateDoctorProfile(req: Request, res: Response, next: Nex
     next(err);
   }
 }
+
+// ── 1b. Enterprise Doctor Profile (Feature 1) ──────────────────────
+
+export const createDoctorProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    const hospitalId = req.user?.hospitalId;
+    
+    if (!tenantId || !hospitalId) {
+      return res.status(403).json({ message: 'User must belong to a tenant and hospital.' });
+    }
+    
+    // Check if profile with email or medical registration number already exists
+    const existingProfile = await DoctorProfile.findOne({
+      $or: [
+        { email: req.body.email },
+        { mobileNumber: req.body.mobileNumber }
+      ],
+      tenantId,
+      hospitalId
+    });
+
+    if (existingProfile) {
+      return res.status(400).json({ message: 'Doctor profile with this email or mobile number already exists.' });
+    }
+
+    const profile = new DoctorProfile({
+      ...req.body,
+      tenantId,
+      hospitalId,
+      status: req.body.status || 'Draft'
+    });
+
+    await profile.save();
+    
+    await AuditLog.create({
+      tenantId,
+      userId: req.user?._id,
+      action: 'CREATE_DOCTOR_PROFILE',
+      resource: 'DoctorProfile',
+      ipAddress: req.ip,
+      metadata: { profileId: profile._id },
+    });
+
+    res.status(201).json({ message: 'Doctor profile created successfully.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error creating doctor profile', error: error.message });
+  }
+};
+
+export const getEnterpriseDoctorProfile = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findById(req.params.id)
+      .populate('userId', 'name email status role')
+      .populate('departments', 'name code');
+
+    if (!profile || (profile.tenantId.toString() !== req.user?.tenantId?.toString())) {
+      return res.status(404).json({ message: 'Doctor profile not found.' });
+    }
+
+    res.status(200).json(profile);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching doctor profile', error: error.message });
+  }
+};
+
+export const updateEnterpriseDoctorProfile = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    // Prevent modification of nested arrays directly through this endpoint
+    const { qualifications, specializations, experience, registrations, clinicalPrivileges, status, ...updateData } = req.body;
+    
+    Object.assign(profile, updateData);
+    await profile.save();
+
+    await AuditLog.create({
+      tenantId: profile.tenantId,
+      userId: req.user?._id,
+      action: 'UPDATE_DOCTOR_PROFILE',
+      resource: 'DoctorProfile',
+      ipAddress: req.ip,
+      metadata: { profileId: profile._id },
+    });
+
+    res.status(200).json({ message: 'Doctor profile updated.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating doctor profile', error: error.message });
+  }
+};
+
+export const addQualification = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    profile.qualifications.push(req.body);
+    await profile.save();
+    res.status(200).json({ message: 'Qualification added.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error adding qualification', error: error.message });
+  }
+};
+
+export const addSpecialization = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    profile.specializations.push(req.body);
+    await profile.save();
+    res.status(200).json({ message: 'Specialization added.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error adding specialization', error: error.message });
+  }
+};
+
+export const addExperience = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    profile.experience.push(req.body);
+    await profile.save();
+    res.status(200).json({ message: 'Experience added.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error adding experience', error: error.message });
+  }
+};
+
+export const addRegistration = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    const exists = profile.registrations.some(r => r.medicalRegistrationNumber === req.body.medicalRegistrationNumber);
+    if (exists) return res.status(400).json({ message: 'Medical registration number already exists.' });
+
+    profile.registrations.push(req.body);
+    await profile.save();
+    res.status(200).json({ message: 'Registration added.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error adding registration', error: error.message });
+  }
+};
+
+export const updateProfileStatus = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    const validStatuses = ['Draft', 'Pending Verification', 'Pending Approval', 'Active', 'On Leave', 'Suspended', 'Retired', 'Archived'];
+    if (!validStatuses.includes(req.body.status)) return res.status(400).json({ message: 'Invalid status provided.' });
+
+    profile.status = req.body.status;
+    await profile.save();
+    res.status(200).json({ message: `Doctor status updated to ${req.body.status}`, profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating status', error: error.message });
+  }
+};
+
+export const assignClinicalPrivileges = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    if (!Array.isArray(req.body.clinicalPrivileges)) return res.status(400).json({ message: 'Clinical privileges must be an array.' });
+
+    profile.clinicalPrivileges = req.body.clinicalPrivileges;
+    await profile.save();
+    res.status(200).json({ message: 'Clinical privileges updated.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error assigning privileges', error: error.message });
+  }
+};
 
 // ── 2. Digital Prescription & Consultation Notes ─────────────────
 
