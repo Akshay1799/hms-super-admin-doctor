@@ -17,7 +17,10 @@ export interface IPatient extends Document {
   gender: 'Male' | 'Female' | 'Other';
   bloodGroup?: string;
   maritalStatus?: string;
+  occupation?: string;
   nationality?: string;
+  religion?: string;
+  preferredLanguage?: string;
   // Contact
   phone: string; // Primary Mobile
   secondaryMobile?: string;
@@ -35,14 +38,13 @@ export interface IPatient extends Document {
     postalCode: string;
   };
   // Identity Info
-  identityInfo?: {
-    nationalId?: string;
-    passport?: string;
-    drivingLicense?: string;
-    insuranceId?: string;
-    employeeId?: string;
-    other?: string;
-  };
+  identityInfo: Array<{
+    type: string;
+    idNumber: string;
+    expiryDate?: Date;
+    issuingAuthority?: string;
+    documentUrl?: string;
+  }>;
   // Emergency contact & Family linking
   emergencyContact?: {
     name: string;
@@ -112,7 +114,7 @@ export interface IPatient extends Document {
     title: string;
     description?: string;
     date: Date;
-    type: 'admission' | 'diagnosis' | 'prescription' | 'vital' | 'discharge' | 'lab' | 'procedure' | 'note';
+    type: 'admission' | 'diagnosis' | 'prescription' | 'vital' | 'discharge' | 'lab' | 'procedure' | 'note' | 'registration';
     createdBy?: string;
   }>;
   scans: Array<{
@@ -147,7 +149,10 @@ const PatientSchema = new Schema<IPatient>(
     gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
     bloodGroup: String,
     maritalStatus: String,
+    occupation: String,
     nationality: String,
+    religion: String,
+    preferredLanguage: String,
     phone: { type: String, required: true },
     secondaryMobile: String,
     email: String,
@@ -162,14 +167,15 @@ const PatientSchema = new Schema<IPatient>(
       country: String,
       postalCode: String,
     },
-    identityInfo: {
-      nationalId: { type: String, index: true },
-      passport: String,
-      drivingLicense: String,
-      insuranceId: String,
-      employeeId: String,
-      other: String,
-    },
+    identityInfo: [
+      {
+        type: { type: String, required: true },
+        idNumber: { type: String, required: true },
+        expiryDate: Date,
+        issuingAuthority: String,
+        documentUrl: String,
+      },
+    ],
     emergencyContact: {
       name: String,
       relation: String,
@@ -251,7 +257,7 @@ const PatientSchema = new Schema<IPatient>(
         date: { type: Date, default: Date.now },
         type: {
           type: String,
-          enum: ['admission', 'diagnosis', 'prescription', 'vital', 'discharge', 'lab', 'procedure', 'note'],
+          enum: ['admission', 'diagnosis', 'prescription', 'vital', 'discharge', 'lab', 'procedure', 'note', 'registration'],
         },
         createdBy: String,
       },

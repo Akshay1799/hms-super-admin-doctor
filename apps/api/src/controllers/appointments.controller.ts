@@ -129,11 +129,31 @@ export async function checkInAppointment(req: Request, res: Response, next: Next
     const appt = await Appointment.findById(req.params.id);
     if (!appt) throw new NotFoundError('Appointment not found');
 
-    appt.status = 'Waiting';
+    if (appt.status === 'Checked-In') {
+      sendSuccess(res, appt, 'Patient is already checked in');
+      return;
+    }
+
+    appt.status = 'Checked-In';
     appt.checkInTime = new Date();
     await appt.save();
 
-    sendSuccess(res, appt, `Patient checked in successfully. Added to live queue.`);
+    // BR-039: Appointment check-in automatically prepares Encounter creation.
+    const { Encounter } = await import('../models/Encounter');
+    const encounter = await Encounter.create({
+      tenantId: appt.tenantId,
+      hospitalId: appt.hospitalId,
+      departmentId: appt.departmentId,
+      patientId: appt.patientId,
+      encounterType: 'OPD',
+      category: 'Scheduled Appointment',
+      doctorId: appt.doctorId,
+      notes: appt.notes,
+      registeredBy: req.user?._id,
+      status: 'Waiting'
+    });
+
+    sendSuccess(res, { appointment: appt, encounter }, `Patient checked in successfully. Encounter created: ${encounter.visitNumber}`);
   } catch (err) {
     next(err);
   }
@@ -148,6 +168,90 @@ export async function cancelAppointment(req: Request, res: Response, next: NextF
     );
     if (!appt) throw new NotFoundError('Appointment not found');
     sendSuccess(res, appt, 'Appointment cancelled');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function rescheduleAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { date, time } = req.body;
+    
+    const oldAppt = await Appointment.findById(req.params.id);
+    if (!oldAppt) throw new NotFoundError('Appointment not found');
+
+    if (oldAppt.status === 'Completed' || oldAppt.status === 'Archived') {
+      throw new Error('Cannot reschedule completed or archived appointments');
+    }
+
+    oldAppt.status = 'Rescheduled';
+    await oldAppt.save();
+
+    // Generate new token
+    const apptDate = new Date(date);
+    const dayStart = new Date(apptDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(apptDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const countToday = await Appointment.countDocuments({
+      doctorId: oldAppt.doctorId,
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: { $ne: 'Cancelled' },
+    });
+
+    const tokenNumber = countToday + 1;
+
+    const newAppt = await Appointment.create({
+      tenantId: oldAppt.tenantId,
+      hospitalId: oldAppt.hospitalId,
+      departmentId: oldAppt.departmentId,
+      patientId: oldAppt.patientId,
+      patientName: oldAppt.patientName,
+      patientPhone: oldAppt.patientPhone,
+      doctorId: oldAppt.doctorId,
+      doctorName: oldAppt.doctorName,
+      date: apptDate,
+      time,
+      type: oldAppt.type,
+      status: 'Scheduled',
+      tokenNumber,
+      queuePosition: tokenNumber,
+      rescheduledFrom: oldAppt._id
+    });
+
+    sendCreated(res, newAppt, `Appointment rescheduled with Token #${tokenNumber}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDoctorSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query;
+
+    const filter: Record<string, unknown> = { doctorId };
+    if (date) {
+      const start = new Date(date as string);
+      const end = new Date(date as string);
+      end.setDate(end.getDate() + 1);
+      filter.date = { $gte: start, $lt: end };
+    }
+
+    const schedule = await Appointment.find(filter).sort({ date: 1, time: 1 });
+    sendSuccess(res, schedule, 'Doctor schedule retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPatientAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { patientId } = req.params;
+    
+    const appointments = await Appointment.find({ patientId }).sort({ date: -1, time: -1 });
+    sendSuccess(res, appointments, 'Patient appointments retrieved');
   } catch (err) {
     next(err);
   }

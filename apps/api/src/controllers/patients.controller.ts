@@ -239,24 +239,24 @@ export async function registerNewPatient(req: Request, res: Response, next: Next
       });
     }
 
-    // 2. Create Registration Record
-    const { Registration } = await import('../models/Registration');
-    const registration = await Registration.create({
+    // 2. Create Encounter Record
+    const { Encounter } = await import('../models/Encounter');
+    const encounter = await Encounter.create({
       tenantId: patient.tenantId,
       hospitalId: patient.hospitalId,
       departmentId: patient.departmentId,
       patientId: patient._id,
-      registrationType: registrationType || 'OPD',
-      visitType: visitType || 'New',
+      encounterType: registrationType || 'OPD',
+      category: visitType || 'New Visit',
       doctorId: doctorId || patient.assignedDoctorId,
       referralSource,
       referralDoctor,
       notes,
       registeredBy: req.user?._id,
-      status: 'Registered',
+      status: 'Checked-In',
     });
 
-    sendCreated(res, { patient, registration }, 'Patient registered successfully');
+    sendCreated(res, { patient, encounter }, 'Patient registered successfully');
   } catch (err) {
     next(err);
   }
@@ -275,24 +275,24 @@ export async function registerReturningPatient(req: Request, res: Response, next
       await patient.save();
     }
 
-    // Create Registration Record
-    const { Registration } = await import('../models/Registration');
-    const registration = await Registration.create({
+    // Create Encounter Record
+    const { Encounter } = await import('../models/Encounter');
+    const encounter = await Encounter.create({
       tenantId: patient.tenantId,
       hospitalId: patient.hospitalId,
       departmentId: patient.departmentId,
       patientId: patient._id,
-      registrationType: registrationType || 'OPD',
-      visitType: visitType || 'Follow-up',
+      encounterType: registrationType || 'OPD',
+      category: visitType || 'Follow-up Visit',
       doctorId: doctorId || patient.assignedDoctorId,
       referralSource,
       referralDoctor,
       notes,
       registeredBy: req.user?._id,
-      status: 'Registered',
+      status: 'Checked-In',
     });
 
-    sendCreated(res, { patient, registration }, 'Returning patient registered successfully');
+    sendCreated(res, { patient, encounter }, 'Returning patient registered successfully');
   } catch (err) {
     next(err);
   }
@@ -525,6 +525,140 @@ export async function addLabOrder(req: Request, res: Response, next: NextFunctio
     );
     if (!patient) throw new NotFoundError('Patient not found');
     sendSuccess(res, patient.scans[patient.scans.length - 1], 'Lab order added');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------------
+// FEATURE 4: DEMOGRAPHIC MANAGEMENT APIs
+// ----------------------------------------------------------------------
+
+export async function updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    const allowedFields = [
+      'name', 'middleName', 'lastName', 'preferredName', 'gender', 'dateOfBirth',
+      'bloodGroup', 'maritalStatus', 'occupation', 'nationality', 'religion',
+      'preferredLanguage', 'phone', 'secondaryMobile', 'email', 'emergencyContact', 'communicationPreferences'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        (patient as any)[field] = req.body[field];
+      }
+    });
+
+    patient.timeline.push({
+      title: 'Profile Updated',
+      description: 'Demographic information was updated',
+      date: new Date(),
+      type: 'registration',
+      createdBy: req.user?.name,
+    });
+
+    await patient.save();
+    sendSuccess(res, patient, 'Profile updated successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAddress(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    patient.address = req.body.address;
+    
+    patient.timeline.push({
+      title: 'Address Updated',
+      description: 'Patient address details were updated',
+      date: new Date(),
+      type: 'registration',
+      createdBy: req.user?.name,
+    });
+
+    await patient.save();
+    sendSuccess(res, patient, 'Address updated successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addIdentityDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    const { type, idNumber, expiryDate, issuingAuthority } = req.body;
+    
+    // Check for duplicate
+    const exists = patient.identityInfo.find(doc => doc.type === type && doc.idNumber === idNumber);
+    if (exists) throw new ConflictError('Identity document already exists');
+
+    patient.identityInfo.push({ type, idNumber, expiryDate, issuingAuthority });
+    
+    patient.timeline.push({
+      title: 'Identity Document Added',
+      description: `${type} added to profile`,
+      date: new Date(),
+      type: 'registration',
+      createdBy: req.user?.name,
+    });
+
+    await patient.save();
+    sendSuccess(res, patient, 'Identity document added successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function uploadPhotograph(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    // In a real scenario, handle file upload to S3/Cloud Storage and get URL
+    const { photoUrl } = req.body; 
+    if (!photoUrl) throw new Error('Photo URL is required');
+
+    patient.photoUrl = photoUrl;
+    
+    patient.timeline.push({
+      title: 'Photograph Updated',
+      description: 'Patient profile photograph was uploaded/changed',
+      date: new Date(),
+      type: 'registration',
+      createdBy: req.user?.name,
+    });
+
+    await patient.save();
+    sendSuccess(res, patient, 'Photograph uploaded successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function removePhotograph(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    patient.photoUrl = undefined;
+    
+    patient.timeline.push({
+      title: 'Photograph Removed',
+      description: 'Patient profile photograph was removed',
+      date: new Date(),
+      type: 'registration',
+      createdBy: req.user?.name,
+    });
+
+    await patient.save();
+    sendSuccess(res, patient, 'Photograph removed successfully');
   } catch (err) {
     next(err);
   }

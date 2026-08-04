@@ -33,6 +33,7 @@ import pharmacyRoutes from './routes/pharmacy.routes';
 import procurementRoutes from './routes/procurement.routes';
 import pharmacyPOSRoutes from './routes/pharmacyPOS.routes';
 import controlledDrugsRoutes from './routes/controlledDrugs.routes';
+import encountersRoutes from './routes/encounters.routes';
 
 const app = express();
 
@@ -155,6 +156,7 @@ app.use('/api/pharmacy', pharmacyRoutes);
 app.use('/api/procurement', procurementRoutes);
 app.use('/api/pharmacy/pos', pharmacyPOSRoutes);
 app.use('/api/pharmacy/controlled', controlledDrugsRoutes);
+app.use('/api/encounters', encountersRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);

@@ -8,6 +8,9 @@ import {
   updateAppointment,
   checkInAppointment,
   cancelAppointment,
+  rescheduleAppointment,
+  getDoctorSchedule,
+  getPatientAppointments
 } from '../controllers/appointments.controller';
 
 const router = Router();
@@ -22,5 +25,8 @@ router.post('/', scheduleAuth, createAppointment);
 router.patch('/:id', scheduleAuth, updateAppointment);
 router.post('/:id/check-in', scheduleAuth, checkInAppointment);
 router.post('/:id/cancel', scheduleAuth, cancelAppointment);
+router.post('/:id/reschedule', scheduleAuth, rescheduleAppointment);
+router.get('/doctor/:doctorId', scheduleAuth, getDoctorSchedule);
+router.get('/patient/:patientId', scheduleAuth, getPatientAppointments);
 
 export default router;

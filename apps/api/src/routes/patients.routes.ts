@@ -15,6 +15,11 @@ import {
   addDiagnosis,
   addMedication,
   addLabOrder,
+  updateProfile,
+  updateAddress,
+  addIdentityDocument,
+  uploadPhotograph,
+  removePhotograph,
 } from '../controllers/patients.controller';
 
 const router = Router();
@@ -38,5 +43,13 @@ router.post('/:id/soap-notes', clinicalAuth, addSoapNote);
 router.post('/:id/diagnoses', clinicalAuth, addDiagnosis);
 router.post('/:id/medications', clinicalAuth, addMedication);
 router.post('/:id/scans', clinicalAuth, addLabOrder);
+
+// Demographic additions (scoped to receptionists and clinical staff)
+const receptionAuth = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'DOCTOR', 'RECEPTIONIST');
+router.put('/:id/profile', receptionAuth, updateProfile);
+router.put('/:id/address', receptionAuth, updateAddress);
+router.post('/:id/identity', receptionAuth, addIdentityDocument);
+router.post('/:id/photo', receptionAuth, uploadPhotograph);
+router.delete('/:id/photo', receptionAuth, removePhotograph);
 
 export default router;

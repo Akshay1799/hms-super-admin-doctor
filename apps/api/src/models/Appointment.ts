@@ -16,9 +16,10 @@ export interface IAppointment extends Document {
   time: string;   // HH:MM
   slotStartTime?: string;
   slotEndTime?: string;
+  appointmentNumber: string;
   duration: number;  // minutes
-  type: 'Consultation' | 'Follow-up' | 'Diagnostic' | 'Therapy' | 'Emergency';
-  status: 'Scheduled' | 'Waiting' | 'In Progress' | 'Completed' | 'Cancelled' | 'No Show';
+  type: 'New Consultation' | 'Follow-up' | 'Emergency Consultation' | 'Online Consultation' | 'Walk-in' | 'Health Checkup' | 'Procedure Consultation' | 'Specialist Referral' | 'Second Opinion';
+  status: 'Scheduled' | 'Confirmed' | 'Checked-In' | 'Waiting' | 'In Consultation' | 'Completed' | 'Cancelled' | 'No Show' | 'Rescheduled' | 'Archived';
   priorityLevel?: 'Normal' | 'VIP' | 'Emergency' | 'Senior Citizen';
   symptoms?: string;
   notes?: string;
@@ -41,21 +42,22 @@ const AppointmentSchema = new Schema<IAppointment>(
     patientPhone: String,
     doctorId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     doctorName: { type: String, required: true },
+    appointmentNumber: { type: String, unique: true, index: true },
     tokenNumber: { type: Number, index: true },
     queuePosition: { type: Number, default: 0 },
     date: { type: Date, required: true, index: true },
     time: { type: String, required: true },
     slotStartTime: String,
     slotEndTime: String,
-    duration: { type: Number, default: 30 },
+    duration: { type: Number, default: 15 },
     type: {
       type: String,
-      enum: ['Consultation', 'Follow-up', 'Diagnostic', 'Therapy', 'Emergency'],
-      default: 'Consultation',
+      enum: ['New Consultation', 'Follow-up', 'Emergency Consultation', 'Online Consultation', 'Walk-in', 'Health Checkup', 'Procedure Consultation', 'Specialist Referral', 'Second Opinion'],
+      default: 'New Consultation',
     },
     status: {
       type: String,
-      enum: ['Scheduled', 'Waiting', 'In Progress', 'Completed', 'Cancelled', 'No Show'],
+      enum: ['Scheduled', 'Confirmed', 'Checked-In', 'Waiting', 'In Consultation', 'Completed', 'Cancelled', 'No Show', 'Rescheduled', 'Archived'],
       default: 'Scheduled',
     },
     priorityLevel: {
@@ -76,5 +78,16 @@ const AppointmentSchema = new Schema<IAppointment>(
 
 AppointmentSchema.index({ doctorId: 1, date: 1 });
 AppointmentSchema.index({ hospitalId: 1, date: 1, status: 1 });
+
+AppointmentSchema.pre('save', async function (next) {
+  if (!this.appointmentNumber) {
+    const year = new Date().getFullYear();
+    const count = await mongoose.model('Appointment').countDocuments({
+      createdAt: { $gte: new Date(`${year}-01-01`), $lt: new Date(`${year + 1}-01-01`) }
+    });
+    this.appointmentNumber = `APT-${year}-${String(count + 1).padStart(6, '0')}`;
+  }
+  next();
+});
 
 export const Appointment = mongoose.model<IAppointment>('Appointment', AppointmentSchema);
