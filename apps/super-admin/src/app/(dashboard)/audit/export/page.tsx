@@ -30,7 +30,7 @@ export default function AuditExportPage() {
     }
 
     // Filter logs based on selected module
-    const filtered = logs.filter(l => {
+    const filtered = logs.filter((l: any) => {
       if (module === "All Modules") return true;
       return l.module.toLowerCase() === module.toLowerCase();
     });

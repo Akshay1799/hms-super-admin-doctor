@@ -37,7 +37,33 @@ export async function listHospitals(req: Request, res: Response, next: NextFunct
       Hospital.countDocuments(filter),
     ]);
 
-    sendSuccess(res, hospitals, 'Hospitals retrieved', 200, {
+    const PatientModel = (await import('../models/Patient')).Patient;
+
+    const hospitalsWithCounts = await Promise.all(
+      hospitals.map(async (h) => {
+        const [doctorCount, patientCount, departmentCount] = await Promise.all([
+          User.countDocuments({ hospitalId: h._id, role: 'DOCTOR' }),
+          PatientModel.countDocuments({ hospitalId: h._id }),
+          Department.countDocuments({ hospitalId: h._id }),
+        ]);
+
+        const hObj = h.toJSON();
+        hObj.doctorCount = doctorCount;
+        hObj.patientCount = patientCount;
+        hObj.departmentCount = departmentCount;
+
+        if (h.doctorCount !== doctorCount || h.patientCount !== patientCount || h.departmentCount !== departmentCount) {
+          Hospital.updateOne(
+            { _id: h._id },
+            { $set: { doctorCount, patientCount, departmentCount } }
+          ).catch((e) => console.error('Failed to sync hospital counts:', e));
+        }
+
+        return hObj;
+      })
+    );
+
+    sendSuccess(res, hospitalsWithCounts, 'Hospitals retrieved', 200, {
       total,
       page: pageNum,
       limit: limitNum,
@@ -61,7 +87,19 @@ export async function getHospital(req: Request, res: Response, next: NextFunctio
       throw new ForbiddenError('Access denied to this hospital');
     }
 
-    sendSuccess(res, hospital);
+    const PatientModel = (await import('../models/Patient')).Patient;
+    const [doctorCount, patientCount, departmentCount] = await Promise.all([
+      User.countDocuments({ hospitalId: hospital._id, role: 'DOCTOR' }),
+      PatientModel.countDocuments({ hospitalId: hospital._id }),
+      Department.countDocuments({ hospitalId: hospital._id }),
+    ]);
+
+    const hObj = hospital.toJSON();
+    hObj.doctorCount = doctorCount;
+    hObj.patientCount = patientCount;
+    hObj.departmentCount = departmentCount;
+
+    sendSuccess(res, hObj);
   } catch (err) {
     next(err);
   }

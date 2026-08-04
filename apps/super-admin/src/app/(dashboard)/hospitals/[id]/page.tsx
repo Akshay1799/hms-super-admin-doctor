@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PageContainer } from "@/components/ui/page-container";
 import { PageHeader } from "@/components/ui/page-header";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -56,6 +56,8 @@ interface PatientMock {
 
 import { useAuthStore } from "@/store/auth.store";
 
+import { apiClient } from "@/lib/api-client";
+
 export default function HospitalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   const router = useRouter();
@@ -67,6 +69,26 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(queryTab || "overview");
   const [staffRoleFilter, setStaffRoleFilter] = useState("ALL");
+
+  const [realPatients, setRealPatients] = useState<any[]>([]);
+  const [realStaff, setRealStaff] = useState<any[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    setIsLoadingPatients(true);
+    apiClient.get('/patients', { params: { hospitalId: id, limit: 100 } })
+      .then((res) => setRealPatients(res.data.data || []))
+      .catch((err) => console.error('Failed to load hospital patients:', err))
+      .finally(() => setIsLoadingPatients(false));
+
+    setIsLoadingStaff(true);
+    apiClient.get('/users', { params: { hospitalId: id, limit: 100 } })
+      .then((res) => setRealStaff(res.data.data || []))
+      .catch((err) => console.error('Failed to load hospital staff:', err))
+      .finally(() => setIsLoadingStaff(false));
+  }, [id]);
 
   // Dialog triggers
   const [isSuspendOpen, setIsSuspendOpen] = useState(false);
@@ -111,74 +133,48 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
 
   const { hospital } = details;
 
-  // Mock Doctors Columns & Data
-  const doctorColumns: ColumnDef<DoctorMock>[] = [
-    {
-      accessorKey: "name",
-      header: "Physician Name",
-      cell: ({ row }) => <span className="font-semibold text-foreground">{row.original.name}</span>,
-    },
-    { accessorKey: "specialty", header: "Department / Specialty" },
-    { accessorKey: "licenseNumber", header: "Medical License" },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
-    },
-  ];
-
-  const mockDoctors: DoctorMock[] = [
-    { id: "doc-1", name: "Dr. Gregory House", specialty: "Diagnostics / Nephrology", licenseNumber: "MED-9012", status: "Active" },
-    { id: "doc-2", name: "Dr. John Watson", specialty: "General Medicine", licenseNumber: "MED-1190", status: "Active" },
-    { id: "doc-3", name: "Dr. Stephen Strange", specialty: "Neurosurgery", licenseNumber: "MED-4581", status: "Inactive" },
-  ];
-
-  // Mock Patients Columns & Data
-  const patientColumns: ColumnDef<PatientMock>[] = [
+  // Real Patients Columns & Data
+  const patientColumns: ColumnDef<any>[] = [
     {
       accessorKey: "name",
       header: "Patient Name",
-      cell: ({ row }) => <span className="font-semibold text-foreground">{row.original.name}</span>,
+      cell: ({ row }) => {
+        const p = row.original;
+        const fullName = `${p.name || ''} ${p.lastName || ''}`.trim() || 'Indian Patient';
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-foreground text-sm">{fullName}</span>
+            {p.uhid && <span className="text-xs text-muted-foreground font-mono">{p.uhid}</span>}
+          </div>
+        );
+      },
     },
     { accessorKey: "gender", header: "Gender" },
-    { accessorKey: "admissionDate", header: "Admission Date" },
+    {
+      accessorKey: "phone",
+      header: "Contact Phone",
+      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.phone || 'N/A'}</span>,
+    },
+    {
+      accessorKey: "admissionDate",
+      header: "Admission / Reg. Date",
+      cell: ({ row }) => {
+        const d = row.original.admissionDate || row.original.createdAt;
+        return <span className="font-mono text-xs">{d ? new Date(d).toLocaleDateString('en-IN') : 'N/A'}</span>;
+      },
+    },
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      cell: ({ row }) => <StatusBadge status={row.original.status || 'Active'} />,
     },
   ];
 
-  const mockPatients: PatientMock[] = [
-    { id: "pat-1", name: "John Doe", gender: "Male", status: "Active", admissionDate: "2026-06-10" },
-    { id: "pat-2", name: "Jane Doe", gender: "Female", status: "Active", admissionDate: "2026-06-12" },
-    { id: "pat-3", name: "Bob Smith", gender: "Male", status: "Inactive", admissionDate: "2026-05-20" },
-  ];
-
-  interface StaffMember {
-    id: string;
-    name: string;
-    role: "DOCTOR" | "NURSE" | "PHARMACIST" | "RECEPTIONIST" | "LAB_TECH";
-    department: string;
-    email: string;
-    status: string;
-  }
-
-  const staffMembers: StaffMember[] = [
-    { id: "s-1", name: "Dr. Shweta", role: "DOCTOR", department: "Cardiology Unit", email: "doctor@medichain.com", status: "Active" },
-    { id: "s-2", name: "Dr. Gregory House", role: "DOCTOR", department: "Diagnostics / Nephrology", email: "house@apollo.com", status: "Active" },
-    { id: "s-3", name: "Nurse Anjali Sharma", role: "NURSE", department: "ICU Ward", email: "anjali.nurse@apollo.com", status: "Active" },
-    { id: "s-4", name: "Nurse Priya Verma", role: "NURSE", department: "Emergency Triage", email: "priya.nurse@apollo.com", status: "Active" },
-    { id: "s-5", name: "Pharmacist Rajesh Kumar", role: "PHARMACIST", department: "Main Pharmacy Store", email: "rajesh.pharm@apollo.com", status: "Active" },
-    { id: "s-6", name: "Receptionist Sunita Patel", role: "RECEPTIONIST", department: "Front Desk Operations", email: "sunita.rec@apollo.com", status: "Active" },
-    { id: "s-7", name: "Lab Tech Vikram Singh", role: "LAB_TECH", department: "Central Pathology Lab", email: "vikram.lab@apollo.com", status: "Active" },
-  ];
-
   const filteredStaff = staffRoleFilter === "ALL" 
-    ? staffMembers 
-    : staffMembers.filter(s => s.role === staffRoleFilter);
+    ? realStaff 
+    : realStaff.filter(s => s.role === staffRoleFilter);
 
-  const staffColumns: ColumnDef<StaffMember>[] = [
+  const staffColumns: ColumnDef<any>[] = [
     {
       accessorKey: "name",
       header: "Staff Member Name",
@@ -189,16 +185,20 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
       header: "Assigned Role",
       cell: ({ row }) => (
         <span className="px-2 py-0.5 rounded text-[11px] font-extrabold uppercase bg-primary/10 text-primary border border-primary/20">
-          {row.original.role.replace("_", " ")}
+          {(row.original.role || 'STAFF').replace("_", " ")}
         </span>
       ),
     },
-    { accessorKey: "department", header: "Department / Unit" },
+    {
+      accessorKey: "specialty",
+      header: "Specialty / Unit",
+      cell: ({ row }) => <span>{row.original.specialty || row.original.departmentId?.name || "Clinical Unit"}</span>,
+    },
     { accessorKey: "email", header: "Email Address" },
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      cell: ({ row }) => <StatusBadge status={row.original.status || 'Active'} />,
     },
   ];
 
@@ -279,12 +279,12 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
                     onChange={(e) => setStaffRoleFilter(e.target.value)}
                     className="h-9 px-3 rounded-lg border border-border bg-background text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                   >
-                    <option value="ALL">All Roles ({staffMembers.length})</option>
+                    <option value="ALL">All Roles ({realStaff.length})</option>
                     <option value="DOCTOR">Doctors / Clinicians</option>
                     <option value="NURSE">Nurses</option>
                     <option value="PHARMACIST">Pharmacists</option>
                     <option value="RECEPTIONIST">Receptionists</option>
-                    <option value="LAB_TECH">Lab Technicians</option>
+                    <option value="STAFF">Staff / Operations</option>
                   </select>
                 </div>
               </div>
@@ -292,6 +292,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
               <AppTable
                 columns={staffColumns}
                 data={filteredStaff}
+                isLoading={isLoadingStaff}
                 emptyState={
                   <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                     <Stethoscope className="h-8 w-8 mb-2 text-muted-foreground/45" />
@@ -305,16 +306,17 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
           {activeTab === "patients" && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div>
-                <h2 className="text-base font-bold text-foreground">Active Outpatients / Admissions</h2>
-                <p className="text-sm text-muted-foreground">Patients registered for clinical checkout and active room beds.</p>
+                <h2 className="text-base font-bold text-foreground">Active Outpatients & Admissions ({realPatients.length})</h2>
+                <p className="text-sm text-muted-foreground">Patients registered under this hospital unit.</p>
               </div>
               <AppTable
                 columns={patientColumns}
-                data={mockPatients}
+                data={realPatients}
+                isLoading={isLoadingPatients}
                 emptyState={
                   <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                     <Users className="h-8 w-8 mb-2 text-muted-foreground/45" />
-                    <p className="text-sm font-semibold">No patients admitted</p>
+                    <p className="text-sm font-semibold">No patients registered for this hospital</p>
                   </div>
                 }
               />

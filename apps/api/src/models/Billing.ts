@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { auditPlugin } from '../plugins/audit.plugin';
 import { softDeletePlugin } from '../plugins/softDelete.plugin';
+import './Counter';
 
 // ── Invoice ──────────────────────────────────────────────────
 export interface IInvoice extends Document {
@@ -122,6 +123,21 @@ const InvoiceSchema = new Schema<IInvoice>(
   },
   { timestamps: true }
 );
+
+// Auto-fill itemId and itemName if missing or named differently
+InvoiceSchema.pre('validate', function (this: any, next) {
+  if (this.items && Array.isArray(this.items)) {
+    this.items.forEach((item: any, index: number) => {
+      if (!item.itemId) {
+        item.itemId = item.id || item.code || `ITEM-${Date.now()}-${index + 1}`;
+      }
+      if (!item.itemName) {
+        item.itemName = item.name || item.description || item.title || 'Billing Item';
+      }
+    });
+  }
+  next();
+});
 
 InvoiceSchema.plugin(auditPlugin, { module: 'billing' });
 InvoiceSchema.plugin(softDeletePlugin);

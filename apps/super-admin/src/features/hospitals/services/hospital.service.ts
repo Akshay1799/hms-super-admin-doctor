@@ -54,7 +54,7 @@ function mapHospital(raw: any): Hospital {
     state: raw.state,
     country: raw.country,
     pincode: raw.pincode,
-  };
+  } as any;
 }
 
 function mapDepartment(raw: any): Department {
@@ -147,6 +147,18 @@ export const hospitalService = {
       const hospital = mapHospital(raw);
       const departments: Department[] = (depsRes.data.data ?? []).map(mapDepartment);
 
+      const defaultBranch: Branch = {
+        id: hospital.id,
+        hospitalId: hospital.id,
+        name: hospital.name,
+        code: hospital.code,
+        city: (hospital as any).city || "Indore",
+        status: hospital.status || "Active",
+        doctorCount: hospital.doctorCount,
+        patientCount: hospital.patientCount,
+        departmentCount: departments.length || (hospital as any).departmentCount || 0,
+      };
+
       return {
         hospital,
         capacity: raw.capacity ?? capacitiesData[id] ?? {
@@ -162,13 +174,24 @@ export const hospitalService = {
           timezone: "UTC", currency: "USD", language: "en",
           format24h: true, weekStart: "Monday",
         },
-        branches: branchesData[id] ?? [],
+        branches: (branchesData[id] && branchesData[id].length > 0) ? branchesData[id] : [defaultBranch],
         auditLogs: auditsData[id] ?? [],
       };
     } catch {
       // Offline fallback
       const hospital = hospitalsData.find((h) => h.id === id);
       if (!hospital) throw new Error(`Hospital with ID ${id} not found.`);
+      const defaultBranch: Branch = {
+        id: hospital.id,
+        hospitalId: hospital.id,
+        name: hospital.name,
+        code: hospital.code,
+        city: (hospital as any).city || "Indore",
+        status: hospital.status || "Active",
+        doctorCount: hospital.doctorCount,
+        patientCount: hospital.patientCount,
+        departmentCount: (hospital as any).departmentCount || 0,
+      };
       return {
         hospital,
         capacity: capacitiesData[id] ?? {
@@ -184,7 +207,7 @@ export const hospitalService = {
           timezone: "UTC", currency: "USD", language: "en",
           format24h: true, weekStart: "Monday",
         },
-        branches: branchesData[id] ?? [],
+        branches: (branchesData[id] && branchesData[id].length > 0) ? branchesData[id] : [defaultBranch],
         auditLogs: auditsData[id] ?? [],
       };
     }
@@ -207,7 +230,7 @@ export const hospitalService = {
         city: input.city,
         state: input.state,
         country: input.country,
-        pincode: input.pincode,
+        pincode: (input as any).pincode,
         capacity: {
           totalBeds: input.totalBeds,
           icuBeds: input.icuBeds,

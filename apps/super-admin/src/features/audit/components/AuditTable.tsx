@@ -16,7 +16,7 @@ interface AuditTableProps {
 export function AuditTable({ module = "All", severity = "All" }: AuditTableProps) {
   const { data: logs = [], isLoading } = useAuditLogs();
 
-  const filtered = logs.filter(row => {
+  const filtered = logs.filter((row: any) => {
     const matchesModule = module === "All" || row.module.toLowerCase() === module.toLowerCase();
     const matchesSeverity = severity === "All" || row.severity.toLowerCase() === severity.toLowerCase();
     return matchesModule && matchesSeverity;

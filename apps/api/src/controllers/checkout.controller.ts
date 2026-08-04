@@ -91,12 +91,19 @@ export async function createCheckoutInvoice(req: Request, res: Response, next: N
     const tenantId = req.user?.tenantId;
     const hospitalId = req.user?.hospitalId;
 
+    const { Tenant } = await import('../models/Tenant');
+    let tenantName = 'MediChain Healthcare';
+    if (tenantId) {
+      const t = await Tenant.findById(tenantId).select('name').lean();
+      if (t) tenantName = t.name;
+    }
+
     const invoice = await Invoice.create({
       tenantId,
       hospitalId,
       patientId: patient._id,
-      patientName: patient.name,
-      tenantName: 'Apollo Clinics Group', // default tenant descriptor
+      patientName: `${patient.name} ${patient.lastName || ''}`.trim(),
+      tenantName,
       amount: subtotal,
       taxAmount: taxAmount,
       discountAmount: 0,
@@ -105,11 +112,15 @@ export async function createCheckoutInvoice(req: Request, res: Response, next: N
       status: 'unpaid',
       issuedDate: new Date(),
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days due
-      items: items.map((it: any) => ({
-        description: it.description,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        total: it.total,
+      items: (items || []).map((it: any, index: number) => ({
+        itemId: it.itemId || it.id || `ITEM-${Date.now()}-${index + 1}`,
+        itemName: it.itemName || it.description || it.title || 'Clinical Checkout Item',
+        description: it.description || 'Clinical Checkout Item',
+        quantity: it.quantity || 1,
+        unitPrice: it.unitPrice || 0,
+        taxRate: 18,
+        taxAmount: Math.round((it.total || ((it.quantity || 1) * (it.unitPrice || 0))) * 0.18),
+        total: it.total || ((it.quantity || 1) * (it.unitPrice || 0)),
       })),
       notes: notes || 'Consolidated invoice generated from clinical EMR record checkout.',
       createdBy: req.user?._id,

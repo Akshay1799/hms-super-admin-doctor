@@ -20,15 +20,17 @@ export function DepartmentsTab({ details }: DepartmentsTabProps) {
   const hospitalId = details.hospital.id;
   const branches = details.branches || [];
 
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(branches[0]?.id || "");
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(branches[0]?.id || hospitalId);
   const [depToEdit, setDepToEdit] = useState<Department | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [depToDelete, setDepToDelete] = useState<Department | null>(null);
 
-  const { data: departments = [], isLoading } = useDepartments(selectedBranchId);
-  const createMutation = useCreateDepartment(selectedBranchId, hospitalId);
-  const updateMutation = useUpdateDepartment(selectedBranchId);
-  const deleteMutation = useDeleteDepartment(selectedBranchId, hospitalId);
+  const activeTargetId = selectedBranchId || hospitalId;
+
+  const { data: departments = [], isLoading } = useDepartments(activeTargetId);
+  const createMutation = useCreateDepartment(activeTargetId, hospitalId);
+  const updateMutation = useUpdateDepartment(activeTargetId);
+  const deleteMutation = useDeleteDepartment(activeTargetId, hospitalId);
 
   // Form setup
   const { register, handleSubmit, reset, formState: { errors } } = useForm<DepartmentInput>({
@@ -85,16 +87,6 @@ export function DepartmentsTab({ details }: DepartmentsTabProps) {
     },
   ];
 
-  if (branches.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-card border border-border rounded-xl">
-        <LayoutGrid className="h-8 w-8 mb-2 text-muted-foreground/45" />
-        <p className="text-sm font-semibold">No Branches Available</p>
-        <p className="text-xs mt-1">Please create a physical branch first before adding clinical departments.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -103,18 +95,20 @@ export function DepartmentsTab({ details }: DepartmentsTabProps) {
             <h2 className="text-base font-bold text-foreground">Clinical Departments</h2>
             <p className="text-sm text-muted-foreground mt-0.5">Manage clinics and diagnostics operating in branch sites.</p>
           </div>
-          {/* Branch Selector */}
-          <select
-            value={selectedBranchId}
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="h-9 px-3 rounded-[var(--radius-input)] border border-border bg-card text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[180px]"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} ({b.city})
-              </option>
-            ))}
-          </select>
+          {/* Branch Selector (Only if multiple branches exist) */}
+          {branches.length > 1 && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-9 px-3 rounded-[var(--radius-input)] border border-border bg-card text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[180px]"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.city})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <button

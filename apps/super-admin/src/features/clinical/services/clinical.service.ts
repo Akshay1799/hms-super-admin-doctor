@@ -222,7 +222,7 @@ export const clinicalService = {
       const res = await apiClient.get("/patients", { params });
       return res.data.data.map((p: any) => ({
         id: p._id,
-        name: p.name,
+        name: `${p.name || ''} ${p.lastName || ''}`.trim() || 'Indian Patient',
         age: p.age,
         gender: p.gender || "Male",
         status: p.status || "Active",

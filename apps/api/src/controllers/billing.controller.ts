@@ -137,12 +137,15 @@ export async function createInvoice(req: Request, res: Response, next: NextFunct
     
     // Calculate exclusive GST on top of unit price
     if (items && Array.isArray(items)) {
-      items.forEach(item => {
-        const itemSubtotal = item.quantity * item.unitPrice;
+      items.forEach((item: any, idx: number) => {
+        if (!item.itemId) item.itemId = item.id || item.code || `ITEM-${Date.now()}-${idx + 1}`;
+        if (!item.itemName) item.itemName = item.name || item.description || item.title || 'Billing Item';
+
+        const itemSubtotal = (item.quantity || 1) * (item.unitPrice || 0);
         const itemTax = (itemSubtotal * (item.taxRate || 0)) / 100;
         
         item.taxAmount = itemTax;
-        item.total = itemSubtotal + itemTax;
+        item.total = item.total || (itemSubtotal + itemTax);
         
         amount += itemSubtotal;
         taxAmount += itemTax;
