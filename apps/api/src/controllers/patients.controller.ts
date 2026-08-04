@@ -7,7 +7,7 @@ import { Invitation } from '../models/AuthToken';
 import { sendPatientInvitationEmail } from '../utils/email';
 import { generateInvitationToken } from '../utils/jwt';
 import { env } from '../config/env';
-import { sendSuccess, sendCreated, NotFoundError, ForbiddenError } from '../utils/response';
+import { sendSuccess, sendCreated, NotFoundError, ForbiddenError, ConflictError } from '../utils/response';
 
 function buildPatientFilter(req: Request): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
@@ -146,14 +146,32 @@ export async function getPatient(req: Request, res: Response, next: NextFunction
   }
 }
 
-export async function createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function registerNewPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const { registrationType, visitType, doctorId, referralSource, referralDoctor, notes, ...patientData } = req.body;
+
+    // 1. Duplicate Detection
+    const duplicateQuery = {
+      $or: [
+        { phone: patientData.phone },
+        { 'identityInfo.nationalId': patientData.identityInfo?.nationalId },
+      ].filter(Boolean) as any[],
+    };
+    
+    // Only query if we have valid non-empty fields to check
+    if (duplicateQuery.$or.length > 0) {
+      const existing = await Patient.findOne(duplicateQuery);
+      if (existing) {
+        throw new ConflictError('A patient with this mobile number or national ID already exists.');
+      }
+    }
+
     const patient = await Patient.create({
-      ...req.body,
-      tenantId: req.body.tenantId || req.user?.tenantId,
-      hospitalId: req.body.hospitalId || req.user?.hospitalId,
-      departmentId: req.body.departmentId || (req.user?.role === 'DEPT_ADMIN' ? req.user.departmentId : undefined),
-      assignedDoctorId: req.body.assignedDoctorId || (req.user?.role === 'DOCTOR' ? req.user._id : undefined),
+      ...patientData,
+      tenantId: patientData.tenantId || req.user?.tenantId,
+      hospitalId: patientData.hospitalId || req.user?.hospitalId,
+      departmentId: patientData.departmentId || (req.user?.role === 'DEPT_ADMIN' ? req.user.departmentId : undefined),
+      assignedDoctorId: patientData.assignedDoctorId || (req.user?.role === 'DOCTOR' ? req.user._id : undefined),
     });
 
     // Update department patient count
@@ -221,7 +239,84 @@ export async function createPatient(req: Request, res: Response, next: NextFunct
       });
     }
 
-    sendCreated(res, patient, 'Patient created successfully');
+    // 2. Create Registration Record
+    const { Registration } = await import('../models/Registration');
+    const registration = await Registration.create({
+      tenantId: patient.tenantId,
+      hospitalId: patient.hospitalId,
+      departmentId: patient.departmentId,
+      patientId: patient._id,
+      registrationType: registrationType || 'OPD',
+      visitType: visitType || 'New',
+      doctorId: doctorId || patient.assignedDoctorId,
+      referralSource,
+      referralDoctor,
+      notes,
+      registeredBy: req.user?._id,
+      status: 'Registered',
+    });
+
+    sendCreated(res, { patient, registration }, 'Patient registered successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function registerReturningPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { patientId, registrationType, visitType, doctorId, referralSource, referralDoctor, notes, ...updateData } = req.body;
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    // Update patient if new demographics were provided
+    if (Object.keys(updateData).length > 0) {
+      Object.assign(patient, updateData);
+      await patient.save();
+    }
+
+    // Create Registration Record
+    const { Registration } = await import('../models/Registration');
+    const registration = await Registration.create({
+      tenantId: patient.tenantId,
+      hospitalId: patient.hospitalId,
+      departmentId: patient.departmentId,
+      patientId: patient._id,
+      registrationType: registrationType || 'OPD',
+      visitType: visitType || 'Follow-up',
+      doctorId: doctorId || patient.assignedDoctorId,
+      referralSource,
+      referralDoctor,
+      notes,
+      registeredBy: req.user?._id,
+      status: 'Registered',
+    });
+
+    sendCreated(res, { patient, registration }, 'Returning patient registered successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function searchPatients(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { q, phone, uhid, nationalId } = req.body;
+    
+    const query: any = {};
+    if (req.user?.tenantId) query.tenantId = req.user.tenantId;
+
+    if (uhid) {
+      query.uhid = uhid;
+    } else if (nationalId) {
+      query['identityInfo.nationalId'] = nationalId;
+    } else if (phone) {
+      query.phone = phone;
+    } else if (q) {
+      query.$text = { $search: q };
+    }
+
+    const patients = await Patient.find(query).limit(10).lean();
+    sendSuccess(res, patients, 'Patients retrieved successfully');
   } catch (err) {
     next(err);
   }

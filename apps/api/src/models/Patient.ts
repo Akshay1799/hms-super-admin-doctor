@@ -6,21 +6,49 @@ export interface IPatient extends Document {
   hospitalId: mongoose.Types.ObjectId;
   departmentId?: mongoose.Types.ObjectId;
   // Demographics
-  uhid: string; // Unique Universal Health ID (e.g. UHID-2026-00001)
+  uhid: string; // Unique Universal Health ID
   photoUrl?: string;
-  name: string;
+  name: string; // First name
+  middleName?: string;
+  lastName?: string;
+  preferredName?: string;
   age: number;
   dateOfBirth?: Date;
   gender: 'Male' | 'Female' | 'Other';
   bloodGroup?: string;
-  phone?: string;
+  maritalStatus?: string;
+  nationality?: string;
+  // Contact
+  phone: string; // Primary Mobile
+  secondaryMobile?: string;
   email?: string;
-  address?: string;
+  preferredCommunicationMethod?: 'SMS' | 'Email' | 'WhatsApp' | 'Phone';
+  // Address
+  address?: {
+    line1: string;
+    line2?: string;
+    landmark?: string;
+    city: string;
+    district?: string;
+    state: string;
+    country: string;
+    postalCode: string;
+  };
+  // Identity Info
+  identityInfo?: {
+    nationalId?: string;
+    passport?: string;
+    drivingLicense?: string;
+    insuranceId?: string;
+    employeeId?: string;
+    other?: string;
+  };
   // Emergency contact & Family linking
   emergencyContact?: {
     name: string;
     relation: string;
     phone: string;
+    address?: string;
   };
   familyMembers?: Array<{
     relativePatientId: mongoose.Types.ObjectId;
@@ -111,17 +139,42 @@ const PatientSchema = new Schema<IPatient>(
     uhid: { type: String, unique: true, index: true },
     photoUrl: String,
     name: { type: String, required: true, trim: true },
+    middleName: { type: String, trim: true },
+    lastName: { type: String, trim: true },
+    preferredName: { type: String, trim: true },
     age: { type: Number, required: true },
     dateOfBirth: Date,
     gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
     bloodGroup: String,
-    phone: String,
+    maritalStatus: String,
+    nationality: String,
+    phone: { type: String, required: true },
+    secondaryMobile: String,
     email: String,
-    address: String,
+    preferredCommunicationMethod: { type: String, enum: ['SMS', 'Email', 'WhatsApp', 'Phone'] },
+    address: {
+      line1: String,
+      line2: String,
+      landmark: String,
+      city: String,
+      district: String,
+      state: String,
+      country: String,
+      postalCode: String,
+    },
+    identityInfo: {
+      nationalId: { type: String, index: true },
+      passport: String,
+      drivingLicense: String,
+      insuranceId: String,
+      employeeId: String,
+      other: String,
+    },
     emergencyContact: {
       name: String,
       relation: String,
       phone: String,
+      address: String,
     },
     familyMembers: [
       {
@@ -225,14 +278,14 @@ PatientSchema.pre('save', async function (next) {
   if (!this.uhid) {
     const year = new Date().getFullYear();
     const count = await mongoose.model('Patient').countDocuments();
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    this.uhid = `UHID-${year}-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
+    // Unique format: HMS-YYYY-XXXXX
+    this.uhid = `HMS-${year}-${String(count + 1).padStart(5, '0')}`;
   }
   next();
 });
 
 PatientSchema.index({ tenantId: 1, hospitalId: 1 });
 PatientSchema.index({ assignedDoctorId: 1 });
-PatientSchema.index({ name: 'text', uhid: 'text', phone: 'text' }); // text search
+PatientSchema.index({ name: 'text', lastName: 'text', uhid: 'text', phone: 'text' }); // text search
 
 export const Patient = mongoose.model<IPatient>('Patient', PatientSchema);

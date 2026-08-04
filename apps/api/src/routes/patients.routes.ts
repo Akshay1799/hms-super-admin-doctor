@@ -5,7 +5,9 @@ import {
   listPatients,
   getPatientProfileMe,
   getPatient,
-  createPatient,
+  registerNewPatient,
+  registerReturningPatient,
+  searchPatients,
   updatePatient,
   deletePatient,
   addVitals,
@@ -24,7 +26,9 @@ const clinicalAuth = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'D
 router.get('/profile/me', getPatientProfileMe);
 router.get('/', listPatients);
 router.get('/:id', getPatient);
-router.post('/', clinicalAuth, createPatient);
+router.post('/register', clinicalAuth, registerNewPatient);
+router.post('/register-returning', clinicalAuth, registerReturningPatient);
+router.post('/search', clinicalAuth, searchPatients);
 router.patch('/:id', clinicalAuth, updatePatient);
 router.delete('/:id', clinicalAuth, deletePatient);
 
