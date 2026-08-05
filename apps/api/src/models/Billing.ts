@@ -2,6 +2,8 @@ import mongoose, { Document, Schema } from 'mongoose';
 import { auditPlugin } from '../plugins/audit.plugin';
 import { softDeletePlugin } from '../plugins/softDelete.plugin';
 import './Counter';
+import './Tenant';
+import './Hospital';
 
 // ── Invoice ──────────────────────────────────────────────────
 export interface IInvoice extends Document {
@@ -19,6 +21,7 @@ export interface IInvoice extends Document {
     patientResponsibility: number;
   };
   tenantName: string;
+  hospitalName?: string;
   patientName?: string;
   amount: number;
   taxAmount?: number;
@@ -81,6 +84,7 @@ const InvoiceSchema = new Schema<IInvoice>(
       patientResponsibility: Number,
     },
     tenantName: { type: String, required: true },
+    hospitalName: { type: String },
     amount: { type: Number, required: true },
     taxAmount: { type: Number, default: 0 },
     taxBreakup: {
@@ -124,8 +128,8 @@ const InvoiceSchema = new Schema<IInvoice>(
   { timestamps: true }
 );
 
-// Auto-fill itemId and itemName if missing or named differently
-InvoiceSchema.pre('validate', function (this: any, next) {
+// Auto-fill itemId, itemName, hospitalName, and tenantName if missing or named differently
+InvoiceSchema.pre('validate', async function (this: any, next) {
   if (this.items && Array.isArray(this.items)) {
     this.items.forEach((item: any, index: number) => {
       if (!item.itemId) {
@@ -136,6 +140,31 @@ InvoiceSchema.pre('validate', function (this: any, next) {
       }
     });
   }
+
+  if (!this.hospitalName && this.hospitalId) {
+    try {
+      const Hospital = mongoose.model('Hospital');
+      const hosp = await Hospital.findById(this.hospitalId).select('name').lean();
+      if (hosp) {
+        this.hospitalName = (hosp as any).name;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  if (!this.tenantName && this.tenantId) {
+    try {
+      const Tenant = mongoose.model('Tenant');
+      const ten = await Tenant.findById(this.tenantId).select('name').lean();
+      if (ten) {
+        this.tenantName = (ten as any).name;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   next();
 });
 

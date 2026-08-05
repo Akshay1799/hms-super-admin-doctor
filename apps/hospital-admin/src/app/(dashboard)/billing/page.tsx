@@ -172,7 +172,9 @@ export default function BillingPage() {
                 {/* Invoice Header */}
                 <div className="flex justify-between items-start border-b border-slate-100 pb-5">
                   <div className="space-y-1">
-                    <h2 className="text-sm font-extrabold text-[#0F4C81] tracking-tight uppercase">MEDICHAIN HEALTHCARE</h2>
+                    <h2 className="text-sm font-extrabold text-[#0F4C81] tracking-tight uppercase">
+                      {generatedInvoice.hospitalName || activePatient?.hospitalId?.name || "MediPlus Hospital"}
+                    </h2>
                     <p className="text-[10px] text-slate-400 font-semibold">Official Clinical Checkout Invoice</p>
                   </div>
                   <div className="text-right space-y-1.5">

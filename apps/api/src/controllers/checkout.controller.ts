@@ -88,22 +88,31 @@ export async function createCheckoutInvoice(req: Request, res: Response, next: N
     const patient = await Patient.findById(patientId);
     if (!patient) throw new NotFoundError('Patient record not found');
 
-    const tenantId = req.user?.tenantId;
-    const hospitalId = req.user?.hospitalId;
+    const tenantId = req.user?.tenantId || patient.tenantId;
+    const effectiveHospitalId = req.user?.hospitalId || patient.hospitalId;
 
     const { Tenant } = await import('../models/Tenant');
+    const { Hospital } = await import('../models/Hospital');
+
     let tenantName = 'MediChain Healthcare';
     if (tenantId) {
       const t = await Tenant.findById(tenantId).select('name').lean();
       if (t) tenantName = t.name;
     }
 
+    let hospitalName = 'MediPlus Hospital';
+    if (effectiveHospitalId) {
+      const h = await Hospital.findById(effectiveHospitalId).select('name').lean();
+      if (h) hospitalName = h.name;
+    }
+
     const invoice = await Invoice.create({
       tenantId,
-      hospitalId,
+      hospitalId: effectiveHospitalId,
       patientId: patient._id,
       patientName: `${patient.name} ${patient.lastName || ''}`.trim(),
       tenantName,
+      hospitalName,
       amount: subtotal,
       taxAmount: taxAmount,
       discountAmount: 0,
