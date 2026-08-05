@@ -1,15 +1,43 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
 import { authorize } from '../middleware/authorize';
-import { listRosters, upsertRoster } from '../controllers/rosters.controller';
+import { 
+  createShiftTemplate, 
+  listShiftTemplates,
+  createDutyRoster,
+  publishDutyRoster,
+  assignShift,
+  requestShiftSwap,
+  doctorApproveShiftSwap,
+  adminExecuteShiftSwap,
+  getDoctorSchedule,
+  getDepartmentRoster
+} from '../controllers/rosters.controller';
 
 const router = Router();
 router.use(authenticate);
 
-// Department Admins, Hospital Admins, and Super Admins can configure schedules
-const schedulerRoles = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN');
+// Department Admins, Hospital Admins, HR Admin, and Super Admins can configure schedules
+const schedulerRoles = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'HR_ADMIN');
 
-router.get('/', listRosters);
-router.post('/', schedulerRoles, upsertRoster);
+// Shift Templates
+router.post('/templates', schedulerRoles, createShiftTemplate);
+router.get('/templates', listShiftTemplates);
+
+// Duty Rosters
+router.post('/', schedulerRoles, createDutyRoster);
+router.post('/:id/publish', schedulerRoles, publishDutyRoster);
+
+// Shift Assignments
+router.post('/shifts/assign', schedulerRoles, assignShift);
+
+// Shift Swapping
+router.post('/shifts/:id/swap-request', authorize('DOCTOR'), requestShiftSwap);
+router.post('/shifts/:id/swap-approve', authorize('DOCTOR'), doctorApproveShiftSwap);
+router.post('/shifts/:id/swap-execute', schedulerRoles, adminExecuteShiftSwap);
+
+// Retrieval
+router.get('/doctor/:doctorId', getDoctorSchedule);
+router.get('/department/:departmentId', getDepartmentRoster);
 
 export default router;

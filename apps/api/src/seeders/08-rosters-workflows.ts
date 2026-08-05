@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Roster } from '../models/Roster';
+// Import removed due to Roster model deprecation
 import { ApprovalMatrix, FinancialRequest } from '../models/Workflows';
 import { ControlledDrugRegister, ControlledDrugAudit } from '../models/ControlledDrugs';
 import { AuditLog } from '../models/AuditLog';
@@ -23,27 +23,8 @@ export async function seedRostersWorkflowsAndAuditLogs() {
     if (staffUsers.length === 0) continue;
 
     // 1. Rosters (Duty schedules for staff for past 7 days)
-    const today = new Date();
-    for (let dayOffset = -3; dayOffset <= 3; dayOffset++) {
-      const rosterDate = new Date(today);
-      rosterDate.setDate(today.getDate() + dayOffset);
-      rosterDate.setHours(0, 0, 0, 0);
-
-      for (const u of staffUsers.slice(0, 20)) {
-        let roster = await Roster.findOne({ userId: u._id, date: rosterDate });
-        if (!roster) {
-          await Roster.create({
-            userId: u._id,
-            date: rosterDate,
-            shiftType: dayOffset % 2 === 0 ? 'Day' : 'Night',
-            departmentId: u.departmentId || deptIds[0],
-            hospitalId,
-            tenantId,
-            notes: 'Regular scheduled duty shift in Indore',
-          });
-        }
-      }
-    }
+    // Deprecated basic roster system. 
+    // Enterprise Duty Roster module relies on DutyRoster, ShiftTemplate, and ShiftAssignment.
 
     // 2. Approval Matrices
     const approvalRoles = [

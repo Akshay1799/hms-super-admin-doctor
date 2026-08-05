@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
 import { DoctorProfile } from '../models/DoctorProfile';
-import { Roster } from '../models/Roster';
 import { Prescription } from '../models/Prescription';
 import { Patient } from '../models/Patient';
 import { Appointment } from '../models/Appointment';
