@@ -11,9 +11,24 @@ function buildFilter(req: Request): Record<string, unknown> {
   return filter;
 }
 
+// Generate token number for a specific day
+async function generateTokenNumber(doctorId: any, date: Date): Promise<number> {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const countToday = await Appointment.countDocuments({
+    doctorId,
+    date: { $gte: dayStart, $lte: dayEnd },
+    status: { $ne: 'Cancelled' },
+  });
+  return countToday + 1;
+}
+
 export async function listAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { status, type, doctorId, patientId, hospitalId, date, from, to, page = '1', limit = '50' } = req.query;
+    const { status, type, doctorId, patientId, hospitalId, date, from, to, q, page = '1', limit = '50' } = req.query;
     const filter = buildFilter(req);
 
     if (status) filter.status = status;
@@ -31,6 +46,14 @@ export async function listAppointments(req: Request, res: Response, next: NextFu
       filter.date = {};
       if (from) (filter.date as Record<string, unknown>).$gte = new Date(from as string);
       if (to) (filter.date as Record<string, unknown>).$lte = new Date(to as string);
+    }
+    if (q) {
+      const searchRegex = new RegExp(q as string, 'i');
+      filter.$or = [
+        { appointmentNumber: searchRegex },
+        { bookingReference: searchRegex },
+        { patientName: searchRegex }
+      ];
     }
 
     const pageNum = Math.max(1, parseInt(page as string));
@@ -65,33 +88,140 @@ export async function getAppointment(req: Request, res: Response, next: NextFunc
 
 export async function createAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { doctorId, date, time } = req.body;
-
-    // Convert date string to start-of-day for token counting
+    const { patientId, doctorId, date, time } = req.body;
+    const tenantId = req.body.tenantId || req.user?.tenantId;
+    
+    // Duplicate Booking Prevention
     const apptDate = new Date(date);
-    const dayStart = new Date(apptDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(apptDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    // Atomic token generation: Count existing appointments for this doctor on this day
-    const countToday = await Appointment.countDocuments({
+    const existingAppt = await Appointment.findOne({
+      tenantId,
+      patientId,
       doctorId,
-      date: { $gte: dayStart, $lte: dayEnd },
-      status: { $ne: 'Cancelled' },
+      date: apptDate,
+      time,
+      status: { $nin: ['Cancelled', 'Archived'] }
     });
 
-    const tokenNumber = countToday + 1;
+    if (existingAppt) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'DUPLICATE_BOOKING',
+          message: 'Patient already has an active appointment with this doctor at the selected time.'
+        }
+      });
+      return;
+    }
+
+    const tokenNumber = await generateTokenNumber(doctorId, apptDate);
 
     const appt = await Appointment.create({
       ...req.body,
-      tenantId: req.body.tenantId || req.user?.tenantId,
+      tenantId,
       hospitalId: req.body.hospitalId || req.user?.hospitalId,
       tokenNumber,
       queuePosition: tokenNumber,
+      status: req.body.status || 'Scheduled'
     });
 
     sendCreated(res, appt, `Appointment scheduled with Token #${tokenNumber}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reserveSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { patientId, doctorId, date, time } = req.body;
+    const tenantId = req.body.tenantId || req.user?.tenantId;
+    
+    const apptDate = new Date(date);
+    
+    // Check for existing active or reserved appointments to prevent overlaps
+    const conflict = await Appointment.findOne({
+      tenantId,
+      doctorId,
+      date: apptDate,
+      time,
+      status: { $in: ['Reserved', 'Scheduled', 'Confirmed', 'Checked-In'] },
+      $or: [
+        { reservationExpiresAt: { $gt: new Date() } },
+        { reservationExpiresAt: { $exists: false } }
+      ]
+    });
+
+    if (conflict) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'SLOT_UNAVAILABLE',
+          message: 'The selected slot is already booked or reserved.'
+        }
+      });
+      return;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes reservation
+
+    const appt = await Appointment.create({
+      ...req.body,
+      tenantId,
+      hospitalId: req.body.hospitalId || req.user?.hospitalId,
+      status: 'Reserved',
+      reservationExpiresAt: expiresAt
+    });
+
+    sendCreated(res, appt, 'Slot reserved successfully for 10 minutes');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function releaseSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const appt = await Appointment.findOne({ _id: req.params.id, status: 'Reserved' });
+    if (!appt) throw new NotFoundError('Reserved appointment not found');
+    
+    // Hard delete or archive based on policy. We will soft delete by setting to Cancelled
+    appt.status = 'Cancelled';
+    appt.cancelReason = 'Reservation Released';
+    await appt.save();
+
+    sendSuccess(res, null, 'Slot released successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function confirmBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) throw new NotFoundError('Appointment not found');
+
+    if (appt.status !== 'Reserved') {
+      res.status(400).json({ success: false, message: 'Only reserved appointments can be confirmed' });
+      return;
+    }
+
+    if (appt.reservationExpiresAt && appt.reservationExpiresAt < new Date()) {
+      appt.status = 'Cancelled';
+      appt.cancelReason = 'Reservation Expired';
+      await appt.save();
+      res.status(400).json({ success: false, message: 'Reservation has expired. Please select a new slot.' });
+      return;
+    }
+
+    // Generate token number upon confirmation
+    const tokenNumber = await generateTokenNumber(appt.doctorId, appt.date);
+    
+    appt.status = 'Confirmed';
+    appt.tokenNumber = tokenNumber;
+    appt.queuePosition = tokenNumber;
+    appt.reservationExpiresAt = undefined;
+    await appt.save();
+
+    sendSuccess(res, appt, `Booking confirmed with Token #${tokenNumber}`);
   } catch (err) {
     next(err);
   }

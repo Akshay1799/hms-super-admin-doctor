@@ -17,12 +17,15 @@ export interface IAppointment extends Document {
   slotStartTime?: string;
   slotEndTime?: string;
   appointmentNumber: string;
+  bookingReference: string;
+  bookingSource: 'Online' | 'Offline' | 'Front Desk' | 'Call Center' | 'Doctor Referral';
   duration: number;  // minutes
-  type: 'New Consultation' | 'Follow-up' | 'Emergency Consultation' | 'Online Consultation' | 'Walk-in' | 'Health Checkup' | 'Procedure Consultation' | 'Specialist Referral' | 'Second Opinion';
-  status: 'Scheduled' | 'Confirmed' | 'Checked-In' | 'Waiting' | 'In Consultation' | 'Completed' | 'Cancelled' | 'No Show' | 'Rescheduled' | 'Archived';
+  type: 'New Consultation' | 'Follow-up' | 'Review Visit' | 'Teleconsultation' | 'Preventive Health Check' | 'Executive Health Package' | 'Specialist Referral' | 'Corporate Appointment' | 'Insurance Appointment' | 'VIP Appointment' | 'Walk-in';
+  status: 'Draft' | 'Reserved' | 'Scheduled' | 'Confirmed' | 'Checked-In' | 'Waiting' | 'In Consultation' | 'Completed' | 'Cancelled' | 'No Show' | 'Rescheduled' | 'Archived';
   priorityLevel?: 'Normal' | 'VIP' | 'Emergency' | 'Senior Citizen';
   symptoms?: string;
   notes?: string;
+  reservationExpiresAt?: Date;
   checkInTime?: Date;
   consultationStartTime?: Date;
   consultationEndTime?: Date;
@@ -49,15 +52,21 @@ const AppointmentSchema = new Schema<IAppointment>(
     time: { type: String, required: true },
     slotStartTime: String,
     slotEndTime: String,
+    bookingReference: { type: String, unique: true, index: true },
+    bookingSource: { 
+      type: String, 
+      enum: ['Online', 'Offline', 'Front Desk', 'Call Center', 'Doctor Referral'], 
+      default: 'Offline' 
+    },
     duration: { type: Number, default: 15 },
     type: {
       type: String,
-      enum: ['New Consultation', 'Follow-up', 'Emergency Consultation', 'Online Consultation', 'Walk-in', 'Health Checkup', 'Procedure Consultation', 'Specialist Referral', 'Second Opinion'],
+      enum: ['New Consultation', 'Follow-up', 'Review Visit', 'Teleconsultation', 'Preventive Health Check', 'Executive Health Package', 'Specialist Referral', 'Corporate Appointment', 'Insurance Appointment', 'VIP Appointment', 'Walk-in'],
       default: 'New Consultation',
     },
     status: {
       type: String,
-      enum: ['Scheduled', 'Confirmed', 'Checked-In', 'Waiting', 'In Consultation', 'Completed', 'Cancelled', 'No Show', 'Rescheduled', 'Archived'],
+      enum: ['Draft', 'Reserved', 'Scheduled', 'Confirmed', 'Checked-In', 'Waiting', 'In Consultation', 'Completed', 'Cancelled', 'No Show', 'Rescheduled', 'Archived'],
       default: 'Scheduled',
     },
     priorityLevel: {
@@ -72,6 +81,7 @@ const AppointmentSchema = new Schema<IAppointment>(
     consultationEndTime: Date,
     cancelReason: String,
     rescheduledFrom: { type: Schema.Types.ObjectId, ref: 'Appointment' },
+    reservationExpiresAt: Date,
   },
   { timestamps: true }
 );
@@ -85,7 +95,11 @@ AppointmentSchema.pre('save', async function (next) {
     const count = await mongoose.model('Appointment').countDocuments({
       createdAt: { $gte: new Date(`${year}-01-01`), $lt: new Date(`${year + 1}-01-01`) }
     });
-    this.appointmentNumber = `APT-${year}-${String(count + 1).padStart(6, '0')}`;
+    const seq = String(count + 1).padStart(6, '0');
+    this.appointmentNumber = `APT-${year}-${seq}`;
+  }
+  if (!this.bookingReference) {
+    this.bookingReference = this.appointmentNumber;
   }
   next();
 });

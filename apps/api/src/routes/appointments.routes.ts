@@ -5,6 +5,9 @@ import {
   listAppointments,
   getAppointment,
   createAppointment,
+  reserveSlot,
+  releaseSlot,
+  confirmBooking,
   updateAppointment,
   checkInAppointment,
   cancelAppointment,
@@ -20,8 +23,12 @@ router.use(authenticate);
 const scheduleAuth = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'DOCTOR', 'RECEPTIONIST');
 
 router.get('/', listAppointments);
+router.get('/search', listAppointments); // Uses q param for text search
 router.get('/:id', getAppointment);
 router.post('/', scheduleAuth, createAppointment);
+router.post('/reserve-slot', scheduleAuth, reserveSlot);
+router.delete('/release-slot/:id', scheduleAuth, releaseSlot);
+router.post('/:id/confirm', scheduleAuth, confirmBooking);
 router.patch('/:id', scheduleAuth, updateAppointment);
 router.post('/:id/check-in', scheduleAuth, checkInAppointment);
 router.post('/:id/cancel', scheduleAuth, cancelAppointment);
