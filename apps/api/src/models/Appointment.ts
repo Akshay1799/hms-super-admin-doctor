@@ -31,6 +31,9 @@ export interface IAppointment extends Document {
   consultationEndTime?: Date;
   cancelReason?: string;
   rescheduledFrom?: mongoose.Types.ObjectId;
+  appointmentGroupId?: mongoose.Types.ObjectId;
+  dependsOnAppointmentId?: mongoose.Types.ObjectId; // For sequential appointments
+  referralId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,6 +84,9 @@ const AppointmentSchema = new Schema<IAppointment>(
     consultationEndTime: Date,
     cancelReason: String,
     rescheduledFrom: { type: Schema.Types.ObjectId, ref: 'Appointment' },
+    appointmentGroupId: { type: Schema.Types.ObjectId, ref: 'AppointmentGroup', index: true },
+    dependsOnAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment' },
+    referralId: { type: Schema.Types.ObjectId, ref: 'Referral' },
     reservationExpiresAt: Date,
   },
   { timestamps: true }

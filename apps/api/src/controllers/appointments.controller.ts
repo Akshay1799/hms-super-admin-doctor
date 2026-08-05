@@ -622,3 +622,29 @@ export async function getReschedulePolicies(req: Request, res: Response, next: N
     next(err);
   }
 }
+
+export async function getPendingReferrals(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // In the PRD, Referrals are owned by the Clinical/EMR module.
+    // The Appointment module simply fetches them to schedule them.
+    // For now, return a mocked list until Clinical Module is built.
+    const referrals: any[] = [];
+    sendSuccess(res, referrals, 'Pending referrals retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAvailableDepartments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { Department } = await import('../models/Department');
+    const filter: Record<string, unknown> = { isActive: true };
+    if (req.user?.tenantId) filter.tenantId = req.user.tenantId;
+    if (req.user?.hospitalId) filter.hospitalId = req.user.hospitalId;
+
+    const departments = await Department.find(filter).select('name code description');
+    sendSuccess(res, departments, 'Available departments retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
