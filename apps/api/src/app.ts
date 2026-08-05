@@ -34,6 +34,8 @@ import procurementRoutes from './routes/procurement.routes';
 import pharmacyPOSRoutes from './routes/pharmacyPOS.routes';
 import controlledDrugsRoutes from './routes/controlledDrugs.routes';
 import encountersRoutes from './routes/encounters.routes';
+import availabilityRoutes from './routes/availability.routes';
+import leaveRoutes from './routes/leave.routes';
 
 const app = express();
 
@@ -157,6 +159,8 @@ app.use('/api/procurement', procurementRoutes);
 app.use('/api/pharmacy/pos', pharmacyPOSRoutes);
 app.use('/api/pharmacy/controlled', controlledDrugsRoutes);
 app.use('/api/encounters', encountersRoutes);
+app.use('/api/availability', availabilityRoutes);
+app.use('/api/leave', leaveRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);

@@ -75,6 +75,7 @@ export interface IDoctorProfile extends Document {
   
   languages: string[];
   clinicalPrivileges: string[];
+  consultationDuration?: number; // duration in minutes
   
   // Operational Status
   departments: mongoose.Types.ObjectId[];
@@ -153,6 +154,7 @@ const DoctorProfileSchema = new Schema<IDoctorProfile>(
 
     languages: [{ type: String }],
     clinicalPrivileges: [{ type: String }],
+    consultationDuration: { type: Number },
 
     departments: [{ type: Schema.Types.ObjectId, ref: 'Department' }],
     status: {

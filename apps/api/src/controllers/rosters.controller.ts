@@ -3,6 +3,7 @@ import { ShiftTemplate } from '../models/ShiftTemplate';
 import { DutyRoster } from '../models/DutyRoster';
 import { ShiftAssignment } from '../models/ShiftAssignment';
 import { AuditLog } from '../models/AuditLog';
+import { Leave } from '../models/Leave';
 
 // --- Shift Templates ---
 export const createShiftTemplate = async (req: Request, res: Response, next: NextFunction) => {
@@ -99,6 +100,22 @@ export const assignShift = async (req: Request, res: Response, next: NextFunctio
     const existingExact = await ShiftAssignment.findOne({ doctorId, date, shiftTemplateId });
     if (existingExact) {
       return res.status(400).json({ message: 'Doctor is already assigned to this shift template on this date.' });
+    }
+
+    // Leave Validation Check: Prevent assigning shift if doctor is on approved leave
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const leave = await Leave.findOne({
+      userId: doctorId,
+      tenantId,
+      status: 'Approved',
+      startDate: { $lte: targetDate },
+      endDate: { $gte: targetDate }
+    });
+
+    if (leave) {
+      return res.status(400).json({ message: 'Cannot assign shift: Doctor is on approved leave during this date.' });
     }
 
     // Conflict Check 2: Max consecutive hours (24h)

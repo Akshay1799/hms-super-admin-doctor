@@ -12,6 +12,7 @@ export interface IShiftTemplate extends Document {
   startTime: string; // e.g. "08:00"
   endTime: string;   // e.g. "14:00"
   breakDurationMinutes: number;
+  consultationDurationMinutes?: number;
   maxPatients?: number;
   consultationType?: string;
   createdAt: Date;
@@ -32,6 +33,7 @@ const ShiftTemplateSchema = new Schema<IShiftTemplate>(
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     breakDurationMinutes: { type: Number, default: 0 },
+    consultationDurationMinutes: { type: Number },
     maxPatients: { type: Number },
     consultationType: { type: String }
   },
