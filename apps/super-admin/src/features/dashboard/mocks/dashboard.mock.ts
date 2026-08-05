@@ -21,9 +21,7 @@ export const MOCK_REVENUE_TREND: RevenueMetric[] = [
 ];
 
 export const MOCK_HOSPITALS_PERFORMANCE: HospitalPerformanceMetric[] = [
-  { name: "Apollo Delhi", admissions: 1420, revenue: 3200000, patients: 8400 },
-  { name: "Fortis Mumbai", admissions: 980, revenue: 2100000, patients: 5900 },
-  { name: "Max Bangalore", admissions: 1100, revenue: 2400000, patients: 6300 },
-  { name: "Medanta Gurgaon", admissions: 1300, revenue: 2900000, patients: 7800 },
-  { name: "Manipal Goa", admissions: 640, revenue: 1400000, patients: 3800 },
+  { name: "MediPlus Hospital", admissions: 1420, revenue: 3200000, patients: 8400 },
+  { name: "Vivek Memorial Hospital", admissions: 980, revenue: 2100000, patients: 5900 },
+  { name: "R K Hospital", admissions: 1100, revenue: 2400000, patients: 6300 },
 ];
