@@ -23,12 +23,12 @@ export function RevenueChart() {
                 fontSize={12} 
                 tickLine={false} 
                 axisLine={false} 
-                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`} 
               />
               <Tooltip 
                 contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }} 
                 itemStyle={{ color: "hsl(var(--foreground))" }} 
-                formatter={(value: any) => [`$${Number(value).toLocaleString()}`, undefined]} 
+                formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, undefined]} 
               />
               <Legend verticalAlign="top" height={36} />
               <Bar dataKey="revenue" name="Billed Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />

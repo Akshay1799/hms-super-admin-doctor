@@ -34,7 +34,7 @@ Patient Name: ${invoice.patientName || "N/A"}
 Due Date:     ${new Date(invoice.dueDate).toLocaleDateString()}
 Status:       ${invoice.status.toUpperCase()}
 ----------------------------------------
-TOTAL AMOUNT: ${new Intl.NumberFormat("en-US", { style: "currency", currency: invoice.currency || "USD" }).format(invoice.amount)}
+TOTAL AMOUNT: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: invoice.currency || "INR" }).format(invoice.amount)}
 ========================================
 Thank you for using HMS Cloud.
 `;
@@ -53,9 +53,9 @@ Thank you for using HMS Cloud.
   const columns = [
     { header: "Invoice ID", accessor: (row: Invoice) => <span className="font-semibold text-foreground">{row.id}</span> },
     ...(!isTenantAdmin ? [{ header: "Tenant", accessor: (row: Invoice) => row.tenantName }] : []),
-    { header: "Hospital Unit", accessor: (row: Invoice) => row.hospitalName || "Apollo Delhi" },
+    { header: "Hospital Unit", accessor: (row: Invoice) => row.hospitalName || "MediPlus Hospital" },
     { header: "Patient", accessor: (row: Invoice) => row.patientName || "Rahul Sharma" },
-    { header: "Amount", accessor: (row: Invoice) => new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency || "USD" }).format(row.amount) },
+    { header: "Amount", accessor: (row: Invoice) => new Intl.NumberFormat("en-IN", { style: "currency", currency: row.currency || "INR" }).format(row.amount) },
     { header: "Due Date", accessor: (row: Invoice) => new Date(row.dueDate).toLocaleDateString() },
     { header: "Status", accessor: (row: Invoice) => <StatusBadge status={row.status} /> },
     {

@@ -14,7 +14,7 @@ export function SubscriptionTable() {
     { header: "Tenant", accessor: (row: Subscription) => row.tenantName },
     { header: "Plan", accessor: (row: Subscription) => row.planName },
     { header: "Billing Cycle", accessor: (row: Subscription) => <span className="capitalize">{row.billingCycle}</span> },
-    { header: "Amount", accessor: (row: Subscription) => new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency || "USD" }).format(row.amount) },
+    { header: "Amount", accessor: (row: Subscription) => new Intl.NumberFormat("en-IN", { style: "currency", currency: row.currency || "INR" }).format(row.amount) },
     { header: "Next Billing", accessor: (row: Subscription) => row.nextBillingDate !== 'N/A' ? new Date(row.nextBillingDate).toLocaleDateString() : 'N/A' },
     { header: "Status", accessor: (row: Subscription) => <StatusBadge status={row.status} /> },
   ];

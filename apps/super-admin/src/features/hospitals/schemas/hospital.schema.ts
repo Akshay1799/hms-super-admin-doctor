@@ -40,8 +40,8 @@ export const createHospitalSchema = z.object({
   documents: z.array(z.string()).optional(),
 
   // Step 5: Settings / Localization
-  timezone: z.string().default("UTC"),
-  currency: z.string().default("USD"),
+  timezone: z.string().default("Asia/Kolkata"),
+  currency: z.string().default("INR"),
   language: z.string().default("en"),
   format24h: z.boolean().default(true),
   weekStart: z.enum(["Monday", "Sunday"]).default("Monday"),

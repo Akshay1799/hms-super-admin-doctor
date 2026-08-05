@@ -161,11 +161,11 @@ export const MOCK_ACCREDITATION: Record<string, HospitalAccreditation> = {
 };
 
 export const MOCK_SETTINGS: Record<string, HospitalSettings> = {
-  "h-1": { timezone: "EST", currency: "USD", language: "en", format24h: true, weekStart: "Monday", workingHours: "24/7", emergencyContact: "+1 (555) 911-0011" },
-  "h-2": { timezone: "EST", currency: "USD", language: "en", format24h: true, weekStart: "Monday", workingHours: "08:00 - 20:00", emergencyContact: "+1 (555) 911-0022" },
-  "h-3": { timezone: "CST", currency: "USD", language: "en", format24h: true, weekStart: "Monday", workingHours: "07:00 - 22:00", emergencyContact: "+1 (555) 911-0033" },
-  "h-4": { timezone: "PST", currency: "USD", language: "en", format24h: false, weekStart: "Sunday", workingHours: "09:00 - 17:00", emergencyContact: "+1 (555) 911-0044" },
-  "h-5": { timezone: "PST", currency: "USD", language: "en", format24h: true, weekStart: "Monday", workingHours: "24/7", emergencyContact: "+1 (555) 911-0055" },
+  "h-1": { timezone: "Asia/Kolkata", currency: "INR", language: "en", format24h: true, weekStart: "Monday", workingHours: "24/7", emergencyContact: "+91 9988776655" },
+  "h-2": { timezone: "Asia/Kolkata", currency: "INR", language: "en", format24h: true, weekStart: "Monday", workingHours: "08:00 - 20:00", emergencyContact: "+91 9988776644" },
+  "h-3": { timezone: "Asia/Kolkata", currency: "INR", language: "en", format24h: true, weekStart: "Monday", workingHours: "07:00 - 22:00", emergencyContact: "+91 9988776633" },
+  "h-4": { timezone: "Asia/Kolkata", currency: "INR", language: "en", format24h: false, weekStart: "Sunday", workingHours: "09:00 - 17:00", emergencyContact: "+91 9988776622" },
+  "h-5": { timezone: "Asia/Kolkata", currency: "INR", language: "en", format24h: true, weekStart: "Monday", workingHours: "24/7", emergencyContact: "+91 9988776611" },
 };
 
 export const MOCK_AUDIT_LOGS: Record<string, HospitalAuditLog[]> = {

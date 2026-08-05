@@ -21,9 +21,9 @@ export function RevenueCards() {
   };
 
   const formatCurrency = (value: number, currency: string) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-IN", {
       style: "currency",
-      currency: currency || "USD",
+      currency: currency || "INR",
       maximumFractionDigits: 0,
     }).format(value);
   };

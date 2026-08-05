@@ -20,33 +20,40 @@ import { apiClient } from "@/lib/api-client";
 
 function mapInvoice(raw: any): Invoice {
   return {
-    id: raw._id ?? raw.id,
+    id: raw._id ?? raw.id ?? `inv-${Date.now()}`,
+    tenantId: raw.tenantId ?? "",
+    tenantName: raw.tenantName ?? "Apollo Group",
     patientId: raw.patientId ?? "",
     patientName: raw.patientName ?? "Unknown",
     hospitalId: raw.hospitalId ?? "",
     hospitalName: raw.hospitalName ?? "",
-    invoiceNumber: raw.invoiceNumber ?? raw.id,
-    status: raw.status ?? "Pending",
+    invoiceNumber: raw.invoiceNumber ?? raw.id ?? `INV-${Date.now()}`,
+    invoiceType: raw.invoiceType ?? "OPD",
+    billingMode: raw.billingMode ?? "Self-Pay",
     amount: raw.amount ?? 0,
+    totalAmount: raw.totalAmount ?? raw.amount ?? 0,
+    currency: raw.currency ?? "INR",
+    status: raw.status ?? "unpaid",
     paidAmount: raw.paidAmount ?? 0,
-    dueDate: raw.dueDate ? new Date(raw.dueDate).toISOString().split("T")[0] : "",
-    createdAt: raw.createdAt ? new Date(raw.createdAt).toISOString().split("T")[0] : "",
+    issuedDate: raw.issuedDate ? new Date(raw.issuedDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    dueDate: raw.dueDate ? new Date(raw.dueDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     items: raw.items ?? [],
-    paymentMethod: raw.paymentMethod,
-    notes: raw.notes,
   };
 }
 
 function mapPayment(raw: any): Payment {
   return {
-    id: raw._id ?? raw.id,
+    id: raw._id ?? raw.id ?? `pay-${Date.now()}`,
     invoiceId: raw.invoiceId ?? "",
-    patientName: raw.patientName ?? "Unknown",
+    tenantId: raw.tenantId ?? "",
+    tenantName: raw.tenantName ?? "",
     amount: raw.amount ?? 0,
-    method: raw.method ?? "Cash",
-    status: raw.status ?? "Completed",
-    date: raw.date ? new Date(raw.date).toISOString().split("T")[0] : "",
-    transactionId: raw.transactionId ?? "",
+    currency: raw.currency ?? "INR",
+    type: raw.type ?? "payment",
+    method: raw.method ?? "cash",
+    status: raw.status ?? "completed",
+    paymentDate: raw.paymentDate ? new Date(raw.paymentDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    referenceId: raw.referenceId,
   };
 }
 
@@ -91,16 +98,22 @@ export const billingService = {
     } catch {
       const newInvoice: Invoice = {
         id: `inv-${Date.now()}`,
+        tenantId: data.tenantId ?? "t1",
+        tenantName: data.tenantName ?? "Apollo Group",
         patientId: data.patientId ?? "",
         patientName: data.patientName ?? "Unknown",
         hospitalId: data.hospitalId ?? "",
         hospitalName: data.hospitalName ?? "",
         invoiceNumber: `INV-${Date.now()}`,
-        status: "Pending",
+        invoiceType: data.invoiceType ?? "OPD",
+        billingMode: data.billingMode ?? "Self-Pay",
         amount: data.amount ?? 0,
+        totalAmount: data.totalAmount ?? data.amount ?? 0,
+        currency: "INR",
+        status: "unpaid",
         paidAmount: 0,
+        issuedDate: new Date().toISOString().split("T")[0],
         dueDate: data.dueDate ?? new Date().toISOString().split("T")[0],
-        createdAt: new Date().toISOString().split("T")[0],
         items: data.items ?? [],
       };
       return newInvoice;
@@ -119,7 +132,6 @@ export const billingService = {
   },
 
   saveInvoices: async (data: Invoice[]): Promise<Invoice[]> => {
-    // Legacy localStorage method kept for compatibility — no-op in API mode
     return data;
   },
 
@@ -130,7 +142,7 @@ export const billingService = {
     } catch {
       const inv = MOCK_INVOICES.find((i) => i.id === id);
       if (!inv) throw new Error("Invoice not found");
-      return { ...inv, status: "Cancelled" };
+      return { ...inv, status: "cancelled" };
     }
   },
 
@@ -141,7 +153,7 @@ export const billingService = {
     } catch {
       const inv = MOCK_INVOICES.find((i) => i.id === id);
       if (!inv) throw new Error("Invoice not found");
-      return { ...inv, status: "Paid", paidAmount: amount, paymentMethod: method };
+      return { ...inv, status: "paid", paidAmount: amount };
     }
   },
 
@@ -164,17 +176,19 @@ export const billingService = {
       return {
         id: `pay-${Date.now()}`,
         invoiceId: data.invoiceId ?? "",
-        patientName: data.patientName ?? "Unknown",
+        tenantId: data.tenantId ?? "t1",
+        tenantName: data.tenantName ?? "Apollo Group",
         amount: data.amount ?? 0,
-        method: data.method ?? "Cash",
-        status: "Completed",
-        date: new Date().toISOString().split("T")[0],
-        transactionId: `TXN-${Date.now()}`,
+        currency: "INR",
+        type: "payment",
+        method: (data.method as any) ?? "cash",
+        status: "completed",
+        paymentDate: new Date().toISOString().split("T")[0],
+        referenceId: `TXN-${Date.now()}`,
       };
     }
   },
 
-  // Claims, Subscriptions, Refunds — no backend endpoints yet, keep mock
   getClaims: async (): Promise<Claim[]> => MOCK_CLAIMS,
   getSubscriptions: async (): Promise<Subscription[]> => MOCK_SUBSCRIPTIONS,
   getRefunds: async (): Promise<Refund[]> => MOCK_REFUNDS,

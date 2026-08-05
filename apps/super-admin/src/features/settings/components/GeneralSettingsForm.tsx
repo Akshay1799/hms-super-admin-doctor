@@ -62,10 +62,10 @@ export function GeneralSettingsForm() {
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Currency</label>
           <select name="currency" defaultValue={settings.currency} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+            <option value="INR">INR (₹)</option>
             <option value="USD">USD ($)</option>
             <option value="EUR">EUR (€)</option>
             <option value="GBP">GBP (£)</option>
-            <option value="INR">INR (₹)</option>
           </select>
         </div>
       </div>

@@ -171,7 +171,7 @@ export const hospitalService = {
           licenseNumber: "N/A", expiryDate: "",
         },
         settings: raw.settings ?? settingsData[id] ?? {
-          timezone: "UTC", currency: "USD", language: "en",
+          timezone: "Asia/Kolkata", currency: "INR", language: "en",
           format24h: true, weekStart: "Monday",
         },
         branches: (branchesData[id] && branchesData[id].length > 0) ? branchesData[id] : [defaultBranch],

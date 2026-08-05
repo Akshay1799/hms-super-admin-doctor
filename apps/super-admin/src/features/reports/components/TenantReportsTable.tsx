@@ -18,7 +18,7 @@ export function TenantReportsTable() {
     { header: "Plan", accessor: (row: TenantReport) => <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-medium">{row.plan}</span> },
     { header: "Hospitals", accessor: (row: TenantReport) => <span className="text-sm font-mono">{row.hospitals}</span> },
     { header: "Users", accessor: (row: TenantReport) => <span className="text-sm font-mono">{row.users.toLocaleString()}</span> },
-    { header: "Revenue", accessor: (row: TenantReport) => <span className="text-sm font-mono font-medium">${row.revenue.toLocaleString()}</span> },
+    { header: "Revenue", accessor: (row: TenantReport) => <span className="text-sm font-mono font-medium">₹{row.revenue.toLocaleString()}</span> },
     { header: "Status", accessor: (row: TenantReport) => <StatusBadge status={row.status} /> },
     { header: "Actions", accessor: (row: TenantReport) => (
       <Button variant="ghost" size="sm" onClick={() => {
@@ -26,7 +26,7 @@ export function TenantReportsTable() {
           { Parameter: "Tenant Group", Value: row.tenant },
           { Parameter: "Registered Hospitals Count", Value: row.hospitals },
           { Parameter: "Registered Active Users", Value: row.users },
-          { Parameter: "Current Annual Revenue", Value: `$${row.revenue.toLocaleString()}` },
+          { Parameter: "Current Annual Revenue", Value: `₹${row.revenue.toLocaleString()}` },
           { Parameter: "Plan Tier", Value: row.plan },
           { Parameter: "Platform Status", Value: row.status.toUpperCase() }
         ];

@@ -456,6 +456,7 @@ export function HospitalStepperForm({ onSubmit, isLoading = false }: HospitalSte
                 error={errors.timezone?.message}
                 {...register("timezone")}
               >
+                <option value="Asia/Kolkata">India Standard Time (IST)</option>
                 <option value="EST">Eastern Time (EST)</option>
                 <option value="CST">Central Time (CST)</option>
                 <option value="PST">Pacific Time (PST)</option>
@@ -469,6 +470,7 @@ export function HospitalStepperForm({ onSubmit, isLoading = false }: HospitalSte
                 error={errors.currency?.message}
                 {...register("currency")}
               >
+                <option value="INR">INR (₹)</option>
                 <option value="USD">USD ($)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>

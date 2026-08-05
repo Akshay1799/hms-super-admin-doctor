@@ -14,8 +14,8 @@ export function ClaimTable() {
     { header: "Invoice ID", accessor: (row: Claim) => row.invoiceId },
     { header: "Patient", accessor: (row: Claim) => row.patientName },
     { header: "Insurance", accessor: (row: Claim) => row.insuranceCompany },
-    { header: "Claimed", accessor: (row: Claim) => new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency || "USD" }).format(row.amountClaimed) },
-    { header: "Approved", accessor: (row: Claim) => row.amountApproved ? new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency || "USD" }).format(row.amountApproved) : "-" },
+    { header: "Claimed", accessor: (row: Claim) => new Intl.NumberFormat("en-IN", { style: "currency", currency: row.currency || "INR" }).format(row.amountClaimed) },
+    { header: "Approved", accessor: (row: Claim) => row.amountApproved ? new Intl.NumberFormat("en-IN", { style: "currency", currency: row.currency || "INR" }).format(row.amountApproved) : "-" },
     { header: "Submitted", accessor: (row: Claim) => new Date(row.submissionDate).toLocaleDateString() },
     { header: "Status", accessor: (row: Claim) => <StatusBadge status={row.status} /> },
   ];

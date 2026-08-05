@@ -57,7 +57,7 @@ export function BillingAndAudit({ patient }: BillingAndAuditProps) {
                           <p className="font-bold text-foreground">{bill.invoiceNumber}</p>
                           <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{bill.date}</p>
                         </td>
-                        <td className="p-3 text-muted-foreground">${bill.amount.toFixed(2)}</td>
+                        <td className="p-3 text-muted-foreground">₹{bill.amount.toLocaleString('en-IN')}</td>
                         <td className="p-3 text-right">
                           <StatusBadge status={bill.status} />
                         </td>

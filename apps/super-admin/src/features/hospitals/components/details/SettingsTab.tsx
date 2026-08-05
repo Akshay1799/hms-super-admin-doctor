@@ -56,6 +56,7 @@ export function SettingsTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Timezone" as="select" {...register("timezone")}>
+            <option value="Asia/Kolkata">India Standard Time (IST)</option>
             <option value="EST">Eastern Time (EST)</option>
             <option value="CST">Central Time (CST)</option>
             <option value="PST">Pacific Time (PST)</option>
@@ -63,6 +64,7 @@ export function SettingsTab({
             <option value="UTC">Coordinated Universal Time (UTC)</option>
           </FormField>
           <FormField label="Currency Symbol" as="select" {...register("currency")}>
+            <option value="INR">INR (₹)</option>
             <option value="USD">USD ($)</option>
             <option value="EUR">EUR (€)</option>
             <option value="GBP">GBP (£)</option>

@@ -10,8 +10,8 @@ export const MOCK_GENERAL_SETTINGS: PlatformSettings = {
   website: 'https://hms-cloud.example.com',
   supportEmail: 'support@hmscloud.com',
   supportPhone: '+1-800-555-0199',
-  timezone: 'UTC',
-  currency: 'USD',
+  timezone: 'Asia/Kolkata',
+  currency: 'INR',
   language: 'English',
   maintenanceMode: false,
 };

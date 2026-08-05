@@ -275,7 +275,7 @@ export default function DesignSystemPage() {
         />
         <StatsCard
           title="Platform Monthly Revenue"
-          value="$14,820"
+          value="₹14,820"
           icon={DollarSign}
           trend={{ value: "18.4%", type: "up" }}
           description="accrued licenses"

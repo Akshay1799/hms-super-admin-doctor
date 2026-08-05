@@ -82,7 +82,7 @@ export function SubscriptionTab({
             <span>Recurring amount</span>
           </div>
           <p className="text-2xl font-bold text-foreground mt-2">
-            ${subscription.amount.toLocaleString()}
+            ₹{subscription.amount.toLocaleString()}
             <span className="text-xs font-normal text-muted-foreground">/{subscription.billingCycle === "Monthly" ? "mo" : "yr"}</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1">Through mapped payment profile</p>
@@ -143,7 +143,7 @@ export function SubscriptionTab({
                     )}
                   </div>
                   <div className="flex items-baseline">
-                    <span className="text-3xl font-extrabold text-foreground">${price}</span>
+                    <span className="text-3xl font-extrabold text-foreground">₹{price}</span>
                     <span className="text-xs text-muted-foreground ml-1">/month</span>
                   </div>
                   <ul className="space-y-2 text-xs text-muted-foreground">

@@ -13,7 +13,7 @@ export function RefundTable() {
     { header: "Refund ID", accessor: (row: Refund) => <span className="font-medium text-foreground">{row.id}</span> },
     { header: "Payment ID", accessor: (row: Refund) => row.paymentId },
     { header: "Tenant", accessor: (row: Refund) => row.tenantName },
-    { header: "Amount", accessor: (row: Refund) => new Intl.NumberFormat("en-US", { style: "currency", currency: row.currency || "USD" }).format(row.amount) },
+    { header: "Amount", accessor: (row: Refund) => new Intl.NumberFormat("en-IN", { style: "currency", currency: row.currency || "INR" }).format(row.amount) },
     { header: "Reason", accessor: (row: Refund) => row.reason },
     { header: "Request Date", accessor: (row: Refund) => new Date(row.requestDate).toLocaleDateString() },
     { header: "Status", accessor: (row: Refund) => <StatusBadge status={row.status} /> },
