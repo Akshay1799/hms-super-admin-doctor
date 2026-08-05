@@ -36,6 +36,7 @@ import controlledDrugsRoutes from './routes/controlledDrugs.routes';
 import encountersRoutes from './routes/encounters.routes';
 import availabilityRoutes from './routes/availability.routes';
 import leaveRoutes from './routes/leave.routes';
+import assignmentRoutes from './routes/assignments.routes';
 
 const app = express();
 
@@ -161,6 +162,7 @@ app.use('/api/pharmacy/controlled', controlledDrugsRoutes);
 app.use('/api/encounters', encountersRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/leave', leaveRoutes);
+app.use('/api/assignments', assignmentRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);
