@@ -5,6 +5,7 @@ import { AppointmentReminder } from '../models/AppointmentReminder';
 import { AppointmentHistory } from '../models/AppointmentHistory';
 import { CancellationReason } from '../models/CancellationReason';
 import { ReschedulePolicy } from '../models/ReschedulePolicy';
+import { evaluateWaitingList } from './waitingList.controller';
 
 function buildFilter(req: Request): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
@@ -353,7 +354,13 @@ export async function cancelAppointment(req: Request, res: Response, next: NextF
       { status: 'Cancelled' }
     );
 
-    // TODO: Publish SlotReleased Domain Event or integrate Waiting List check here
+    // Cross-Module Sync: Evaluate Waiting List for the newly freed slot
+    evaluateWaitingList(
+      appt.doctorId.toString(),
+      appt.departmentId?.toString() || '',
+      appt.date,
+      appt.time
+    ).catch(err => console.error('Failed to trigger waiting list evaluation on cancel:', err));
 
     sendSuccess(res, appt, 'Appointment cancelled');
   } catch (err) {
@@ -560,6 +567,14 @@ export async function bulkCancelAppointments(req: Request, res: Response, next: 
         { appointmentId: appt._id, status: { $in: ['Scheduled', 'Queued', 'Processing'] } },
         { status: 'Cancelled' }
       );
+
+      // Cross-Module Sync: Evaluate Waiting List
+      evaluateWaitingList(
+        appt.doctorId.toString(),
+        appt.departmentId?.toString() || '',
+        appt.date,
+        appt.time
+      ).catch(err => console.error('Failed to trigger waiting list evaluation on bulk cancel:', err));
 
       cancelledIds.push(appt._id);
     }

@@ -43,6 +43,7 @@ import historyRoutes from './routes/history.routes';
 import consultationRoutes from './routes/consultations.routes';
 import queueRoutes from './routes/queues.routes';
 import reminderRoutes from './routes/reminders.routes';
+import waitingListRoutes from './routes/waitingList.routes';
 
 const app = express();
 
@@ -175,6 +176,7 @@ app.use('/api/clinical-history', historyRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api', queueRoutes); // Mounts /tokens and /queues
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/waiting-list', waitingListRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);
