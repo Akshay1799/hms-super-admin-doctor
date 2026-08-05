@@ -39,6 +39,7 @@ import leaveRoutes from './routes/leave.routes';
 import assignmentRoutes from './routes/assignments.routes';
 import prescriptionRoutes from './routes/prescriptions.routes';
 import drugRoutes from './routes/drugs.routes';
+import historyRoutes from './routes/history.routes';
 
 const app = express();
 
@@ -167,6 +168,7 @@ app.use('/api/leave', leaveRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/drugs', drugRoutes);
+app.use('/api/clinical-history', historyRoutes);
 
 // 404 & Global error handling
 app.use(notFoundHandler);
