@@ -14,6 +14,8 @@ import { MOCK_TENANTS } from "@/features/tenants/mocks/tenants.mock";
 import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
 import { FormField } from "@/components/ui/form-field";
 
+import { maskEmail, maskPhone } from "@/utils/masking";
+
 type ActiveTab = "overview" | "sessions" | "history" | "mfa" | "audits";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -78,7 +80,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <PageHeader
             title={fullName}
-            description={`Role: ${user.role} | Email: ${user.email}`}
+            description={`Role: ${user.role} | Email: ${maskEmail(user.email)}`}
           />
           <div className="flex gap-2">
             <StatusBadge status={user.status === "Pending" ? "pending" : user.status} />
@@ -114,7 +116,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                       { label: "Role", value: user.role, icon: Shield },
                       { label: "Tenant Account", value: getTenantName(user.tenantId), icon: Globe },
                       { label: "Hospital Scope", value: getHospitalName(user.hospitalId), icon: Building },
-                      { label: "Phone", value: user.phone, icon: Phone },
+                      { label: "Phone", value: maskPhone(user.phone), icon: Phone },
                       { label: "Registered At", value: user.createdAt, icon: Calendar },
                     ].map((item, idx) => {
                       const Icon = item.icon;

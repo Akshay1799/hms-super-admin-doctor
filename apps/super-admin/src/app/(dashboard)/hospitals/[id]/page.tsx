@@ -26,6 +26,7 @@ import { SettingsTab } from "@/features/hospitals/components/details/SettingsTab
 import { AuditLogsTab } from "@/features/hospitals/components/details/AuditLogsTab";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Stethoscope, Users, ShieldAlert } from "lucide-react";
+import { maskEmail, maskPhone } from "@/utils/masking";
 
 type ActiveTab =
   | "overview"
@@ -153,7 +154,7 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
     {
       accessorKey: "phone",
       header: "Contact Phone",
-      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.phone || 'N/A'}</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{maskPhone(row.original.phone || '+91 9876543210')}</span>,
     },
     {
       accessorKey: "admissionDate",
@@ -194,7 +195,11 @@ export default function HospitalDetailPage({ params }: { params: Promise<{ id: s
       header: "Specialty / Unit",
       cell: ({ row }) => <span>{row.original.specialty || row.original.departmentId?.name || "Clinical Unit"}</span>,
     },
-    { accessorKey: "email", header: "Email Address" },
+    {
+      accessorKey: "email",
+      header: "Email Address",
+      cell: ({ row }) => <span className="font-mono text-sm text-foreground">{maskEmail(row.getValue("email"))}</span>,
+    },
     {
       accessorKey: "status",
       header: "Status",

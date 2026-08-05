@@ -4,6 +4,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Building2, Calendar, Mail, Phone, Globe, Shield, Users, BedDouble, Stethoscope } from "lucide-react";
 import { MOCK_TENANTS } from "@/features/tenants/mocks/tenants.mock";
 
+import { maskEmail, maskPhone } from "@/utils/masking";
+
 interface OverviewTabProps {
   details: HospitalDetails;
 }
@@ -63,7 +65,7 @@ export function OverviewTab({ details }: OverviewTabProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">{hospital.email || "Not Configured"}</p>
+                <p className="text-sm font-semibold font-mono text-foreground mt-0.5">{maskEmail(hospital.email || `contact@${hospital.code.toLowerCase()}.com`)}</p>
               </div>
             </div>
 
@@ -73,7 +75,7 @@ export function OverviewTab({ details }: OverviewTabProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Phone</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">{hospital.phone || "Not Configured"}</p>
+                <p className="text-sm font-semibold font-mono text-foreground mt-0.5">{maskPhone(hospital.phone || "+91 9876543210")}</p>
               </div>
             </div>
           </div>

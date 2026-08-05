@@ -22,6 +22,7 @@ import { FeatureFlagsTab } from "@/features/tenants/components/details/FeatureFl
 import { AuditLogsTab } from "@/features/tenants/components/details/AuditLogsTab";
 import { Building2, Users as UsersIcon, ShieldAlert } from "lucide-react";
 import { useHospitals } from "@/features/hospitals/hooks/useHospitals";
+import { maskEmail } from "@/utils/masking";
 
 type ActiveTab =
   | "overview"
@@ -125,7 +126,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         <span className="font-semibold text-foreground">{row.original.name}</span>
       ),
     },
-    { accessorKey: "email", header: "Email" },
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => <span className="font-mono text-sm text-foreground">{maskEmail(row.getValue("email"))}</span>,
+    },
     { accessorKey: "role", header: "System Role" },
     {
       accessorKey: "status",
@@ -135,9 +140,11 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   ];
 
   const mockUsers: UserMock[] = [
-    { id: "u-1", name: "Alex Mercer", email: `admin@${tenant.code.toLowerCase()}.com`, role: "Tenant Admin", status: "Active" },
-    { id: "u-2", name: "Sarah Connor", email: `sconnor@${tenant.code.toLowerCase()}.com`, role: "Hospital Supervisor", status: "Active" },
-    { id: "u-3", name: "Dr. Gregory House", email: `house@${tenant.code.toLowerCase()}.com`, role: "Clinician (Doctor)", status: "Active" },
+    { id: "u-1", name: "Rajesh Sharma", email: `admin@${tenant.code.toLowerCase()}.com`, role: "Tenant Admin", status: "Active" },
+    { id: "u-2", name: "Priya Patel", email: `ppatel@${tenant.code.toLowerCase()}.com`, role: "Hospital Supervisor", status: "Active" },
+    { id: "u-3", name: "Dr. Vikramaditya Verma", email: `drverma@${tenant.code.toLowerCase()}.com`, role: "Clinician (Doctor)", status: "Active" },
+    { id: "u-4", name: "Ananya Deshmukh", email: `adeshmukh@${tenant.code.toLowerCase()}.com`, role: "Nurse Lead", status: "Active" },
+    { id: "u-5", name: "Sanjay Kumar", email: `skumar@${tenant.code.toLowerCase()}.com`, role: "Billing Officer", status: "Active" },
   ];
 
   const tabs: { id: ActiveTab; label: string }[] = [

@@ -22,6 +22,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
+import { maskEmail, maskPhone } from "@/utils/masking";
 
 interface Patient {
   _id: string;
@@ -832,6 +833,16 @@ export default function PatientsPage() {
                   {selectedPatient.ward ? `${selectedPatient.ward} (Bed ${selectedPatient.bedNumber})` : "General Outpatient"}
                 </p>
               </div>
+              <div className="border-t border-border pt-2 col-span-2 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Email Contact</p>
+                  <p className="font-mono font-bold text-foreground mt-0.5">{maskEmail((selectedPatient as any).email || "patient@hms.com")}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Phone Contact</p>
+                  <p className="font-mono font-bold text-foreground mt-0.5">{maskPhone((selectedPatient as any).phone || "+91 9988776655")}</p>
+                </div>
+              </div>
             </div>
 
             {/* Assigned Doctor Section */}
@@ -856,7 +867,7 @@ export default function PatientsPage() {
                     {selectedPatient.assignedDoctorId.email && (
                       <div className="flex justify-between text-muted-foreground border-t border-border pt-2">
                         <span>Email Contact</span>
-                        <span className="font-bold text-foreground">{selectedPatient.assignedDoctorId.email}</span>
+                        <span className="font-bold font-mono text-foreground">{maskEmail(selectedPatient.assignedDoctorId.email)}</span>
                       </div>
                     )}
                   </>

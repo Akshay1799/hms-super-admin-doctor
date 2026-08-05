@@ -9,6 +9,8 @@ import Link from "next/link";
 import { MOCK_TENANTS } from "@/features/tenants/mocks/tenants.mock";
 import { MOCK_HOSPITALS } from "@/features/hospitals/mocks/hospitals.mock";
 
+import { maskEmail, maskPhone } from "@/utils/masking";
+
 interface UserTableProps {
   data: User[];
   isLoading: boolean;
@@ -67,7 +69,7 @@ export function UserTable({
               <span className="font-semibold text-foreground text-sm hover:text-primary transition-colors">
                 <Link href={`/users/${user.id}`}>{fullName}</Link>
               </span>
-              <span className="text-xs text-muted-foreground font-mono">{user.phone}</span>
+              <span className="text-xs text-muted-foreground font-mono">{maskPhone(user.phone)}</span>
             </div>
           </div>
         );
@@ -76,7 +78,7 @@ export function UserTable({
     {
       accessorKey: "email",
       header: "Email",
-      cell: ({ row }) => <span className="text-sm font-medium text-foreground">{row.getValue("email")}</span>,
+      cell: ({ row }) => <span className="text-sm font-medium text-foreground">{maskEmail(row.getValue("email"))}</span>,
     },
     {
       accessorKey: "role",

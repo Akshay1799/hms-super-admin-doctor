@@ -3,6 +3,8 @@ import { TenantDetails } from "../../services/tenant.service";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, Mail, Phone, Globe, Shield, CreditCard, Building } from "lucide-react";
 
+import { maskEmail, maskPhone } from "@/utils/masking";
+
 interface OverviewTabProps {
   details: TenantDetails;
 }
@@ -61,7 +63,9 @@ export function OverviewTab({ details }: OverviewTabProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Primary Email</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">admin@{tenant.code.toLowerCase()}.com</p>
+                <p className="text-sm font-semibold font-mono text-foreground mt-0.5">
+                  {maskEmail(`admin@${tenant.code.toLowerCase()}.com`)}
+                </p>
               </div>
             </div>
 
@@ -71,7 +75,9 @@ export function OverviewTab({ details }: OverviewTabProps) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Primary Phone</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">+1 (555) 019-2834</p>
+                <p className="text-sm font-semibold font-mono text-foreground mt-0.5">
+                  {maskPhone("+91 9876543210")}
+                </p>
               </div>
             </div>
           </div>

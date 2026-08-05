@@ -20,6 +20,10 @@ interface PatientItem {
   email?: string;
   phone?: string;
   status: string;
+  hospitalId?: {
+    _id: string;
+    name: string;
+  } | string;
   departmentId?: {
     _id: string;
     name: string;
@@ -173,7 +177,7 @@ export default function BillingPage() {
                 <div className="flex justify-between items-start border-b border-slate-100 pb-5">
                   <div className="space-y-1">
                     <h2 className="text-sm font-extrabold text-[#0F4C81] tracking-tight uppercase">
-                      {generatedInvoice.hospitalName || activePatient?.hospitalId?.name || "MediPlus Hospital"}
+                      {generatedInvoice.hospitalName || (typeof activePatient?.hospitalId === 'object' ? activePatient.hospitalId?.name : undefined) || "MediPlus Hospital"}
                     </h2>
                     <p className="text-[10px] text-slate-400 font-semibold">Official Clinical Checkout Invoice</p>
                   </div>

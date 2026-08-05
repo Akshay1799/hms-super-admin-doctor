@@ -21,6 +21,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
+import { maskEmail, maskPhone } from "@/utils/masking";
 
 interface StaffMember {
   _id: string;
@@ -446,19 +447,19 @@ function StaffPageContent() {
                   </span>
                 </div>
 
-                <div className="border-t border-border pt-2 text-[11px] space-y-1.5 text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Building className="h-3.5 w-3.5 shrink-0" />
+                <div className="border-t border-border pt-2 text-[11px] space-y-1.5 text-muted-foreground font-mono">
+                  <div className="flex items-center gap-1.5 font-sans">
+                    <Building className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="truncate">{member.departmentId ? member.departmentId.name : "Unassigned"}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{member.email}</span>
+                    <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{maskEmail(member.email)}</span>
                   </div>
                   {member.phone && (
                     <div className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      <span>{member.phone}</span>
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span>{maskPhone(member.phone)}</span>
                     </div>
                   )}
                 </div>
@@ -555,15 +556,15 @@ function StaffPageContent() {
                         <span className="text-muted-foreground/60 italic">Unassigned</span>
                       )}
                     </td>
-                    <td className="p-4 space-y-0.5">
+                    <td className="p-4 space-y-0.5 font-mono">
                       <p className="flex items-center gap-1.5 text-muted-foreground">
-                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                        {member.email}
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground font-sans" />
+                        {maskEmail(member.email)}
                       </p>
                       {member.phone && (
                         <p className="flex items-center gap-1.5 text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          {member.phone}
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground font-sans" />
+                          {maskPhone(member.phone)}
                         </p>
                       )}
                     </td>
@@ -702,12 +703,12 @@ function StaffPageContent() {
               </div>
               <div className="flex justify-between items-center border-t border-border/60 pt-2">
                 <span>Email Address</span>
-                <span className="font-bold text-foreground">{selectedDoctor.email}</span>
+                <span className="font-bold text-foreground font-mono">{maskEmail(selectedDoctor.email)}</span>
               </div>
               {selectedDoctor.phone && (
                 <div className="flex justify-between items-center border-t border-border/60 pt-2">
                   <span>Contact Phone</span>
-                  <span className="font-bold text-foreground">{selectedDoctor.phone}</span>
+                  <span className="font-bold text-foreground font-mono">{maskPhone(selectedDoctor.phone)}</span>
                 </div>
               )}
             </div>
