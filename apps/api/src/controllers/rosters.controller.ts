@@ -4,6 +4,47 @@ import { DutyRoster } from '../models/DutyRoster';
 import { ShiftAssignment } from '../models/ShiftAssignment';
 import { AuditLog } from '../models/AuditLog';
 import { Leave } from '../models/Leave';
+import { Roster } from '../models/Roster';
+
+// --- Simple Roster UI Endpoints ---
+export const listRosters = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const { startDate, endDate } = req.query;
+    
+    const filter: any = { tenantId, hospitalId };
+    
+    if (startDate && endDate) {
+      filter.date = {
+        $gte: new Date(startDate as string),
+        $lte: new Date(endDate as string)
+      };
+    }
+    
+    const rosters = await Roster.find(filter).populate('userId', 'name email role specialty');
+    res.status(200).json({ success: true, data: rosters });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching rosters', error: error.message });
+  }
+};
+
+export const createRoster = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    
+    const roster = new Roster({
+      ...req.body,
+      tenantId,
+      hospitalId
+    });
+    
+    await roster.save();
+    res.status(201).json({ success: true, data: roster, message: 'Shift scheduled successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error creating roster', error: error.message });
+  }
+};
+
 
 // --- Shift Templates ---
 export const createShiftTemplate = async (req: Request, res: Response, next: NextFunction) => {

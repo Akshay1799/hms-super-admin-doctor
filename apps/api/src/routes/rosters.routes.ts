@@ -12,7 +12,9 @@ import {
   adminExecuteShiftSwap,
   rejectShiftSwap,
   getDoctorSchedule,
-  getDepartmentRoster
+  getDepartmentRoster,
+  listRosters,
+  createRoster
 } from '../controllers/rosters.controller';
 
 const router = Router();
@@ -26,8 +28,12 @@ router.post('/templates', schedulerRoles, createShiftTemplate);
 router.get('/templates', listShiftTemplates);
 
 // Duty Rosters
-router.post('/', schedulerRoles, createDutyRoster);
-router.post('/:id/publish', schedulerRoles, publishDutyRoster);
+// Simple UI endpoints:
+router.get('/', listRosters);
+router.post('/', schedulerRoles, createRoster);
+
+router.post('/duty-rosters', schedulerRoles, createDutyRoster);
+router.post('/duty-rosters/:id/publish', schedulerRoles, publishDutyRoster);
 
 // Shift Assignments
 router.post('/shifts/assign', schedulerRoles, assignShift);

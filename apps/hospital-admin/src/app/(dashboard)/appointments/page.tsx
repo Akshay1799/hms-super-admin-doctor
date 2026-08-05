@@ -31,6 +31,8 @@ import { useAuthStore } from "@/store/auth.store";
 export default function AppointmentsPage() {
   const { user } = useAuthStore();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
 
   async function fetchAppointments() {
@@ -133,6 +135,35 @@ export default function AppointmentsPage() {
     );
   }
 
+  const filteredAppointments = appointments.filter((appt) => {
+    if (statusFilter !== "All" && appt.status !== statusFilter) return false;
+    
+    if (dateFilter !== "All") {
+      const apptDate = new Date(appt.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      
+      const pDate = new Date(apptDate);
+      pDate.setHours(0, 0, 0, 0);
+
+      if (dateFilter === "Today" && pDate.getTime() !== today.getTime()) return false;
+      if (dateFilter === "Yesterday" && pDate.getTime() !== yesterday.getTime()) return false;
+      if (dateFilter === "Tomorrow" && pDate.getTime() !== tomorrow.getTime()) return false;
+      if (dateFilter === "Weekly" && (pDate.getTime() < today.getTime() || pDate.getTime() > nextWeek.getTime())) return false;
+    }
+    
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -142,12 +173,37 @@ export default function AppointmentsPage() {
             Track schedules, monitor live OPD Queue tokens, check patient waiting times, update consultation statuses, or manage cancellations.
           </p>
         </div>
-        <button
-          onClick={() => setIsBookOpen(true)}
-          className="h-10 px-4 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-primary/90 cursor-pointer shadow-md shadow-primary/20 transition-all active:scale-95"
-        >
-          + Schedule Consultation
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            className="h-10 px-3 bg-card border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="All">All Statuses</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="Waiting">Waiting (Checked-In)</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <select
+            className="h-10 px-3 bg-card border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+          >
+            <option value="All">All Dates</option>
+            <option value="Yesterday">Yesterday</option>
+            <option value="Today">Today</option>
+            <option value="Tomorrow">Tomorrow</option>
+            <option value="Weekly">Next 7 Days</option>
+          </select>
+          <button
+            onClick={() => setIsBookOpen(true)}
+            className="h-10 px-4 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-primary/90 cursor-pointer shadow-md shadow-primary/20 transition-all active:scale-95"
+          >
+            + Schedule Consultation
+          </button>
+        </div>
       </div>
 
       {/* Book Appointment Modal */}
@@ -302,12 +358,14 @@ export default function AppointmentsPage() {
 
       {/* Appointments List / Table */}
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        {appointments.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <CalendarDays className="h-12 w-12 text-muted-foreground/50 mx-auto" />
+        {filteredAppointments.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center">
+            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
+              <CalendarDays className="w-8 h-8" />
+            </div>
             <h3 className="text-sm font-bold text-foreground">No OPD Appointments Found</h3>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              There are currently no active appointments. Click "+ Schedule Consultation" above to book an OPD visit and generate a live queue token.
+            <p className="text-xs text-muted-foreground mt-2 max-w-sm">
+              There are currently no active appointments matching the selected filters.
             </p>
             <button
               onClick={() => setIsBookOpen(true)}
@@ -331,8 +389,8 @@ export default function AppointmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-xs text-foreground">
-                {appointments.map((appt) => (
-                  <tr key={appt._id} className="hover:bg-muted/30">
+                {filteredAppointments.map((appt) => (
+                  <tr key={appt._id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="p-4">
                       <span className="font-extrabold text-xs px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800/50">
                         #{appt.tokenNumber || "N/A"}
