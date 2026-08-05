@@ -228,6 +228,36 @@ export const adminExecuteShiftSwap = async (req: Request, res: Response, next: N
   }
 };
 
+export const rejectShiftSwap = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const assignment = await ShiftAssignment.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!assignment) return res.status(404).json({ message: 'Shift assignment not found.' });
+
+    if (!['Swap_Requested', 'Swap_Doctor_Approved'].includes(assignment.status)) {
+      return res.status(400).json({ message: 'Assignment is not in a swappable state.' });
+    }
+
+    // Reset assignment to Scheduled — swap rejected
+    assignment.status = 'Scheduled';
+    assignment.swapRequestedWith = undefined;
+    assignment.swapNotes = req.body.reason ? `Rejected: ${req.body.reason}` : 'Swap rejected';
+    await assignment.save();
+
+    await AuditLog.create({
+      tenantId: assignment.tenantId,
+      userId: req.user?._id,
+      action: 'REJECT_SHIFT_SWAP',
+      resource: 'ShiftAssignment',
+      ipAddress: req.ip,
+      metadata: { assignmentId: assignment._id, reason: req.body.reason },
+    });
+
+    res.status(200).json({ message: 'Shift swap rejected.', assignment });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error rejecting shift swap', error: error.message });
+  }
+};
+
 // --- Retrieval ---
 export const getDoctorSchedule = async (req: Request, res: Response, next: NextFunction) => {
   try {

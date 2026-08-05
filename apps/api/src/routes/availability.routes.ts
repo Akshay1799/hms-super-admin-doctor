@@ -5,7 +5,8 @@ import {
   getDoctorAvailability, 
   blockTime, 
   unblockTime, 
-  getDepartmentAvailability 
+  getDepartmentAvailability,
+  searchAvailableDoctors
 } from '../controllers/availability.controller';
 
 const router = Router();
@@ -16,5 +17,8 @@ router.post('/doctors/:doctorId/block', authorize('DOCTOR', 'DEPT_ADMIN', 'HOSPI
 router.delete('/doctors/:doctorId/block/:blockId', authorize('DOCTOR', 'DEPT_ADMIN', 'HOSPITAL_ADMIN'), unblockTime);
 
 router.get('/departments/:departmentId/availability', getDepartmentAvailability);
+
+// Search Available Doctors (GET /api/availability/search?date=&specialty=&departmentId=)
+router.get('/search', searchAvailableDoctors);
 
 export default router;

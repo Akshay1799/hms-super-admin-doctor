@@ -60,6 +60,35 @@ export const approveLeave = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const rejectLeave = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const leave = await Leave.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!leave) return res.status(404).json({ message: 'Leave record not found.' });
+
+    if (leave.status !== 'Pending') {
+      return res.status(400).json({ message: 'Only pending leave applications can be rejected.' });
+    }
+
+    leave.status = 'Rejected';
+    leave.approvedBy = req.user?._id as any;
+    leave.approvalNotes = req.body.reason || 'Rejected by manager';
+    await leave.save();
+
+    await AuditLog.create({
+      tenantId: leave.tenantId,
+      userId: req.user?._id,
+      action: 'REJECT_LEAVE',
+      resource: 'Leave',
+      ipAddress: req.ip,
+      metadata: { leaveId: leave._id, reason: leave.approvalNotes },
+    });
+
+    res.status(200).json({ message: 'Leave rejected successfully', leave });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error rejecting leave', error: error.message });
+  }
+};
+
 export const listLeaves = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { tenantId } = req.user!;

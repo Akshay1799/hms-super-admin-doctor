@@ -191,3 +191,60 @@ export const getDepartmentAvailability = async (req: Request, res: Response, nex
     res.status(500).json({ message: 'Error fetching department availability', error: error.message });
   }
 };
+
+// Search Available Doctors by date, specialty, department
+export const searchAvailableDoctors = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { date, specialty, departmentId } = req.query;
+    const tenantId = req.user?.tenantId;
+
+    if (!date) return res.status(400).json({ message: 'date query param is required.' });
+
+    const targetDate = new Date(date as string);
+    targetDate.setHours(0, 0, 0, 0);
+
+    // Find all shift assignments for the target date
+    const filter: Record<string, any> = { tenantId, date: targetDate, status: 'Scheduled' };
+    if (departmentId) filter.departmentId = departmentId;
+
+    const assignments = await ShiftAssignment.find(filter)
+      .populate<{ doctorId: any }>('doctorId', 'name email specialty role');
+
+    // Filter doctors who are NOT on leave
+    const doctorIds = assignments.map(a => a.doctorId?._id?.toString()).filter(Boolean);
+    const { Leave } = await import('../models/Leave');
+    const leaveDoctors = await Leave.find({
+      userId: { $in: doctorIds },
+      tenantId,
+      status: 'Approved',
+      startDate: { $lte: targetDate },
+      endDate: { $gte: targetDate }
+    }).distinct('userId');
+
+    const leaveDoctorSet = new Set(leaveDoctors.map(id => id.toString()));
+
+    let availableDoctors = assignments
+      .filter(a => a.doctorId && !leaveDoctorSet.has(a.doctorId._id.toString()))
+      .map(a => a.doctorId);
+
+    // Further filter by specialty if requested
+    if (specialty) {
+      availableDoctors = availableDoctors.filter(
+        (d: any) => d?.specialty?.toLowerCase().includes((specialty as string).toLowerCase())
+      );
+    }
+
+    // Deduplicate by doctor ID
+    const seen = new Set<string>();
+    const unique = availableDoctors.filter((d: any) => {
+      const id = d?._id?.toString();
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    res.status(200).json({ date: targetDate, availableDoctors: unique, total: unique.length });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error searching available doctors', error: error.message });
+  }
+};

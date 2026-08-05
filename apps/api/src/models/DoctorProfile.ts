@@ -10,7 +10,17 @@ export interface IDoctorQualification {
   country: string;
   completionYear: number;
   registrationNumber?: string;
-  documentUrl?: string; // e.g. Cloudinary/S3 URL
+  documentUrl?: string;
+  qualificationStatus: 'Active' | 'Expired' | 'Archived'; // BR-016: Never delete, just archive
+}
+
+export interface IDoctorProfessionalMembership {
+  organizationName: string;
+  membershipType: 'Medical Association' | 'Specialist Board' | 'Professional Council' | 'Academic Body' | 'Other';
+  membershipNumber?: string;
+  validFrom?: Date;
+  validUntil?: Date;
+  status: 'Active' | 'Expired';
 }
 
 export interface IDoctorSpecialization {
@@ -75,7 +85,9 @@ export interface IDoctorProfile extends Document {
   
   languages: string[];
   clinicalPrivileges: string[];
+  professionalMemberships: IDoctorProfessionalMembership[]; // PRD §6 Professional Memberships
   consultationDuration?: number; // duration in minutes
+  employeeId?: string; // Optional HR employee ID
   
   // Operational Status
   departments: mongoose.Types.ObjectId[];
@@ -93,7 +105,17 @@ const QualificationSchema = new Schema<IDoctorQualification>({
   country: { type: String, required: true },
   completionYear: { type: Number, required: true },
   registrationNumber: String,
-  documentUrl: String
+  documentUrl: String,
+  qualificationStatus: { type: String, enum: ['Active', 'Expired', 'Archived'], default: 'Active' } // BR-016
+});
+
+const ProfessionalMembershipSchema = new Schema<IDoctorProfessionalMembership>({
+  organizationName: { type: String, required: true },
+  membershipType: { type: String, enum: ['Medical Association', 'Specialist Board', 'Professional Council', 'Academic Body', 'Other'], required: true },
+  membershipNumber: String,
+  validFrom: Date,
+  validUntil: Date,
+  status: { type: String, enum: ['Active', 'Expired'], default: 'Active' }
 });
 
 const SpecializationSchema = new Schema<IDoctorSpecialization>({
@@ -154,7 +176,9 @@ const DoctorProfileSchema = new Schema<IDoctorProfile>(
 
     languages: [{ type: String }],
     clinicalPrivileges: [{ type: String }],
+    professionalMemberships: [ProfessionalMembershipSchema],
     consultationDuration: { type: Number },
+    employeeId: { type: String },
 
     departments: [{ type: Schema.Types.ObjectId, ref: 'Department' }],
     status: {

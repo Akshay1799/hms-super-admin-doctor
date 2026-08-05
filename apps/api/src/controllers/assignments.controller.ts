@@ -115,6 +115,55 @@ export const acceptAssignment = async (req: Request, res: Response, next: NextFu
   }
 };
 
+// Reject Assignment (Doctor can refuse)
+export const rejectAssignment = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const assignment = await DoctorAssignment.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
+
+    if (assignment.doctorId.toString() !== req.user?._id.toString()) {
+      return res.status(403).json({ message: 'You can only reject your own assignments.' });
+    }
+    if (assignment.status !== 'Pending') {
+      return res.status(400).json({ message: 'Only pending assignments can be rejected.' });
+    }
+
+    assignment.status = 'Rejected';
+    assignment.rejectionReason = req.body.reason;
+    await assignment.save();
+
+    await AuditLog.create({
+      tenantId: assignment.tenantId,
+      userId: req.user?._id,
+      action: 'REJECT_ASSIGNMENT',
+      resource: 'DoctorAssignment',
+      ipAddress: req.ip,
+      metadata: { assignmentId: assignment._id, reason: assignment.rejectionReason },
+    });
+
+    res.status(200).json({ message: 'Assignment rejected.', assignment });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error rejecting assignment', error: error.message });
+  }
+};
+
+// Get All Assignments for an Encounter
+export const getEncounterAssignments = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { encounterId } = req.params;
+    const assignments = await DoctorAssignment.find({
+      encounterId,
+      tenantId: req.user?.tenantId
+    })
+      .populate('doctorId', 'name specialty role')
+      .sort({ createdAt: 1 });
+
+    res.status(200).json(assignments);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching encounter assignments', error: error.message });
+  }
+};
+
 // Complete Assignment
 export const completeAssignment = async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -19,6 +19,8 @@ import {
   addRegistration,
   updateProfileStatus,
   assignClinicalPrivileges,
+  addProfessionalMembership,
+  getLicensesExpiringSoon,
 } from '../controllers/doctors.controller';
 
 const router = Router();
@@ -48,5 +50,9 @@ router.post('/profile/:id/experience', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN'
 router.post('/profile/:id/registration', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'HR_ADMIN'), addRegistration);
 router.put('/profile/:id/status', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN'), updateProfileStatus);
 router.put('/profile/:id/privileges', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN'), assignClinicalPrivileges);
+router.post('/profile/:id/membership', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'HR_ADMIN', 'DEPT_ADMIN'), addProfessionalMembership);
+
+// License Expiry Monitoring
+router.get('/licenses/expiring', authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'HR_ADMIN'), getLicensesExpiringSoon);
 
 export default router;

@@ -10,6 +10,7 @@ import {
   requestShiftSwap,
   doctorApproveShiftSwap,
   adminExecuteShiftSwap,
+  rejectShiftSwap,
   getDoctorSchedule,
   getDepartmentRoster
 } from '../controllers/rosters.controller';
@@ -35,6 +36,7 @@ router.post('/shifts/assign', schedulerRoles, assignShift);
 router.post('/shifts/:id/swap-request', authorize('DOCTOR'), requestShiftSwap);
 router.post('/shifts/:id/swap-approve', authorize('DOCTOR'), doctorApproveShiftSwap);
 router.post('/shifts/:id/swap-execute', schedulerRoles, adminExecuteShiftSwap);
+router.post('/shifts/:id/swap-reject', schedulerRoles, rejectShiftSwap);
 
 // Retrieval
 router.get('/doctor/:doctorId', getDoctorSchedule);

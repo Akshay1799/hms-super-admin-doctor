@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Encounter } from '../models/Encounter';
 import { Prescription } from '../models/Prescription';
 import { Patient } from '../models/Patient';
+import { ConsultationNote } from '../models/ConsultationNote';
 import { sendSuccess, NotFoundError } from '../utils/response';
 
 /**
@@ -17,34 +18,105 @@ export async function getTimeline(req: Request, res: Response, next: NextFunctio
   try {
     const { patientId } = req.params;
     const tenantId = req.user!.tenantId;
+    const { dateFrom, dateTo, type, doctorId } = req.query;
 
-    // Fetch encounters and prescriptions
-    const encounters = await Encounter.find({ patientId, tenantId })
-      .select('type status chiefComplaint createdAt updatedAt')
-      .lean();
-      
-    const prescriptions = await Prescription.find({ patientId, tenantId })
-      .select('visitType status diagnoses medicines createdAt updatedAt')
-      .lean();
+    const dateFilter: Record<string, any> = {};
+    if (dateFrom) dateFilter.$gte = new Date(dateFrom as string);
+    if (dateTo) dateFilter.$lte = new Date(dateTo as string);
+    const createdAtFilter = Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {};
 
-    // Map into a unified timeline format
-    const timeline = [
+    // Fetch encounters, prescriptions, and consultation notes
+    const [encounters, prescriptions, consultationNotes] = await Promise.all([
+      Encounter.find({ patientId, tenantId, ...createdAtFilter })
+        .select('type status chiefComplaint doctorId createdAt updatedAt')
+        .lean(),
+      Prescription.find({ patientId, tenantId, ...createdAtFilter })
+        .select('visitType status diagnoses medicines doctorId doctorName createdAt updatedAt')
+        .lean(),
+      ConsultationNote.find({ 
+        patientId, 
+        tenantId, 
+        status: { $in: ['Finalized', 'Signed', 'Archived'] },
+        ...createdAtFilter
+      })
+        .select('chiefComplaint assessment diagnoses status doctorId finalizedAt createdAt updatedAt')
+        .lean()
+    ]);
+
+    // Map into unified timeline events
+    let timeline = [
       ...encounters.map(e => ({
         type: 'Encounter',
         date: e.createdAt,
+        doctorId: e.doctorId,
         data: e
       })),
       ...prescriptions.map(p => ({
         type: 'Prescription',
         date: p.createdAt,
+        doctorId: p.doctorId,
         data: p
+      })),
+      ...consultationNotes.map(c => ({
+        type: 'ConsultationNote',
+        date: c.createdAt,
+        doctorId: c.doctorId,
+        data: c
       }))
     ];
+
+    // Filter by type if requested
+    if (type) {
+      timeline = timeline.filter(e => e.type === type);
+    }
+
+    // Filter by doctor if requested
+    if (doctorId) {
+      timeline = timeline.filter(e => e.doctorId?.toString() === doctorId);
+    }
 
     // Sort by date descending
     timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     sendSuccess(res, timeline, 'Patient timeline retrieved successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function searchHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { patientId } = req.params;
+    const tenantId = req.user!.tenantId;
+    const { q } = req.query;
+
+    if (!q) {
+      sendSuccess(res, [], 'No search query provided');
+      return;
+    }
+
+    const regex = { $regex: q as string, $options: 'i' };
+
+    const [prescriptions, consultationNotes] = await Promise.all([
+      Prescription.find({ patientId, tenantId, $or: [{ doctorName: regex }, { 'diagnoses.description': regex }] })
+        .select('visitType status diagnoses medicines doctorName createdAt')
+        .lean(),
+      ConsultationNote.find({ 
+        patientId, 
+        tenantId, 
+        status: { $in: ['Finalized', 'Signed', 'Archived'] },
+        $or: [{ chiefComplaint: regex }, { assessment: regex }, { 'diagnoses.description': regex }]
+      })
+        .select('chiefComplaint assessment diagnoses status createdAt')
+        .lean()
+    ]);
+
+    const results = [
+      ...prescriptions.map(p => ({ type: 'Prescription', date: p.createdAt, data: p })),
+      ...consultationNotes.map(c => ({ type: 'ConsultationNote', date: c.createdAt, data: c }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    sendSuccess(res, results, 'Search results retrieved successfully');
   } catch (err) {
     next(err);
   }

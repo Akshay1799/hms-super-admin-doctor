@@ -1,7 +1,8 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export type AssignmentRole = 'Primary' | 'Secondary' | 'Resident' | 'Duty Doctor' | 'Consulting';
-export type AssignmentStatus = 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Transferred' | 'Closed';
+export type AssignmentStatus = 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Transferred' | 'Closed' | 'Rejected';
+export type AssignmentType = 'OPD Consultation' | 'IPD Admission' | 'Emergency Consultation' | 'ICU Assignment' | 'Ward Round' | 'Specialist Referral' | 'Second Opinion' | 'Procedure Consultation' | 'Teleconsultation' | 'Follow-up Consultation';
 
 export interface IDoctorAssignment extends Document {
   _id: mongoose.Types.ObjectId;
@@ -14,6 +15,8 @@ export interface IDoctorAssignment extends Document {
   
   role: AssignmentRole;
   status: AssignmentStatus;
+  assignmentType: AssignmentType; // PRD §5 Assignment Types
+  rejectionReason?: string;
   
   assignedBy: mongoose.Types.ObjectId;
   transferNotes?: string;
@@ -41,10 +44,16 @@ const DoctorAssignmentSchema = new Schema<IDoctorAssignment>(
     
     status: {
       type: String,
-      enum: ['Pending', 'Accepted', 'In Progress', 'Completed', 'Transferred', 'Closed'],
+      enum: ['Pending', 'Accepted', 'In Progress', 'Completed', 'Transferred', 'Closed', 'Rejected'],
       default: 'Pending'
     },
     
+    assignmentType: {
+      type: String,
+      enum: ['OPD Consultation', 'IPD Admission', 'Emergency Consultation', 'ICU Assignment', 'Ward Round', 'Specialist Referral', 'Second Opinion', 'Procedure Consultation', 'Teleconsultation', 'Follow-up Consultation'],
+      default: 'OPD Consultation'
+    },
+    rejectionReason: { type: String },
     assignedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     transferNotes: { type: String },
     transferredTo: { type: Schema.Types.ObjectId, ref: 'DoctorAssignment' }

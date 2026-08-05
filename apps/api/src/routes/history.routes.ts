@@ -6,7 +6,8 @@ import {
   getVisitHistory,
   getClinicalSummary,
   getMedicationHistory,
-  getDiagnosisHistory
+  getDiagnosisHistory,
+  searchHistory
 } from '../controllers/history.controller';
 
 const router = Router();
@@ -20,5 +21,6 @@ router.get('/patients/:patientId/history', authorize(...clinicalRoles), getVisit
 router.get('/patients/:patientId/summary', authorize(...clinicalRoles), getClinicalSummary);
 router.get('/patients/:patientId/medications', authorize(...clinicalRoles), getMedicationHistory);
 router.get('/patients/:patientId/diagnoses', authorize(...clinicalRoles), getDiagnosisHistory);
+router.get('/patients/:patientId/search', authorize(...clinicalRoles), searchHistory);
 
 export default router;

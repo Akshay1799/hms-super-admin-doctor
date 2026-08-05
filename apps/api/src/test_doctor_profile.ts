@@ -53,7 +53,8 @@ async function runTest() {
       university: 'Oxford University',
       institution: 'Oxford Medical College',
       country: 'UK',
-      completionYear: 2010
+      completionYear: 2010,
+      qualificationStatus: 'Active'
     });
     
     // 5. Add Specialization

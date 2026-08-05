@@ -304,6 +304,45 @@ export const assignClinicalPrivileges = async (req: Request, res: Response) => {
   }
 };
 
+export const addProfessionalMembership = async (req: Request, res: Response) => {
+  try {
+    const profile = await DoctorProfile.findOne({ _id: req.params.id, tenantId: req.user?.tenantId });
+    if (!profile) return res.status(404).json({ message: 'Doctor profile not found.' });
+
+    profile.professionalMemberships.push(req.body);
+    await profile.save();
+    res.status(200).json({ message: 'Professional membership added.', profile });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error adding professional membership', error: error.message });
+  }
+};
+
+export const getLicensesExpiringSoon = async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.user?.tenantId;
+    // Warning: Licenses expiring within the next 90 days
+    const daysAhead = parseInt((req.query.days as string) || '90');
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() + daysAhead);
+
+    const profiles = await DoctorProfile.find({
+      tenantId,
+      'registrations.expiryDate': { $lte: cutoffDate, $gte: new Date() }
+    }).select('firstName lastName email mobileNumber registrations');
+
+    const expiring = profiles.map(p => ({
+      profileId: p._id,
+      name: `${p.firstName} ${p.lastName}`,
+      email: p.email,
+      registrations: p.registrations.filter(r => r.expiryDate && r.expiryDate <= cutoffDate && r.expiryDate >= new Date())
+    }));
+
+    res.status(200).json({ expiringLicenses: expiring, cutoffDate });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching expiring licenses', error: error.message });
+  }
+};
+
 // ── 2. Digital Prescription & Consultation Notes ─────────────────
 
 export async function createPrescription(req: Request, res: Response, next: NextFunction): Promise<void> {
