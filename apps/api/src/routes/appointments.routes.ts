@@ -13,7 +13,11 @@ import {
   cancelAppointment,
   rescheduleAppointment,
   getDoctorSchedule,
-  getPatientAppointments
+  getPatientAppointments,
+  bulkCancelAppointments,
+  getAppointmentHistory,
+  getCancellationReasons,
+  getReschedulePolicies
 } from '../controllers/appointments.controller';
 
 const router = Router();
@@ -24,7 +28,12 @@ const scheduleAuth = authorize('SUPER_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'D
 
 router.get('/', listAppointments);
 router.get('/search', listAppointments); // Uses q param for text search
+
+router.get('/config/cancellation-reasons', scheduleAuth, getCancellationReasons);
+router.get('/config/reschedule-policies', scheduleAuth, getReschedulePolicies);
+router.post('/bulk-cancel', scheduleAuth, bulkCancelAppointments);
 router.get('/:id', getAppointment);
+router.get('/:id/history', scheduleAuth, getAppointmentHistory);
 router.post('/', scheduleAuth, createAppointment);
 router.post('/reserve-slot', scheduleAuth, reserveSlot);
 router.delete('/release-slot/:id', scheduleAuth, releaseSlot);

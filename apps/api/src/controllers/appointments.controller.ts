@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { Appointment } from '../models/Appointment';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
+import { AppointmentReminder } from '../models/AppointmentReminder';
+import { AppointmentHistory } from '../models/AppointmentHistory';
+import { CancellationReason } from '../models/CancellationReason';
+import { ReschedulePolicy } from '../models/ReschedulePolicy';
 
 function buildFilter(req: Request): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
@@ -221,6 +225,36 @@ export async function confirmBooking(req: Request, res: Response, next: NextFunc
     appt.reservationExpiresAt = undefined;
     await appt.save();
 
+    // Cross-Module Sync: Schedule Reminders automatically
+    await AppointmentReminder.create({
+      tenantId: appt.tenantId,
+      hospitalId: appt.hospitalId,
+      appointmentId: appt._id,
+      patientId: appt.patientId,
+      type: 'Initial Confirmation',
+      scheduledTime: new Date(), // Send immediately
+      status: 'Scheduled',
+      channel: 'Email'
+    });
+
+    // 24-Hour Reminder
+    const reminder24h = new Date(appt.date);
+    const [hours, minutes] = appt.time.split(':').map(Number);
+    reminder24h.setHours(hours - 24, minutes, 0, 0);
+
+    if (reminder24h > new Date()) {
+      await AppointmentReminder.create({
+        tenantId: appt.tenantId,
+        hospitalId: appt.hospitalId,
+        appointmentId: appt._id,
+        patientId: appt.patientId,
+        type: '24-Hour Reminder',
+        scheduledTime: reminder24h,
+        status: 'Scheduled',
+        channel: 'Email'
+      });
+    }
+
     sendSuccess(res, appt, `Booking confirmed with Token #${tokenNumber}`);
   } catch (err) {
     next(err);
@@ -291,12 +325,36 @@ export async function checkInAppointment(req: Request, res: Response, next: Next
 
 export async function cancelAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const appt = await Appointment.findByIdAndUpdate(
-      req.params.id,
-      { status: 'Cancelled', cancelReason: req.body.reason },
-      { new: true }
-    );
+    const appt = await Appointment.findById(req.params.id);
     if (!appt) throw new NotFoundError('Appointment not found');
+
+    const previousState = appt.toObject();
+
+    appt.status = 'Cancelled';
+    appt.cancelReason = req.body.reason || 'Not specified';
+    await appt.save();
+
+    // Generate Audit History
+    await AppointmentHistory.create({
+      tenantId: appt.tenantId,
+      hospitalId: appt.hospitalId,
+      appointmentId: appt._id,
+      action: 'Cancelled',
+      previousState,
+      newState: appt.toObject(),
+      reason: req.body.reason,
+      changedBy: req.user?._id,
+      ipAddress: req.ip
+    });
+
+    // Cross-Module Sync: Cancel pending reminders
+    await AppointmentReminder.updateMany(
+      { appointmentId: appt._id, status: { $in: ['Scheduled', 'Queued', 'Processing'] } },
+      { status: 'Cancelled' }
+    );
+
+    // TODO: Publish SlotReleased Domain Event or integrate Waiting List check here
+
     sendSuccess(res, appt, 'Appointment cancelled');
   } catch (err) {
     next(err);
@@ -305,7 +363,8 @@ export async function cancelAppointment(req: Request, res: Response, next: NextF
 
 export async function rescheduleAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { date, time } = req.body;
+    const { date, time, reason } = req.body;
+    const tenantId = req.user?.tenantId;
     
     const oldAppt = await Appointment.findById(req.params.id);
     if (!oldAppt) throw new NotFoundError('Appointment not found');
@@ -314,6 +373,36 @@ export async function rescheduleAppointment(req: Request, res: Response, next: N
       throw new Error('Cannot reschedule completed or archived appointments');
     }
 
+    // Policy Check
+    const policy = await ReschedulePolicy.findOne({ tenantId, hospitalId: oldAppt.hospitalId });
+    if (policy) {
+      const now = new Date();
+      const oldApptDate = new Date(oldAppt.date);
+      const [hours, minutes] = oldAppt.time.split(':').map(Number);
+      oldApptDate.setHours(hours, minutes, 0, 0);
+
+      const diffHours = (oldApptDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (diffHours < policy.minimumNoticePeriodHours) {
+        if (!policy.allowSameDayReschedule || req.user?.role === 'PATIENT') {
+          res.status(403).json({ success: false, message: `Rescheduling requires at least ${policy.minimumNoticePeriodHours} hours notice.` });
+          return;
+        }
+      }
+
+      // Check max reschedules
+      const historyCount = await AppointmentHistory.countDocuments({
+        appointmentId: oldAppt._id,
+        action: 'Rescheduled'
+      });
+
+      if (historyCount >= policy.maxReschedules && req.user?.role !== 'SUPER_ADMIN') {
+        res.status(403).json({ success: false, message: `Maximum reschedules (${policy.maxReschedules}) exceeded.` });
+        return;
+      }
+    }
+
+    const previousState = oldAppt.toObject();
     oldAppt.status = 'Rescheduled';
     await oldAppt.save();
 
@@ -350,6 +439,50 @@ export async function rescheduleAppointment(req: Request, res: Response, next: N
       rescheduledFrom: oldAppt._id
     });
 
+    // Cross-Module Sync: Cancel old reminders
+    await AppointmentReminder.updateMany(
+      { appointmentId: oldAppt._id, status: { $in: ['Scheduled', 'Queued', 'Processing'] } },
+      { status: 'Cancelled' }
+    );
+
+    // Schedule Reschedule Notification for the new appointment
+    await AppointmentReminder.create({
+      tenantId: newAppt.tenantId,
+      hospitalId: newAppt.hospitalId,
+      appointmentId: newAppt._id,
+      patientId: newAppt.patientId,
+      type: 'Rescheduled Appointment Notification',
+      scheduledTime: new Date(), // Send immediately
+      status: 'Scheduled',
+      channel: 'Email'
+    });
+
+    // History tracking
+    await AppointmentHistory.create({
+      tenantId: newAppt.tenantId,
+      hospitalId: newAppt.hospitalId,
+      appointmentId: newAppt._id,
+      action: 'Rescheduled',
+      previousState,
+      newState: newAppt.toObject(),
+      reason: reason || 'Rescheduled by user',
+      changedBy: req.user?._id,
+      ipAddress: req.ip
+    });
+
+    // Link history to old appt as well for traceability
+    await AppointmentHistory.create({
+      tenantId: oldAppt.tenantId,
+      hospitalId: oldAppt.hospitalId,
+      appointmentId: oldAppt._id,
+      action: 'Rescheduled',
+      previousState,
+      newState: oldAppt.toObject(),
+      reason: reason || 'Rescheduled to a new slot',
+      changedBy: req.user?._id,
+      ipAddress: req.ip
+    });
+
     sendCreated(res, newAppt, `Appointment rescheduled with Token #${tokenNumber}`);
   } catch (err) {
     next(err);
@@ -382,6 +515,94 @@ export async function getPatientAppointments(req: Request, res: Response, next: 
     
     const appointments = await Appointment.find({ patientId }).sort({ date: -1, time: -1 });
     sendSuccess(res, appointments, 'Patient appointments retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function bulkCancelAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { appointmentIds, reason } = req.body;
+    const tenantId = req.user?.tenantId;
+
+    if (!Array.isArray(appointmentIds) || appointmentIds.length === 0) {
+      res.status(400).json({ success: false, message: 'appointmentIds array is required' });
+      return;
+    }
+
+    const appointments = await Appointment.find({
+      _id: { $in: appointmentIds },
+      tenantId,
+      status: { $nin: ['Completed', 'Archived', 'Cancelled'] }
+    });
+
+    const cancelledIds = [];
+
+    for (const appt of appointments) {
+      const previousState = appt.toObject();
+      appt.status = 'Cancelled';
+      appt.cancelReason = reason || 'Bulk Cancellation';
+      await appt.save();
+
+      await AppointmentHistory.create({
+        tenantId: appt.tenantId,
+        hospitalId: appt.hospitalId,
+        appointmentId: appt._id,
+        action: 'Cancelled',
+        previousState,
+        newState: appt.toObject(),
+        reason: appt.cancelReason,
+        changedBy: req.user?._id,
+        ipAddress: req.ip
+      });
+
+      await AppointmentReminder.updateMany(
+        { appointmentId: appt._id, status: { $in: ['Scheduled', 'Queued', 'Processing'] } },
+        { status: 'Cancelled' }
+      );
+
+      cancelledIds.push(appt._id);
+    }
+
+    sendSuccess(res, { cancelledIds }, `Successfully cancelled ${cancelledIds.length} appointments`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAppointmentHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const history = await AppointmentHistory.find({ appointmentId: req.params.id })
+      .populate('changedBy', 'name email role')
+      .sort({ timestamp: -1 });
+    
+    sendSuccess(res, history, 'Appointment history retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getCancellationReasons(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const filter: Record<string, unknown> = { isActive: true };
+    if (req.user?.tenantId) filter.tenantId = req.user.tenantId;
+    if (req.user?.hospitalId) filter.hospitalId = req.user.hospitalId;
+
+    const reasons = await CancellationReason.find(filter);
+    sendSuccess(res, reasons, 'Cancellation reasons retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getReschedulePolicies(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const filter: Record<string, unknown> = {};
+    if (req.user?.tenantId) filter.tenantId = req.user.tenantId;
+    if (req.user?.hospitalId) filter.hospitalId = req.user.hospitalId;
+
+    const policies = await ReschedulePolicy.find(filter);
+    sendSuccess(res, policies, 'Reschedule policies retrieved');
   } catch (err) {
     next(err);
   }
