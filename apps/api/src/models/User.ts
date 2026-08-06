@@ -18,7 +18,8 @@ export type UserRole =
   | 'PATHOLOGIST'
   | 'BILLING_EXECUTIVE'
   | 'RADIOLOGIST'
-  | 'RADIOLOGY_TECHNICIAN';
+  | 'RADIOLOGY_TECHNICIAN'
+  | 'WARD_INCHARGE';
 
 export type UserStatus = 'Active' | 'Inactive' | 'Suspended' | 'Pending';
 
@@ -76,8 +77,9 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true, select: false },
     role: {
       type: String,
-      enum: ['SUPER_ADMIN', 'TENANT_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'STAFF', 'PATIENT'],
       required: true,
+      enum: ['SUPER_ADMIN', 'TENANT_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'STAFF', 'HR_ADMIN', 'PATIENT', 'PHARMACY_MANAGER', 'PHARMACIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'BILLING_EXECUTIVE', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'WARD_INCHARGE'],
+      default: 'PATIENT'
     },
     status: {
       type: String,
