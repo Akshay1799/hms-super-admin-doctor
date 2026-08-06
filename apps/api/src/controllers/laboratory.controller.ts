@@ -4,8 +4,13 @@ import { TestCatalog } from '../models/TestCatalog';
 import { LaboratoryPanel } from '../models/LaboratoryPanel';
 import { LaboratorySpecimen } from '../models/LaboratorySpecimen';
 import { LaboratoryPackage } from '../models/LaboratoryPackage';
+import { LaboratoryResult } from '../models/LaboratoryResult';
+import { LaboratoryReport } from '../models/LaboratoryReport';
+import { ReferenceRange } from '../models/ReferenceRange';
+import { Patient } from '../models/Patient';
 import { Invoice } from '../models/Billing';
 import { generateBarcodeBase64 } from '../utils/barcode';
+import { generatePdfReport } from '../utils/pdfGenerator';
 import { sendSuccess, sendCreated, NotFoundError, ValidationError } from '../utils/response';
 import mongoose from 'mongoose';
 
@@ -633,6 +638,333 @@ export async function validateBilling(req: Request, res: Response, next: NextFun
     } else {
       throw new ValidationError(`Billing validation failed: Invoice status is ${invoice.status}`);
     }
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------------
+// Results & Reporting (Feature 4)
+// ----------------------------------------------------------------------
+
+/**
+ * Enter Laboratory Result
+ */
+export async function enterResult(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId, id: userId } = req.user!;
+    const { laboratoryOrderId, testId, specimenId, value, unit } = req.body;
+
+    const order = await LaboratoryOrder.findOne({ _id: laboratoryOrderId, tenantId, hospitalId });
+    if (!order) throw new NotFoundError('Laboratory order not found');
+
+    if (!['Sample Collected', 'Processing', 'Reported'].includes(order.status)) {
+      throw new ValidationError('Order must be in Processing or Sample Collected state to enter results');
+    }
+
+    const test = await TestCatalog.findOne({ _id: testId, tenantId });
+    if (!test) throw new NotFoundError('Test catalog item not found');
+
+    const patient = await Patient.findById(order.patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    // Auto-calculate classification
+    let isAbnormal = false;
+    let isCritical = false;
+    let isPanic = false;
+    let deltaWarning = false;
+    let classification = 'Normal';
+    let referenceRangeStr = '';
+
+    const ageDays = patient.dateOfBirth 
+      ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
+    const ranges = await ReferenceRange.find({
+      testId,
+      tenantId,
+      hospitalId,
+      isActive: true,
+      minAgeDays: { $lte: ageDays },
+      maxAgeDays: { $gte: ageDays }
+    });
+
+    // Find a matching gender or 'All'
+    let matchingRange = ranges.find(r => r.gender === patient.gender);
+    if (!matchingRange) {
+      matchingRange = ranges.find(r => r.gender === 'All');
+    }
+
+    if (matchingRange && typeof value === 'number') {
+      referenceRangeStr = `${matchingRange.normalMinValue} - ${matchingRange.normalMaxValue} ${matchingRange.unit || ''}`;
+      const numVal = Number(value);
+
+      if (matchingRange.panicMinValue !== undefined && numVal < matchingRange.panicMinValue) {
+        isPanic = true;
+        classification = 'Panic Low';
+      } else if (matchingRange.panicMaxValue !== undefined && numVal > matchingRange.panicMaxValue) {
+        isPanic = true;
+        classification = 'Panic High';
+      } else if (matchingRange.criticalMinValue !== undefined && numVal < matchingRange.criticalMinValue) {
+        isCritical = true;
+        classification = 'Critical Low';
+      } else if (matchingRange.criticalMaxValue !== undefined && numVal > matchingRange.criticalMaxValue) {
+        isCritical = true;
+        classification = 'Critical High';
+      } else if (numVal < matchingRange.normalMinValue) {
+        isAbnormal = true;
+        classification = 'Low';
+      } else if (numVal > matchingRange.normalMaxValue) {
+        isAbnormal = true;
+        classification = 'High';
+      }
+    }
+
+    // Delta check: fetch the last validated result for the same patient and test
+    const previousResult = await LaboratoryResult.findOne({
+      patientId: order.patientId,
+      testId,
+      tenantId,
+      status: 'Validated'
+    }).sort({ enteredAt: -1 });
+
+    if (previousResult && typeof value === 'number' && typeof previousResult.value === 'number') {
+      const prev = Number(previousResult.value);
+      const curr = Number(value);
+      // Example Delta Check: If variance is > 20%
+      if (prev > 0) {
+        const variance = Math.abs((curr - prev) / prev);
+        if (variance > 0.20) {
+          deltaWarning = true;
+        }
+      }
+    }
+
+    const result = new LaboratoryResult({
+      laboratoryOrderId,
+      patientId: order.patientId,
+      testId,
+      specimenId,
+      value,
+      unit: unit || (matchingRange ? matchingRange.unit : undefined),
+      referenceRange: referenceRangeStr,
+      isAbnormal,
+      isCritical,
+      isPanic,
+      deltaWarning,
+      classification,
+      enteredBy: new mongoose.Types.ObjectId(userId.toString()),
+      tenantId,
+      hospitalId,
+      status: 'Entered'
+    });
+
+    await result.save();
+
+    if (order.status !== 'Processing') {
+      order.status = 'Processing';
+      await order.save();
+    }
+
+    sendCreated(res, result, 'Laboratory result entered');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Generate Report (PDF)
+ */
+export async function generateReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId, id: userId } = req.user!;
+    const { laboratoryOrderId } = req.body;
+
+    const order = await LaboratoryOrder.findOne({ _id: laboratoryOrderId, tenantId, hospitalId })
+      .populate('patientId', 'firstName lastName uhid dateOfBirth gender')
+      .populate('doctorId', 'firstName lastName');
+
+    if (!order) throw new NotFoundError('Laboratory order not found');
+
+    const results = await LaboratoryResult.find({ laboratoryOrderId, tenantId, hospitalId }).populate('testId');
+    
+    if (!results || results.length === 0) {
+      throw new ValidationError('Cannot generate report: No results entered for this order');
+    }
+
+    // Check if an existing report is there
+    let existingReport = await LaboratoryReport.findOne({ laboratoryOrderId, tenantId, hospitalId }).sort({ version: -1 });
+    let newVersion = 1;
+    let previousVersionId = undefined;
+
+    if (existingReport) {
+      if (existingReport.status === 'Draft') {
+        // Just overwrite draft
+        newVersion = existingReport.version;
+        await LaboratoryReport.deleteOne({ _id: existingReport._id });
+      } else {
+        newVersion = existingReport.version + 1;
+        previousVersionId = existingReport._id;
+      }
+    }
+
+    // Prepare PDF Data
+    const patientInfo: any = order.patientId;
+    const doctorInfo: any = order.doctorId;
+    const age = patientInfo.dateOfBirth 
+      ? new Date().getFullYear() - new Date(patientInfo.dateOfBirth).getFullYear() 
+      : 0;
+
+    const pdfData = {
+      reportNumber: `REP-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`,
+      patientName: `${patientInfo.firstName} ${patientInfo.lastName}`,
+      uhid: patientInfo.uhid || 'N/A',
+      age,
+      gender: patientInfo.gender || 'N/A',
+      doctorName: doctorInfo ? `${doctorInfo.firstName} ${doctorInfo.lastName}` : 'Self / N/A',
+      collectionDate: order.createdAt,
+      reportingDate: new Date(),
+      results: results.map((r: any) => ({
+        testName: r.testId.testName,
+        value: r.value,
+        unit: r.unit || r.testId.unit || '',
+        referenceRange: r.referenceRange || r.testId.referenceRange || '',
+        isAbnormal: r.isAbnormal,
+        isCritical: r.isCritical,
+        isPanic: r.isPanic,
+        classification: r.classification
+      }))
+    };
+
+    const pdfBase64 = await generatePdfReport(pdfData);
+
+    const report = new LaboratoryReport({
+      reportNumber: pdfData.reportNumber,
+      laboratoryOrderId,
+      patientId: order.patientId,
+      status: 'Draft',
+      version: newVersion,
+      previousVersionId,
+      results: results.map(r => r._id),
+      pdfBase64,
+      generatedBy: new mongoose.Types.ObjectId(userId.toString()),
+      tenantId,
+      hospitalId
+    });
+
+    await report.save();
+
+    // Update order status if not already reported
+    if (order.status !== 'Reported') {
+      order.status = 'Reported';
+      await order.save();
+    }
+
+    sendCreated(res, report, 'Report generated successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Report
+ */
+export async function getReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId })
+      .populate({
+        path: 'results',
+        populate: { path: 'testId', select: 'testName unit referenceRange' }
+      })
+      .populate('generatedBy', 'firstName lastName');
+
+    if (!report) throw new NotFoundError('Report not found');
+
+    sendSuccess(res, report, 'Report retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Download Report PDF
+ */
+export async function downloadReportPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (!report.pdfBase64) throw new ValidationError('PDF not available for this report');
+
+    sendSuccess(res, { pdfBase64: report.pdfBase64 }, 'PDF retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Report Versions
+ */
+export async function getReportVersions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+
+    const versions = await LaboratoryReport.find({
+      laboratoryOrderId: report.laboratoryOrderId,
+      tenantId,
+      hospitalId
+    }).sort({ version: -1 });
+
+    sendSuccess(res, versions, 'Report versions retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------------
+// Reference Ranges (Feature 5)
+// ----------------------------------------------------------------------
+
+/**
+ * Create Reference Range
+ */
+export async function createReferenceRange(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    
+    const range = new ReferenceRange({
+      ...req.body,
+      tenantId,
+      hospitalId
+    });
+
+    await range.save();
+
+    sendCreated(res, range, 'Reference range created successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Reference Ranges
+ */
+export async function getReferenceRanges(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const { testId } = req.query;
+
+    const query: any = { tenantId, hospitalId, isActive: true };
+    if (testId) query.testId = testId;
+
+    const ranges = await ReferenceRange.find(query).populate('testId', 'testName testCode');
+
+    sendSuccess(res, ranges, 'Reference ranges retrieved');
   } catch (err) {
     next(err);
   }

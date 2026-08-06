@@ -15,7 +15,14 @@ import {
   searchSpecimens,
   getPackages,
   getBillingStatus,
-  validateBilling
+  validateBilling,
+  enterResult,
+  generateReport,
+  getReport,
+  downloadReportPdf,
+  getReportVersions,
+  createReferenceRange,
+  getReferenceRanges
 } from '../controllers/laboratory.controller';
 import { authorize } from '../middleware/authorize';
 
@@ -44,5 +51,16 @@ router.post('/specimens/:id/reject', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 
 router.post('/specimens/:id/recollect', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), recollectSpecimen);
 router.get('/specimens/:id', authorize('LAB_TECHNICIAN', 'NURSE', 'DOCTOR', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getSpecimen);
 router.get('/specimens', authorize('LAB_TECHNICIAN', 'NURSE', 'DOCTOR', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), searchSpecimens);
+
+// Results & Reporting
+router.post('/results', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), enterResult);
+router.post('/reports/generate', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), generateReport);
+router.get('/reports/:reportId', authorize('DOCTOR', 'NURSE', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getReport);
+router.get('/reports/:reportId/pdf', authorize('DOCTOR', 'NURSE', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), downloadReportPdf);
+router.get('/reports/:reportId/versions', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getReportVersions);
+
+// Reference Ranges
+router.post('/reference-ranges', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), createReferenceRange);
+router.get('/reference-ranges', authorize('DOCTOR', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getReferenceRanges);
 
 export default router;
