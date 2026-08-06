@@ -19,7 +19,8 @@ import {
   getCancellationReasons,
   getReschedulePolicies,
   getPendingReferrals,
-  getAvailableDepartments
+  getAvailableDepartments,
+  holdSlot
 } from '../controllers/appointments.controller';
 
 const router = Router();
@@ -39,8 +40,9 @@ router.get('/config/reschedule-policies', scheduleAuth, getReschedulePolicies);
 router.post('/bulk-cancel', scheduleAuth, bulkCancelAppointments);
 router.get('/:id', getAppointment);
 router.get('/:id/history', scheduleAuth, getAppointmentHistory);
-router.post('/', scheduleAuth, createAppointment);
-router.post('/reserve-slot', scheduleAuth, reserveSlot);
+router.post('/', authorize('RECEPTIONIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), createAppointment);
+router.post('/hold', authorize('RECEPTIONIST', 'SUPER_ADMIN', 'PATIENT'), holdSlot);
+router.post('/reserve', authorize('PATIENT', 'RECEPTIONIST'), reserveSlot);
 router.delete('/release-slot/:id', scheduleAuth, releaseSlot);
 router.post('/:id/confirm', scheduleAuth, confirmBooking);
 router.patch('/:id', scheduleAuth, updateAppointment);

@@ -9,7 +9,9 @@ export interface IWaitingListEntry extends Document {
   preferredDate?: Date;
   preferredTime?: string;
   priorityLevel: number; // lower number = higher priority
-  status: 'Waiting' | 'Offer Sent' | 'Accepted' | 'Rejected' | 'Expired' | 'Cancelled' | 'Archived';
+  status: 'Waiting' | 'Offer Sent' | 'Accepted' | 'Rejected' | 'Notified' | 'Reserved' | 'Booked' | 'Expired' | 'Cancelled' | 'Archived';
+  reservationExpiresAt?: Date;
+  notes?: string;
   offerDetails?: {
     offeredDoctorId: mongoose.Types.ObjectId;
     offeredDepartmentId: mongoose.Types.ObjectId;
@@ -38,10 +40,12 @@ const WaitingListEntrySchema = new Schema<IWaitingListEntry>(
     priorityLevel: { type: Number, default: 10, index: true },
     status: {
       type: String,
-      enum: ['Waiting', 'Offer Sent', 'Accepted', 'Rejected', 'Expired', 'Cancelled', 'Archived'],
+      enum: ['Waiting', 'Offer Sent', 'Accepted', 'Rejected', 'Notified', 'Reserved', 'Booked', 'Expired', 'Cancelled', 'Archived'],
       default: 'Waiting',
       index: true
     },
+    reservationExpiresAt: { type: Date },
+    notes: String,
     offerDetails: {
       offeredDoctorId: { type: Schema.Types.ObjectId, ref: 'User' },
       offeredDepartmentId: { type: Schema.Types.ObjectId, ref: 'Department' },

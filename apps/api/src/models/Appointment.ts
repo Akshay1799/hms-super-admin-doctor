@@ -34,6 +34,10 @@ export interface IAppointment extends Document {
   appointmentGroupId?: mongoose.Types.ObjectId;
   dependsOnAppointmentId?: mongoose.Types.ObjectId; // For sequential appointments
   referralId?: mongoose.Types.ObjectId;
+  remindersStatus?: {
+    twentyFourHour?: boolean;
+    twoHour?: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -88,6 +92,10 @@ const AppointmentSchema = new Schema<IAppointment>(
     dependsOnAppointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment' },
     referralId: { type: Schema.Types.ObjectId, ref: 'Referral' },
     reservationExpiresAt: Date,
+    remindersStatus: {
+      twentyFourHour: { type: Boolean, default: false },
+      twoHour: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

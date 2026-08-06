@@ -5,6 +5,7 @@ import { AppointmentReminder } from '../models/AppointmentReminder';
 import { AppointmentHistory } from '../models/AppointmentHistory';
 import { CancellationReason } from '../models/CancellationReason';
 import { ReschedulePolicy } from '../models/ReschedulePolicy';
+import { SlotHold } from '../models/SlotHold';
 import { evaluateWaitingList } from './waitingList.controller';
 
 function buildFilter(req: Request): Record<string, unknown> {
@@ -118,6 +119,26 @@ export async function createAppointment(req: Request, res: Response, next: NextF
       return;
     }
 
+    // Check if slot is held by another user
+    const existingHold = await SlotHold.findOne({
+      tenantId,
+      doctorId,
+      date: apptDate,
+      time,
+      patientId: { $ne: patientId } // Someone else holding it
+    });
+
+    if (existingHold) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'SLOT_HELD',
+          message: 'This slot is currently held by another patient. Please wait or choose another slot.'
+        }
+      });
+      return;
+    }
+
     const tokenNumber = await generateTokenNumber(doctorId, apptDate);
 
     const appt = await Appointment.create({
@@ -127,6 +148,15 @@ export async function createAppointment(req: Request, res: Response, next: NextF
       tokenNumber,
       queuePosition: tokenNumber,
       status: req.body.status || 'Scheduled'
+    });
+
+    // Clear the hold if this user was the one holding it
+    await SlotHold.deleteOne({
+      tenantId,
+      doctorId,
+      date: apptDate,
+      time,
+      patientId
     });
 
     sendCreated(res, appt, `Appointment scheduled with Token #${tokenNumber}`);
@@ -178,6 +208,60 @@ export async function reserveSlot(req: Request, res: Response, next: NextFunctio
     });
 
     sendCreated(res, appt, 'Slot reserved successfully for 10 minutes');
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function holdSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { patientId, doctorId, date, time } = req.body;
+    const tenantId = req.body.tenantId || req.user?.tenantId;
+    
+    const apptDate = new Date(date);
+    
+    // Check if appointment already booked
+    const conflict = await Appointment.findOne({
+      tenantId,
+      doctorId,
+      date: apptDate,
+      time,
+      status: { $in: ['Reserved', 'Scheduled', 'Confirmed', 'Checked-In', 'In Progress'] }
+    });
+
+    if (conflict) {
+      res.status(409).json({ success: false, message: 'Slot already booked' });
+      return;
+    }
+
+    // Check existing hold
+    const existingHold = await SlotHold.findOne({ tenantId, doctorId, date: apptDate, time });
+    if (existingHold && existingHold.patientId.toString() !== patientId) {
+      res.status(409).json({ success: false, message: 'Slot currently held by another patient' });
+      return;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 mins
+
+    let hold = await SlotHold.findOne({ tenantId, doctorId, date: apptDate, time, patientId });
+    if (hold) {
+      hold.expireAt = expiresAt;
+      await hold.save();
+    } else {
+      hold = await SlotHold.create({
+        tenantId,
+        hospitalId: req.body.hospitalId || req.user?.hospitalId,
+        doctorId,
+        patientId,
+        date: apptDate,
+        time,
+        type: 'CHECKOUT',
+        expireAt: expiresAt
+      });
+    }
+
+    sendCreated(res, hold, 'Slot held successfully for 15 minutes');
   } catch (err) {
     next(err);
   }

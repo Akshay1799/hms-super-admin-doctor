@@ -45,6 +45,7 @@ import queueRoutes from './routes/queues.routes';
 import reminderRoutes from './routes/reminders.routes';
 import waitingListRoutes from './routes/waitingList.routes';
 import appointmentGroupRoutes from './routes/appointmentGroups.routes';
+import { startReminderJobs } from './jobs/reminderJob';
 
 const app = express();
 
@@ -180,8 +181,15 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/waiting-list', waitingListRoutes);
 app.use('/api/appointment-groups', appointmentGroupRoutes);
 
-// 404 & Global error handling
+// Catch all unmatched routes (404)
 app.use(notFoundHandler);
+
+// Start Background Jobs
+if (process.env.NODE_ENV !== 'test') {
+  startReminderJobs();
+}
+
+// Global Error Handler
 app.use(errorHandler);
 
 export default app;

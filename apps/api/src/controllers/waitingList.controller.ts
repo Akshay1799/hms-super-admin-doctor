@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { WaitingListEntry } from '../models/WaitingListEntry';
 import { Appointment } from '../models/Appointment';
 import { sendSuccess, sendCreated, NotFoundError } from '../utils/response';
+import { SlotHold } from '../models/SlotHold';
 
 export async function joinWaitingList(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -241,11 +242,24 @@ export async function evaluateWaitingList(doctorId: string, departmentId: string
 
     if (!eligibleEntry) return; // No one is waiting
 
-    // 2. Generate Offer
+    // 2. Generate Offer and Auto-Reserve Slot
     const offerExpiresAt = new Date();
-    offerExpiresAt.setHours(offerExpiresAt.getHours() + 2); // Offer valid for 2 hours
+    offerExpiresAt.setMinutes(offerExpiresAt.getMinutes() + 30); // 30 mins waitlist reservation
 
-    eligibleEntry.status = 'Offer Sent';
+    // Create a physical lock on the slot
+    await SlotHold.create({
+      tenantId: eligibleEntry.tenantId,
+      hospitalId: eligibleEntry.hospitalId,
+      doctorId: new mongoose.Types.ObjectId(doctorId),
+      patientId: eligibleEntry.patientId,
+      date: date,
+      time: time,
+      type: 'WAITLIST',
+      expireAt: offerExpiresAt
+    });
+
+    eligibleEntry.status = 'Reserved';
+    eligibleEntry.reservationExpiresAt = offerExpiresAt;
     eligibleEntry.offerDetails = {
       offeredDoctorId: new mongoose.Types.ObjectId(doctorId),
       offeredDepartmentId: new mongoose.Types.ObjectId(departmentId),
@@ -253,7 +267,7 @@ export async function evaluateWaitingList(doctorId: string, departmentId: string
       offeredTime: time,
       offerExpiresAt
     };
-    eligibleEntry.history.push({ action: 'Offer Generated', details: `Offered slot at ${time}`, timestamp: new Date() });
+    eligibleEntry.history.push({ action: 'Slot Auto-Reserved', details: `Reserved slot at ${time} for 30 mins`, timestamp: new Date() });
     
     await eligibleEntry.save();
 
