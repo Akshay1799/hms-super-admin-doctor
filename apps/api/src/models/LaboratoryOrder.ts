@@ -29,7 +29,7 @@ export interface ILaboratoryOrder extends Document {
     symptoms?: string;
   };
   history: ILaboratoryOrderHistory[];
-  billingStatus?: 'Not Required' | 'Pending' | 'Completed' | 'Failed';
+  billingStatus?: 'Not Required' | 'Pending' | 'Completed' | 'Deferred' | 'Failed';
   invoiceId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -76,7 +76,7 @@ const LaboratoryOrderSchema: Schema = new Schema(
     ],
     billingStatus: {
       type: String,
-      enum: ['Not Required', 'Pending', 'Completed', 'Failed'],
+      enum: ['Not Required', 'Pending', 'Completed', 'Deferred', 'Failed'],
       default: 'Not Required'
     },
     invoiceId: { type: Schema.Types.ObjectId } // Refer to Billing Module's Invoice if applicable

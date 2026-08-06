@@ -3,6 +3,8 @@ import { LaboratoryOrder } from '../models/LaboratoryOrder';
 import { TestCatalog } from '../models/TestCatalog';
 import { LaboratoryPanel } from '../models/LaboratoryPanel';
 import { LaboratorySpecimen } from '../models/LaboratorySpecimen';
+import { LaboratoryPackage } from '../models/LaboratoryPackage';
+import { Invoice } from '../models/Billing';
 import { generateBarcodeBase64 } from '../utils/barcode';
 import { sendSuccess, sendCreated, NotFoundError, ValidationError } from '../utils/response';
 import mongoose from 'mongoose';
@@ -304,6 +306,13 @@ export async function collectSpecimen(req: Request, res: Response, next: NextFun
       throw new ValidationError(`Cannot collect specimen in status: ${specimen.status}`);
     }
 
+    const order = await LaboratoryOrder.findById(specimen.laboratoryOrderId);
+    if (!order) throw new NotFoundError('Laboratory order not found');
+
+    if (!['Completed', 'Deferred', 'Not Required'].includes(order.billingStatus || 'Not Required')) {
+      throw new ValidationError('Cannot collect sample: Billing validation is incomplete.');
+    }
+
     specimen.status = 'Collected';
     specimen.collectorId = new mongoose.Types.ObjectId(userId.toString());
     specimen.collectionTime = new Date();
@@ -317,8 +326,7 @@ export async function collectSpecimen(req: Request, res: Response, next: NextFun
     await specimen.save();
 
     // Optionally update order status to 'Sample Collected' if all specimens are collected
-    const order = await LaboratoryOrder.findById(specimen.laboratoryOrderId);
-    if (order && order.status === 'Sample Pending') {
+    if (order.status === 'Sample Pending') {
       order.status = 'Sample Collected';
       await order.save();
     }
@@ -494,6 +502,137 @@ export async function searchSpecimens(req: Request, res: Response, next: NextFun
       .sort({ createdAt: -1 });
 
     sendSuccess(res, specimens, 'Specimens retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------------
+// Billing & Packages (Feature 3)
+// ----------------------------------------------------------------------
+
+/**
+ * Get Laboratory Packages
+ */
+export async function getPackages(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const packages = await LaboratoryPackage.find({ tenantId, hospitalId, isActive: true })
+      .populate('tests')
+      .populate('panels');
+
+    sendSuccess(res, packages, 'Laboratory packages retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Billing Status
+ */
+export async function getBillingStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const order = await LaboratoryOrder.findOne({ _id: req.params.orderId, tenantId, hospitalId });
+    if (!order) throw new NotFoundError('Laboratory order not found');
+
+    let invoice = null;
+    if (order.invoiceId) {
+      invoice = await Invoice.findById(order.invoiceId);
+    }
+
+    sendSuccess(res, {
+      billingStatus: order.billingStatus,
+      invoiceId: order.invoiceId,
+      invoiceStatus: invoice ? invoice.status : null
+    }, 'Billing status retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Validate Billing
+ */
+export async function validateBilling(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId, id: userId } = req.user!;
+    const { overrideReason, isEmergency } = req.body;
+
+    const order = await LaboratoryOrder.findOne({ _id: req.params.orderId, tenantId, hospitalId });
+    if (!order) throw new NotFoundError('Laboratory order not found');
+
+    if (order.billingStatus === 'Completed' || order.billingStatus === 'Not Required') {
+      sendSuccess(res, order, 'Billing is already validated');
+      return;
+    }
+
+    if (isEmergency) {
+      if (!overrideReason) throw new ValidationError('Override reason is required for emergency billing override');
+      
+      // Create deferred invoice
+      const timestamp = Date.now().toString().slice(-6);
+      const invoice = new Invoice({
+        tenantId,
+        hospitalId,
+        patientId: order.patientId,
+        invoiceNumber: `INV-${new Date().getFullYear()}-${timestamp}`,
+        invoiceType: 'Lab',
+        billingMode: 'Self-Pay',
+        tenantName: 'Emergency Deferred',
+        amount: 0,
+        totalAmount: 0,
+        status: 'draft',
+        locked: false,
+        issuedDate: new Date(),
+        dueDate: new Date(),
+        createdBy: new mongoose.Types.ObjectId(userId.toString())
+      });
+      await invoice.save();
+      
+      order.invoiceId = invoice._id as mongoose.Types.ObjectId;
+      order.billingStatus = 'Deferred';
+      order.history.push({
+        action: 'Billing Override',
+        timestamp: new Date(),
+        userId: new mongoose.Types.ObjectId(userId.toString()),
+        details: `Emergency Override: ${overrideReason} - Deferred Invoice Created`
+      });
+
+      if (order.status === 'Requested' || order.status === 'Billing Pending') {
+        order.status = 'Sample Pending';
+      }
+
+      await order.save();
+      sendSuccess(res, order, 'Emergency billing override applied successfully');
+      return;
+    }
+
+    if (!order.invoiceId) {
+      throw new ValidationError('No invoice linked to this order for validation');
+    }
+
+    const invoice = await Invoice.findOne({ _id: order.invoiceId, tenantId });
+    if (!invoice) throw new NotFoundError('Invoice not found in Billing module');
+
+    if (invoice.status === 'paid') {
+      order.billingStatus = 'Completed';
+      order.history.push({
+        action: 'Billing Validated',
+        timestamp: new Date(),
+        userId: new mongoose.Types.ObjectId(userId.toString()),
+        details: 'Invoice confirmed paid by Billing module'
+      });
+
+      if (order.status === 'Requested' || order.status === 'Billing Pending') {
+        order.status = 'Sample Pending';
+      }
+
+      await order.save();
+      sendSuccess(res, order, 'Billing validated successfully');
+    } else {
+      throw new ValidationError(`Billing validation failed: Invoice status is ${invoice.status}`);
+    }
   } catch (err) {
     next(err);
   }

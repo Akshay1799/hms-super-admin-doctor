@@ -12,14 +12,18 @@ import {
   rejectSpecimen,
   recollectSpecimen,
   getSpecimen,
-  searchSpecimens
+  searchSpecimens,
+  getPackages,
+  getBillingStatus,
+  validateBilling
 } from '../controllers/laboratory.controller';
 import { authorize } from '../middleware/authorize';
 
 const router = Router();
 
-// Test Catalog
+// Test Catalog & Packages
 router.get('/test-catalog', authorize('DOCTOR', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getTestCatalog);
+router.get('/packages', authorize('DOCTOR', 'RECEPTIONIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getPackages);
 
 // Laboratory Orders
 router.post('/orders', authorize('DOCTOR'), createOrder);
@@ -27,6 +31,10 @@ router.get('/orders', authorize('DOCTOR', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'RECE
 router.get('/orders/:orderId', authorize('DOCTOR', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'RECEPTIONIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getOrder);
 router.patch('/orders/:orderId', authorize('DOCTOR'), updateOrder);
 router.post('/orders/:orderId/cancel', authorize('DOCTOR', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), cancelOrder);
+
+// Billing Validation
+router.get('/orders/:orderId/billing-status', authorize('RECEPTIONIST', 'BILLING_EXECUTIVE', 'LAB_TECHNICIAN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getBillingStatus);
+router.post('/orders/:orderId/billing-validation', authorize('RECEPTIONIST', 'BILLING_EXECUTIVE', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), validateBilling);
 
 // Specimen Management
 router.post('/specimens', authorize('LAB_TECHNICIAN', 'NURSE', 'DOCTOR', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), createSpecimen);
