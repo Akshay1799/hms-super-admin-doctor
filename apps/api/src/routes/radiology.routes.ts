@@ -36,6 +36,15 @@ import {
   getTemplates
 } from '../controllers/radiology-report.controller';
 
+import {
+  deliverReport,
+  resendReport,
+  getDeliveryStatus,
+  downloadReport,
+  downloadStudy,
+  getAccessHistory
+} from '../controllers/radiology-delivery.controller';
+
 const router = Router();
 
 // Require authentication for all radiology routes
@@ -206,6 +215,50 @@ router.get(
   '/reports/:reportId/versions',
   authorize('DOCTOR', 'RADIOLOGIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
   getReportVersions
+);
+
+// --- Radiology Delivery Routes ---
+
+// Deliver Report (Receptionist, Technician, Admin)
+router.post(
+  '/reports/:reportId/deliver',
+  authorize('RECEPTIONIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  deliverReport
+);
+
+// Resend Report (Receptionist, Technician, Admin)
+router.post(
+  '/reports/:reportId/resend',
+  authorize('RECEPTIONIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  resendReport
+);
+
+// Get Delivery Status (Receptionist, Admin)
+router.get(
+  '/reports/:reportId/delivery-status',
+  authorize('RECEPTIONIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getDeliveryStatus
+);
+
+// Download Report (Patient, Doctor, Admin)
+router.get(
+  '/reports/:reportId/download',
+  authorize('PATIENT', 'DOCTOR', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  downloadReport
+);
+
+// Download Study / Export DICOM ref (Patient, Doctor, Admin)
+router.get(
+  '/studies/:studyId/download',
+  authorize('PATIENT', 'DOCTOR', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  downloadStudy
+);
+
+// Get Access History (Admin, Doctor)
+router.get(
+  '/reports/:reportId/access-history',
+  authorize('DOCTOR', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getAccessHistory
 );
 
 export default router;
