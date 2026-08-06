@@ -28,11 +28,14 @@ export function startReminderJobs() {
       for (const appt of dayAheadAppointments) {
         await AppointmentReminder.create({
           tenantId: appt.tenantId,
+          hospitalId: appt.hospitalId,
+          patientId: appt.patientId,
           appointmentId: appt._id,
-          type: '24_HOUR',
+          type: '24-Hour Reminder',
+          scheduledTime: appt.date,
           channel: 'Email',
-          status: 'Sent',
-          metadata: { note: 'Auto-generated 24h reminder via node-cron' }
+          status: 'Delivered',
+          deliveryStatus: 'Auto-generated 24h reminder via node-cron'
         });
         
         appt.remindersStatus = { ...appt.remindersStatus, twentyFourHour: true };
@@ -50,11 +53,14 @@ export function startReminderJobs() {
       for (const appt of twoHoursAheadAppointments) {
         await AppointmentReminder.create({
           tenantId: appt.tenantId,
+          hospitalId: appt.hospitalId,
+          patientId: appt.patientId,
           appointmentId: appt._id,
-          type: '2_HOUR',
+          type: 'Same-Day Reminder',
+          scheduledTime: appt.date,
           channel: 'Email',
-          status: 'Sent',
-          metadata: { note: 'Auto-generated 2h reminder via node-cron' }
+          status: 'Delivered',
+          deliveryStatus: 'Auto-generated 2h reminder via node-cron'
         });
         
         appt.remindersStatus = { ...appt.remindersStatus, twoHour: true };
