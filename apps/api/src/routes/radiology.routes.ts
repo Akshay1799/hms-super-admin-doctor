@@ -45,6 +45,13 @@ import {
   getAccessHistory
 } from '../controllers/radiology-delivery.controller';
 
+import {
+  getTechnicianDashboard,
+  getRadiologistDashboard,
+  getAdminDashboard,
+  getExecutiveReports
+} from '../controllers/radiology-dashboard.controller';
+
 const router = Router();
 
 // Require authentication for all radiology routes
@@ -259,6 +266,36 @@ router.get(
   '/reports/:reportId/access-history',
   authorize('DOCTOR', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
   getAccessHistory
+);
+
+// --- Radiology Dashboard & Analytics Routes ---
+
+// Technician Dashboard
+router.get(
+  '/dashboard/technician',
+  authorize('RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getTechnicianDashboard
+);
+
+// Radiologist Dashboard
+router.get(
+  '/dashboard/radiologist',
+  authorize('RADIOLOGIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getRadiologistDashboard
+);
+
+// Admin/Reception Dashboard
+router.get(
+  '/dashboard/admin',
+  authorize('RECEPTIONIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getAdminDashboard
+);
+
+// Executive Reports
+router.get(
+  '/reports/executive',
+  authorize('HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getExecutiveReports
 );
 
 export default router;
