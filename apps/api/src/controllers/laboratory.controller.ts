@@ -12,7 +12,7 @@ import { Patient } from '../models/Patient';
 import { Invoice } from '../models/Billing';
 import { generateBarcodeBase64 } from '../utils/barcode';
 import { generatePdfReport } from '../utils/pdfGenerator';
-import { sendEmail } from '../utils/emailService';
+import { sendEmail } from '../utils/email';
 import { sendSuccess, sendCreated, NotFoundError, ValidationError } from '../utils/response';
 import mongoose from 'mongoose';
 
@@ -1150,7 +1150,7 @@ export async function deliverReport(req: Request, res: Response, next: NextFunct
           <p>Please log in to your patient portal to view and download it securely.</p>
         `;
         
-        await sendEmail(emailToUse, subject, html);
+        await sendEmail({ to: emailToUse, subject, html });
         
         delivery.status = 'Delivered';
         delivery.deliveredAt = new Date();
@@ -1198,7 +1198,7 @@ export async function resendReport(req: Request, res: Response, next: NextFuncti
           <p>Your laboratory report is ready to be downloaded from the patient portal.</p>
         `;
         
-        await sendEmail(delivery.recipientDetails!, subject, html);
+        await sendEmail({ to: delivery.recipientDetails!, subject, html });
         
         delivery.status = 'Delivered';
         delivery.deliveredAt = new Date();

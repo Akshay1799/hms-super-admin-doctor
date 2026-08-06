@@ -31,7 +31,7 @@ const transporter = env.smtp.enabled
     )
   : null;
 
-async function sendEmail(options: {
+export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
