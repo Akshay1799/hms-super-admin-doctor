@@ -6,11 +6,13 @@ import { LaboratorySpecimen } from '../models/LaboratorySpecimen';
 import { LaboratoryPackage } from '../models/LaboratoryPackage';
 import { LaboratoryResult } from '../models/LaboratoryResult';
 import { LaboratoryReport } from '../models/LaboratoryReport';
+import { ReportDelivery } from '../models/ReportDelivery';
 import { ReferenceRange } from '../models/ReferenceRange';
 import { Patient } from '../models/Patient';
 import { Invoice } from '../models/Billing';
 import { generateBarcodeBase64 } from '../utils/barcode';
 import { generatePdfReport } from '../utils/pdfGenerator';
+import { sendEmail } from '../utils/emailService';
 import { sendSuccess, sendCreated, NotFoundError, ValidationError } from '../utils/response';
 import mongoose from 'mongoose';
 
@@ -871,7 +873,7 @@ export async function generateReport(req: Request, res: Response, next: NextFunc
  */
 export async function getReport(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { tenantId, hospitalId } = req.user!;
+    const { tenantId, hospitalId, id: userId } = req.user!;
     const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId })
       .populate({
         path: 'results',
@@ -880,6 +882,18 @@ export async function getReport(req: Request, res: Response, next: NextFunction)
       .populate('generatedBy', 'firstName lastName');
 
     if (!report) throw new NotFoundError('Report not found');
+
+    // Log the view event for Feature 7
+    await ReportDelivery.create({
+      reportId: report._id,
+      patientId: report.patientId,
+      channel: 'Patient Portal',
+      status: 'Viewed',
+      accessedAt: new Date(),
+      accessedBy: new mongoose.Types.ObjectId(userId.toString()),
+      tenantId,
+      hospitalId
+    });
 
     sendSuccess(res, report, 'Report retrieved');
   } catch (err) {
@@ -892,11 +906,23 @@ export async function getReport(req: Request, res: Response, next: NextFunction)
  */
 export async function downloadReportPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { tenantId, hospitalId } = req.user!;
+    const { tenantId, hospitalId, id: userId } = req.user!;
     const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
 
     if (!report) throw new NotFoundError('Report not found');
     if (!report.pdfBase64) throw new ValidationError('PDF not available for this report');
+
+    // Log the download event for Feature 7
+    await ReportDelivery.create({
+      reportId: report._id,
+      patientId: report.patientId,
+      channel: 'Patient Portal',
+      status: 'Downloaded',
+      accessedAt: new Date(),
+      accessedBy: new mongoose.Types.ObjectId(userId.toString()),
+      tenantId,
+      hospitalId
+    });
 
     sendSuccess(res, { pdfBase64: report.pdfBase64 }, 'PDF retrieved');
   } catch (err) {
@@ -1072,6 +1098,152 @@ export async function publishReport(req: Request, res: Response, next: NextFunct
     await report.save();
 
     sendSuccess(res, report, 'Report published successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------------
+// Report Delivery (Feature 7)
+// ----------------------------------------------------------------------
+
+/**
+ * Deliver Report
+ */
+export async function deliverReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const { channel, recipientDetails } = req.body;
+
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId })
+      .populate('patientId', 'firstName lastName email');
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (report.status !== 'Published') throw new ValidationError('Only Published reports can be delivered');
+
+    const patientInfo: any = report.patientId;
+    const emailToUse = recipientDetails || patientInfo.email;
+
+    if (channel === 'Email' && !emailToUse) {
+      throw new ValidationError('Email address is required for Email delivery');
+    }
+
+    const delivery = new ReportDelivery({
+      reportId: report._id,
+      patientId: report.patientId,
+      channel,
+      status: 'Pending',
+      recipientDetails: emailToUse,
+      tenantId,
+      hospitalId
+    });
+
+    await delivery.save();
+
+    // Simulate sending email
+    if (channel === 'Email') {
+      try {
+        const subject = `Your Laboratory Report from MediChain Hospital`;
+        const html = `
+          <h3>Hello ${patientInfo.firstName} ${patientInfo.lastName},</h3>
+          <p>Your laboratory report (No: ${report.reportNumber}) has been published and is ready.</p>
+          <p>Please log in to your patient portal to view and download it securely.</p>
+        `;
+        
+        await sendEmail(emailToUse, subject, html);
+        
+        delivery.status = 'Delivered';
+        delivery.deliveredAt = new Date();
+        await delivery.save();
+      } catch (error) {
+        delivery.status = 'Failed';
+        await delivery.save();
+        throw new ValidationError('Email delivery failed. Delivery record saved as Failed.');
+      }
+    } else {
+      // Patient Portal notification logic would go here
+      delivery.status = 'Delivered';
+      delivery.deliveredAt = new Date();
+      await delivery.save();
+    }
+
+    sendSuccess(res, delivery, `Report delivered via ${channel}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Re-send Report
+ */
+export async function resendReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const delivery = await ReportDelivery.findOne({ _id: req.params.deliveryId, tenantId, hospitalId });
+
+    if (!delivery) throw new NotFoundError('Delivery record not found');
+
+    const report = await LaboratoryReport.findById(delivery.reportId).populate('patientId', 'firstName lastName');
+    const patientInfo: any = report?.patientId;
+
+    delivery.retryCount += 1;
+    delivery.status = 'Pending';
+    await delivery.save();
+
+    if (delivery.channel === 'Email') {
+      try {
+        const subject = `[Resend] Your Laboratory Report from MediChain Hospital`;
+        const html = `
+          <h3>Hello ${patientInfo.firstName} ${patientInfo.lastName},</h3>
+          <p>Your laboratory report is ready to be downloaded from the patient portal.</p>
+        `;
+        
+        await sendEmail(delivery.recipientDetails!, subject, html);
+        
+        delivery.status = 'Delivered';
+        delivery.deliveredAt = new Date();
+        await delivery.save();
+      } catch (error) {
+        delivery.status = 'Failed';
+        await delivery.save();
+        throw new ValidationError('Email re-delivery failed.');
+      }
+    }
+
+    sendSuccess(res, delivery, `Report re-delivered via ${delivery.channel}`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Delivery Status
+ */
+export async function getDeliveryStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const statuses = await ReportDelivery.find({ reportId: req.params.reportId, tenantId, hospitalId }).sort({ createdAt: -1 });
+
+    sendSuccess(res, statuses, 'Delivery status retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Access History
+ */
+export async function getAccessHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const history = await ReportDelivery.find({ 
+      reportId: req.params.reportId, 
+      status: { $in: ['Viewed', 'Downloaded'] },
+      tenantId, 
+      hospitalId 
+    }).populate('accessedBy', 'firstName lastName role').sort({ accessedAt: -1 });
+
+    sendSuccess(res, history, 'Access history retrieved');
   } catch (err) {
     next(err);
   }

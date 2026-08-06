@@ -26,7 +26,11 @@ import {
   submitReportForReview,
   approveReport,
   rejectReport,
-  publishReport
+  publishReport,
+  deliverReport,
+  resendReport,
+  getDeliveryStatus,
+  getAccessHistory
 } from '../controllers/laboratory.controller';
 import { authorize } from '../middleware/authorize';
 
@@ -72,5 +76,11 @@ router.post('/reports/:reportId/submit', authorize('LAB_TECHNICIAN', 'PATHOLOGIS
 router.post('/reports/:reportId/approve', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), approveReport);
 router.post('/reports/:reportId/reject', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), rejectReport);
 router.post('/reports/:reportId/publish', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), publishReport);
+
+// Report Delivery (Feature 7)
+router.post('/reports/:reportId/deliver', authorize('RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), deliverReport);
+router.post('/reports/:deliveryId/resend', authorize('RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), resendReport);
+router.get('/reports/:reportId/delivery-status', authorize('RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getDeliveryStatus);
+router.get('/reports/:reportId/access-history', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getAccessHistory);
 
 export default router;
