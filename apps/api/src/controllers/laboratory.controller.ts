@@ -1248,3 +1248,94 @@ export async function getAccessHistory(req: Request, res: Response, next: NextFu
     next(err);
   }
 }
+
+// ----------------------------------------------------------------------
+// Dashboards & Analytics
+// ----------------------------------------------------------------------
+
+/**
+ * Get Laboratory Dashboard Metrics
+ */
+export async function getLaboratoryDashboardMetrics(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Orders Metrics
+    const totalOrdersToday = await LaboratoryOrder.countDocuments({ tenantId, hospitalId, createdAt: { $gte: today } });
+    const pendingOrders = await LaboratoryOrder.countDocuments({ tenantId, hospitalId, status: 'Pending' });
+    const processingOrders = await LaboratoryOrder.countDocuments({ tenantId, hospitalId, status: 'Processing' });
+    const completedOrdersToday = await LaboratoryOrder.countDocuments({ tenantId, hospitalId, status: 'Completed', updatedAt: { $gte: today } });
+
+    // Specimens Metrics
+    const pendingSpecimens = await LaboratorySpecimen.countDocuments({ tenantId, hospitalId, status: 'Pending' });
+    const collectedSpecimensToday = await LaboratorySpecimen.countDocuments({ tenantId, hospitalId, status: 'Collected', collectionTime: { $gte: today } });
+    const rejectedSpecimens = await LaboratorySpecimen.countDocuments({ tenantId, hospitalId, status: 'Rejected' });
+
+    // Results Metrics
+    const criticalResultsToday = await LaboratoryResult.countDocuments({ tenantId, hospitalId, isCritical: true, createdAt: { $gte: today } });
+    const panicResultsToday = await LaboratoryResult.countDocuments({ tenantId, hospitalId, isPanic: true, createdAt: { $gte: today } });
+    const abnormalResultsToday = await LaboratoryResult.countDocuments({ tenantId, hospitalId, isAbnormal: true, createdAt: { $gte: today } });
+
+    // Reports / Approvals Metrics
+    const reportsPendingReview = await LaboratoryReport.countDocuments({ tenantId, hospitalId, status: 'Pending Review' });
+    const reportsApprovedToday = await LaboratoryReport.countDocuments({ tenantId, hospitalId, status: 'Approved', reviewedAt: { $gte: today } });
+
+    // Delivery Metrics
+    const deliveriesToday = await ReportDelivery.countDocuments({ tenantId, hospitalId, status: 'Delivered', deliveredAt: { $gte: today } });
+    const failedDeliveries = await ReportDelivery.countDocuments({ tenantId, hospitalId, status: 'Failed' });
+
+    sendSuccess(res, {
+      orders: { totalToday: totalOrdersToday, pending: pendingOrders, processing: processingOrders, completedToday: completedOrdersToday },
+      specimens: { pending: pendingSpecimens, collectedToday: collectedSpecimensToday, rejected: rejectedSpecimens },
+      results: { criticalToday: criticalResultsToday, panicToday: panicResultsToday, abnormalToday: abnormalResultsToday },
+      approvals: { pendingReview: reportsPendingReview, approvedToday: reportsApprovedToday },
+      deliveries: { deliveredToday: deliveriesToday, failed: failedDeliveries }
+    }, 'Dashboard metrics retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Export Laboratory Data
+ */
+export async function exportLaboratoryData(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const { type } = req.query; // 'orders' or 'results'
+
+    if (type === 'orders') {
+      const orders = await LaboratoryOrder.find({ tenantId, hospitalId }).populate('patientId', 'firstName lastName uhid').sort({ createdAt: -1 }).limit(1000);
+      
+      let csv = 'Order ID,Patient Name,UHID,Status,Total Amount,Created At\n';
+      orders.forEach((o: any) => {
+        csv += `${o.orderNumber},"${o.patientId?.firstName} ${o.patientId?.lastName}",${o.patientId?.uhid},${o.status},${o.totalAmount},${o.createdAt.toISOString()}\n`;
+      });
+      
+      res.header('Content-Type', 'text/csv');
+      res.attachment('laboratory_orders.csv');
+      res.send(csv);
+      return;
+    } 
+    else if (type === 'results') {
+      const results = await LaboratoryResult.find({ tenantId, hospitalId }).populate('patientId', 'firstName lastName uhid').populate('testId', 'testName').sort({ createdAt: -1 }).limit(1000);
+      
+      let csv = 'Test Name,Patient Name,UHID,Value,Unit,Classification,Status,Entered At\n';
+      results.forEach((r: any) => {
+        csv += `"${r.testId?.testName}","${r.patientId?.firstName} ${r.patientId?.lastName}",${r.patientId?.uhid},${r.value},${r.unit},${r.classification},${r.status},${r.createdAt.toISOString()}\n`;
+      });
+      
+      res.header('Content-Type', 'text/csv');
+      res.attachment('laboratory_results.csv');
+      res.send(csv);
+      return;
+    }
+
+    throw new ValidationError('Invalid export type. Use ?type=orders or ?type=results');
+  } catch (err) {
+    next(err);
+  }
+}

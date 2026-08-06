@@ -30,7 +30,9 @@ import {
   deliverReport,
   resendReport,
   getDeliveryStatus,
-  getAccessHistory
+  getAccessHistory,
+  getLaboratoryDashboardMetrics,
+  exportLaboratoryData
 } from '../controllers/laboratory.controller';
 import { authorize } from '../middleware/authorize';
 
@@ -82,5 +84,9 @@ router.post('/reports/:reportId/deliver', authorize('RECEPTIONIST', 'LAB_TECHNIC
 router.post('/reports/:deliveryId/resend', authorize('RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), resendReport);
 router.get('/reports/:reportId/delivery-status', authorize('RECEPTIONIST', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getDeliveryStatus);
 router.get('/reports/:reportId/access-history', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getAccessHistory);
+
+// Dashboards & Analytics
+router.get('/dashboard/metrics', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getLaboratoryDashboardMetrics);
+router.get('/reports/export/csv', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), exportLaboratoryData);
 
 export default router;
