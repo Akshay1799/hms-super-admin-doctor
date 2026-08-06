@@ -19,6 +19,14 @@ import {
   getStaffAvailability
 } from '../controllers/radiology-scheduling.controller';
 
+import {
+  uploadStudy,
+  getStudy,
+  searchStudies,
+  launchViewer,
+  getStudyMetadata
+} from '../controllers/pacs.controller';
+
 const router = Router();
 
 // Require authentication for all radiology routes
@@ -108,6 +116,43 @@ router.post(
   '/schedules/:scheduleId/cancel',
   authorize('RECEPTIONIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
   cancelSchedule
+);
+
+// --- PACS Integration Routes ---
+
+// Register uploaded study (Technician)
+router.post(
+  '/studies/upload',
+  authorize('RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  uploadStudy
+);
+
+// Search studies (Doctor, Radiologist, Technician)
+router.get(
+  '/studies',
+  authorize('DOCTOR', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  searchStudies
+);
+
+// Retrieve study details (Doctor, Radiologist, Technician)
+router.get(
+  '/studies/:studyId',
+  authorize('DOCTOR', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getStudy
+);
+
+// Launch image viewer (Doctor, Radiologist, Technician)
+router.get(
+  '/studies/:studyId/viewer',
+  authorize('DOCTOR', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  launchViewer
+);
+
+// Retrieve study metadata (Doctor, Radiologist, Technician)
+router.get(
+  '/studies/:studyId/metadata',
+  authorize('DOCTOR', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getStudyMetadata
 );
 
 export default router;
