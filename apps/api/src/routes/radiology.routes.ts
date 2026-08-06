@@ -27,6 +27,15 @@ import {
   getStudyMetadata
 } from '../controllers/pacs.controller';
 
+import {
+  createReport,
+  updateReport,
+  getReport,
+  submitReport,
+  getReportVersions,
+  getTemplates
+} from '../controllers/radiology-report.controller';
+
 const router = Router();
 
 // Require authentication for all radiology routes
@@ -153,6 +162,50 @@ router.get(
   '/studies/:studyId/metadata',
   authorize('DOCTOR', 'RADIOLOGIST', 'RADIOLOGY_TECHNICIAN', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
   getStudyMetadata
+);
+
+// --- Radiology Reporting Routes ---
+
+// Get report templates (Radiologist)
+router.get(
+  '/reports/templates',
+  authorize('RADIOLOGIST', 'SUPER_ADMIN'),
+  getTemplates
+);
+
+// Create a report draft (Radiologist)
+router.post(
+  '/reports',
+  authorize('RADIOLOGIST', 'SUPER_ADMIN'),
+  createReport
+);
+
+// Update a report draft (Radiologist)
+router.patch(
+  '/reports/:reportId',
+  authorize('RADIOLOGIST', 'SUPER_ADMIN'),
+  updateReport
+);
+
+// Retrieve a report (Doctor, Radiologist)
+router.get(
+  '/reports/:reportId',
+  authorize('DOCTOR', 'RADIOLOGIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getReport
+);
+
+// Submit/Approve/Amend a report (Radiologist, Senior Radiologist)
+router.post(
+  '/reports/:reportId/submit',
+  authorize('RADIOLOGIST', 'SUPER_ADMIN'),
+  submitReport
+);
+
+// Retrieve report versions (Doctor, Radiologist)
+router.get(
+  '/reports/:reportId/versions',
+  authorize('DOCTOR', 'RADIOLOGIST', 'HOSPITAL_ADMIN', 'SUPER_ADMIN'),
+  getReportVersions
 );
 
 export default router;
