@@ -4,13 +4,18 @@ export interface ILaboratoryReport extends Document {
   reportNumber: string;
   laboratoryOrderId: mongoose.Types.ObjectId;
   patientId: mongoose.Types.ObjectId;
-  status: 'Draft' | 'Approved' | 'Published' | 'Amended';
+  status: 'Draft' | 'Pending Review' | 'Under Review' | 'Correction Required' | 'Approved' | 'Published' | 'Amended';
   version: number;
   previousVersionId?: mongoose.Types.ObjectId;
   results: mongoose.Types.ObjectId[];
   pdfBase64?: string;
   generatedBy: mongoose.Types.ObjectId;
   generatedAt: Date;
+  submittedAt?: Date;
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  rejectionReason?: string;
+  approvalRemarks?: string;
   tenantId: mongoose.Types.ObjectId;
   hospitalId: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -24,7 +29,7 @@ const LaboratoryReportSchema: Schema = new Schema(
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true, index: true },
     status: {
       type: String,
-      enum: ['Draft', 'Approved', 'Published', 'Amended'],
+      enum: ['Draft', 'Pending Review', 'Under Review', 'Correction Required', 'Approved', 'Published', 'Amended'],
       default: 'Draft',
       index: true
     },
@@ -34,6 +39,11 @@ const LaboratoryReportSchema: Schema = new Schema(
     pdfBase64: { type: String }, // Can store the generated base64 PDF stream
     generatedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     generatedAt: { type: Date, default: Date.now },
+    submittedAt: { type: Date },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: { type: Date },
+    rejectionReason: { type: String },
+    approvalRemarks: { type: String },
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     hospitalId: { type: Schema.Types.ObjectId, ref: 'Hospital', required: true, index: true },
   },

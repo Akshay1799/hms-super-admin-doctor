@@ -22,7 +22,11 @@ import {
   downloadReportPdf,
   getReportVersions,
   createReferenceRange,
-  getReferenceRanges
+  getReferenceRanges,
+  submitReportForReview,
+  approveReport,
+  rejectReport,
+  publishReport
 } from '../controllers/laboratory.controller';
 import { authorize } from '../middleware/authorize';
 
@@ -62,5 +66,11 @@ router.get('/reports/:reportId/versions', authorize('PATHOLOGIST', 'SUPER_ADMIN'
 // Reference Ranges
 router.post('/reference-ranges', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), createReferenceRange);
 router.get('/reference-ranges', authorize('DOCTOR', 'LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), getReferenceRanges);
+
+// Report Approval Workflow
+router.post('/reports/:reportId/submit', authorize('LAB_TECHNICIAN', 'PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), submitReportForReview);
+router.post('/reports/:reportId/approve', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), approveReport);
+router.post('/reports/:reportId/reject', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), rejectReport);
+router.post('/reports/:reportId/publish', authorize('PATHOLOGIST', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'), publishReport);
 
 export default router;

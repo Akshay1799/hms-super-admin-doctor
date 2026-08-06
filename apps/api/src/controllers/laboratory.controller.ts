@@ -969,3 +969,110 @@ export async function getReferenceRanges(req: Request, res: Response, next: Next
     next(err);
   }
 }
+
+// ----------------------------------------------------------------------
+// Report Approval Workflow (Feature 6)
+// ----------------------------------------------------------------------
+
+/**
+ * Submit Report For Review
+ */
+export async function submitReportForReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (report.status !== 'Draft' && report.status !== 'Correction Required') {
+      throw new ValidationError('Only Draft or Correction Required reports can be submitted for review');
+    }
+
+    report.status = 'Pending Review';
+    report.submittedAt = new Date();
+    await report.save();
+
+    sendSuccess(res, report, 'Report submitted for review');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Approve Report
+ */
+export async function approveReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId, id: userId } = req.user!;
+    const { approvalRemarks } = req.body;
+    
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (report.status !== 'Pending Review' && report.status !== 'Under Review') {
+      throw new ValidationError('Report is not pending review');
+    }
+
+    report.status = 'Approved';
+    report.reviewedBy = new mongoose.Types.ObjectId(userId.toString());
+    report.reviewedAt = new Date();
+    report.approvalRemarks = approvalRemarks;
+    
+    await report.save();
+
+    sendSuccess(res, report, 'Report approved successfully');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Reject Report
+ */
+export async function rejectReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId, id: userId } = req.user!;
+    const { rejectionReason } = req.body;
+    
+    if (!rejectionReason) throw new ValidationError('Rejection reason is required');
+
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (report.status !== 'Pending Review' && report.status !== 'Under Review') {
+      throw new ValidationError('Report is not pending review');
+    }
+
+    report.status = 'Correction Required';
+    report.reviewedBy = new mongoose.Types.ObjectId(userId.toString());
+    report.reviewedAt = new Date();
+    report.rejectionReason = rejectionReason;
+    
+    await report.save();
+
+    sendSuccess(res, report, 'Report rejected and returned for correction');
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Publish Report
+ */
+export async function publishReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tenantId, hospitalId } = req.user!;
+    const report = await LaboratoryReport.findOne({ _id: req.params.reportId, tenantId, hospitalId });
+
+    if (!report) throw new NotFoundError('Report not found');
+    if (report.status !== 'Approved') {
+      throw new ValidationError('Only approved reports can be published');
+    }
+
+    report.status = 'Published';
+    await report.save();
+
+    sendSuccess(res, report, 'Report published successfully');
+  } catch (err) {
+    next(err);
+  }
+}
