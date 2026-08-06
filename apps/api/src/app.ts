@@ -45,6 +45,7 @@ import queueRoutes from './routes/queues.routes';
 import reminderRoutes from './routes/reminders.routes';
 import waitingListRoutes from './routes/waitingList.routes';
 import appointmentGroupRoutes from './routes/appointmentGroups.routes';
+import laboratoryRoutes from './routes/laboratory.routes';
 import { startReminderJobs } from './jobs/reminderJob';
 
 const app = express();
@@ -180,6 +181,7 @@ app.use('/api', queueRoutes); // Mounts /tokens and /queues
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/waiting-list', waitingListRoutes);
 app.use('/api/appointment-groups', appointmentGroupRoutes);
+app.use('/api/laboratory', laboratoryRoutes);
 
 // Catch all unmatched routes (404)
 app.use(notFoundHandler);
