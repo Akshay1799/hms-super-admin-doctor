@@ -16,7 +16,9 @@ export type UserRole =
   | 'PHARMACIST'
   | 'LAB_TECHNICIAN'
   | 'PATHOLOGIST'
-  | 'BILLING_EXECUTIVE';
+  | 'BILLING_EXECUTIVE'
+  | 'RADIOLOGIST'
+  | 'RADIOLOGY_TECHNICIAN';
 
 export type UserStatus = 'Active' | 'Inactive' | 'Suspended' | 'Pending';
 
