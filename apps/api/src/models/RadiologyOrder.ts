@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IRadiologyOrderItem {
+  _id?: mongoose.Types.ObjectId;
   catalogId: mongoose.Types.ObjectId;
   status: 'Requested' | 'Scheduled' | 'Study Pending' | 'Study Completed' | 'Reporting' | 'Approved' | 'Delivered' | 'Cancelled';
   clinicalNotes?: string;
