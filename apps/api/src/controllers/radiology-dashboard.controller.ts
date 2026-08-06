@@ -149,7 +149,7 @@ export async function getExecutiveReports(req: Request, res: Response, next: Nex
 
     // Monthly aggregation
     const monthlyVolume = await RadiologyOrder.aggregate([
-      { $match: { tenantId: new mongoose.Types.ObjectId(tenantId), hospitalId: new mongoose.Types.ObjectId(hospitalId) } },
+      { $match: { tenantId: new mongoose.Types.ObjectId(tenantId as string), hospitalId: new mongoose.Types.ObjectId(hospitalId as string) } },
       {
         $group: {
           _id: { $month: "$createdAt" },
