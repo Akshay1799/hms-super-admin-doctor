@@ -167,6 +167,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/departments", label: "Departments", icon: Building2 },
+      { href: "/wards", label: "Ward Management", icon: Building2 },
       { href: "/staff", label: "Staff Directory", icon: Users2 },
       { href: "/patients", label: "Patients EMR", icon: UserIcon },
       { href: "/appointments", label: "Appointments", icon: Calendar },

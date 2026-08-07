@@ -1,4 +1,4 @@
-import { Doctor, Patient, Appointment, Nurse, Staff, Admission, BedOccupancy } from "../types/clinical.types";
+import { Doctor, Patient, Appointment, Nurse, Staff, Admission, BedOccupancy, Ward } from "../types/clinical.types";
 
 export const MOCK_DOCTORS: Doctor[] = [
   { id: "doc-1", name: "Dr. Rajesh Sharma", specialization: "Diagnostics / Nephrology", hospitalId: "h-1", branchId: "b-1", departmentId: "dep-1", experience: 22, rating: 4.8, status: "Active", patientsCount: 480, consultationTime: 25, successRate: 94 },
@@ -75,3 +75,19 @@ export const MOCK_CLINICAL_ANALYTICS = {
     { name: "R K Hospital", beds: 250, occupied: 180, icuBeds: 30, emergencyBeds: 15 },
   ],
 };
+
+export const MOCK_WARDS: Ward[] = [
+  { id: "w-1", name: "Central ICU", type: "ICU", hospitalId: "h-1", hospitalName: "MediPlus Hospital", totalBeds: 50, occupiedBeds: 45, status: "Active", createdAt: "2026-01-10T08:00:00Z", updatedAt: "2026-06-25T10:00:00Z" },
+  { id: "w-2", name: "Cardiac HDU", type: "HDU", hospitalId: "h-1", hospitalName: "MediPlus Hospital", totalBeds: 30, occupiedBeds: 28, status: "Active", createdAt: "2026-01-15T09:00:00Z", updatedAt: "2026-06-20T11:30:00Z" },
+  { id: "w-3", name: "General Medicine Ward A", type: "General Ward", hospitalId: "h-1", hospitalName: "MediPlus Hospital", totalBeds: 200, occupiedBeds: 180, status: "Active", createdAt: "2026-01-20T10:00:00Z", updatedAt: "2026-07-01T14:00:00Z" },
+  { id: "w-4", name: "VIP Suite East", type: "Private Room", hospitalId: "h-1", hospitalName: "MediPlus Hospital", totalBeds: 20, occupiedBeds: 15, status: "Active", createdAt: "2026-02-05T08:30:00Z", updatedAt: "2026-07-05T09:15:00Z" },
+  { id: "w-5", name: "Infectious Disease Isolation", type: "Isolation Ward", hospitalId: "h-1", hospitalName: "MediPlus Hospital", totalBeds: 15, occupiedBeds: 10, status: "Active", createdAt: "2026-02-10T11:00:00Z", updatedAt: "2026-07-10T16:45:00Z" },
+  { id: "w-6", name: "Surgical ICU", type: "ICU", hospitalId: "h-2", hospitalName: "Vivek Memorial Hospital", totalBeds: 40, occupiedBeds: 35, status: "Active", createdAt: "2026-03-01T09:00:00Z", updatedAt: "2026-06-28T10:20:00Z" },
+  { id: "w-7", name: "Pediatric HDU", type: "HDU", hospitalId: "h-2", hospitalName: "Vivek Memorial Hospital", totalBeds: 20, occupiedBeds: 18, status: "Active", createdAt: "2026-03-10T08:00:00Z", updatedAt: "2026-07-02T13:10:00Z" },
+  { id: "w-8", name: "Orthopedics General", type: "General Ward", hospitalId: "h-2", hospitalName: "Vivek Memorial Hospital", totalBeds: 150, occupiedBeds: 120, status: "Active", createdAt: "2026-03-15T07:30:00Z", updatedAt: "2026-07-12T08:45:00Z" },
+  { id: "w-9", name: "Maternity Private Suites", type: "Private Room", hospitalId: "h-2", hospitalName: "Vivek Memorial Hospital", totalBeds: 30, occupiedBeds: 25, status: "Active", createdAt: "2026-04-05T10:00:00Z", updatedAt: "2026-07-15T11:00:00Z" },
+  { id: "w-10", name: "Emergency ICU", type: "ICU", hospitalId: "h-5", hospitalName: "R K Hospital", totalBeds: 25, occupiedBeds: 22, status: "Active", createdAt: "2026-05-01T08:00:00Z", updatedAt: "2026-07-18T09:30:00Z" },
+  { id: "w-11", name: "Neurology HDU", type: "HDU", hospitalId: "h-5", hospitalName: "R K Hospital", totalBeds: 15, occupiedBeds: 10, status: "Active", createdAt: "2026-05-10T09:30:00Z", updatedAt: "2026-07-20T14:20:00Z" },
+  { id: "w-12", name: "Surgery Recovery Ward", type: "General Ward", hospitalId: "h-5", hospitalName: "R K Hospital", totalBeds: 100, occupiedBeds: 85, status: "Active", createdAt: "2026-05-15T10:45:00Z", updatedAt: "2026-07-22T16:00:00Z" },
+  { id: "w-13", name: "West Wing Renovation", type: "General Ward", hospitalId: "h-5", hospitalName: "R K Hospital", totalBeds: 50, occupiedBeds: 0, status: "Maintenance", createdAt: "2026-06-01T08:00:00Z", updatedAt: "2026-07-25T10:00:00Z" },
+];

@@ -35,3 +35,13 @@ export const appointmentSchema = z.object({
 export type DoctorInput = z.infer<typeof doctorSchema>;
 export type PatientInput = z.infer<typeof patientSchema>;
 export type AppointmentInput = z.infer<typeof appointmentSchema>;
+
+export const wardSchema = z.object({
+  name: z.string().min(2, "Ward name must be at least 2 characters"),
+  type: z.enum(["ICU", "HDU", "General Ward", "Semi-Private Ward", "Private Room", "Isolation Ward"]),
+  hospitalId: z.string().min(1, "Hospital is required"),
+  totalBeds: z.coerce.number().min(1, "Ward must have at least 1 bed"),
+  status: z.enum(["Active", "Inactive", "Maintenance"]).default("Active"),
+});
+
+export type WardInput = z.infer<typeof wardSchema>;

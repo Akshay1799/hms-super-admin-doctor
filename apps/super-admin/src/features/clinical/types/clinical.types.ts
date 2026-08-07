@@ -91,3 +91,16 @@ export interface BedOccupancy {
   icuBeds: number;
   emergencyBeds: number;
 }
+
+export interface Ward {
+  id: string;
+  name: string;
+  type: "ICU" | "HDU" | "General Ward" | "Semi-Private Ward" | "Private Room" | "Isolation Ward" | string;
+  hospitalId: string;
+  hospitalName?: string;
+  totalBeds: number;
+  occupiedBeds: number;
+  status: "Active" | "Inactive" | "Maintenance";
+  createdAt?: string;
+  updatedAt?: string;
+}

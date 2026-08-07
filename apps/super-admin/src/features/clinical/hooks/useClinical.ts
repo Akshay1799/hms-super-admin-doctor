@@ -92,3 +92,30 @@ export function useClinicalAnalytics() {
     queryFn: clinicalService.getClinicalAnalytics,
   });
 }
+
+export function useWards(filters?: { hospitalId?: string; status?: string; type?: string }) {
+  return useQuery({
+    queryKey: ["wards", filters],
+    queryFn: () => clinicalService.getWards(filters),
+  });
+}
+
+export function useCreateWard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: clinicalService.createWard,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+  });
+}
+
+export function useUpdateWard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => clinicalService.updateWard(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wards"] });
+    },
+  });
+}

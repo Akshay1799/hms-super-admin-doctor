@@ -1,5 +1,5 @@
-import { Doctor, Patient, Appointment, Nurse, Staff, Admission, BedOccupancy } from "../types/clinical.types";
-import { DoctorInput, PatientInput } from "../schemas/clinical.schema";
+import { Doctor, Patient, Appointment, Nurse, Staff, Admission, BedOccupancy, Ward } from "../types/clinical.types";
+import { DoctorInput, PatientInput, WardInput } from "../schemas/clinical.schema";
 import { apiClient } from "@/lib/api-client";
 import {
   MOCK_DOCTORS,
@@ -10,6 +10,7 @@ import {
   MOCK_ADMISSIONS,
   MOCK_BED_OCCUPANCY,
   MOCK_CLINICAL_ANALYTICS,
+  MOCK_WARDS,
 } from "../mocks/clinical.mocks";
 import { invitationService } from "./invitation.service";
 
@@ -19,6 +20,7 @@ let appointmentsData = [...MOCK_APPOINTMENTS];
 let nursesData = [...MOCK_NURSES];
 let staffData = [...MOCK_STAFF];
 let admissionsData = [...MOCK_ADMISSIONS];
+let wardsData = [...MOCK_WARDS];
 
 export interface DoctorDetails {
   doctor: Doctor;
@@ -455,7 +457,50 @@ export const clinicalService = {
     try {
       return MOCK_CLINICAL_ANALYTICS;
     } catch {
-      return MOCK_CLINICAL_ANALYTICS;
+      return Promise.resolve(MOCK_CLINICAL_ANALYTICS);
     }
+  },
+
+  // ---- WARDS ----
+  async getWards(filters?: { hospitalId?: string; status?: string; type?: string }): Promise<Ward[]> {
+    let result = [...wardsData];
+    if (filters?.hospitalId && filters.hospitalId !== "All") {
+      result = result.filter((w) => w.hospitalId === filters.hospitalId);
+    }
+    if (filters?.status && filters.status !== "All") {
+      result = result.filter((w) => w.status === filters.status);
+    }
+    if (filters?.type && filters.type !== "All") {
+      result = result.filter((w) => w.type === filters.type);
+    }
+    return Promise.resolve(result);
+  },
+
+  async createWard(data: WardInput): Promise<Ward> {
+    const newWard: Ward = {
+      id: `w-${Date.now()}`,
+      name: data.name,
+      type: data.type,
+      hospitalId: data.hospitalId,
+      totalBeds: data.totalBeds,
+      occupiedBeds: 0,
+      status: data.status,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    wardsData = [newWard, ...wardsData];
+    return Promise.resolve(newWard);
+  },
+
+  async updateWard(id: string, data: Partial<WardInput>): Promise<Ward> {
+    const idx = wardsData.findIndex((w) => w.id === id);
+    if (idx === -1) throw new Error("Ward not found");
+    const updated = {
+      ...wardsData[idx],
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    wardsData[idx] = updated;
+    return Promise.resolve(updated);
   },
 };
