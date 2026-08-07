@@ -64,7 +64,7 @@ export function LoginForm() {
         <FormField
           id="email"
           label="Email Address"
-          placeholder="admin@medichain.com"
+          placeholder="Enter your email"
           error={errors.email?.message}
           disabled={loginMutation.isPending}
           {...register("email")}
@@ -75,7 +75,7 @@ export function LoginForm() {
             id="password"
             type="password"
             label="Password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
             error={errors.password?.message}
             disabled={loginMutation.isPending}
             {...register("password")}

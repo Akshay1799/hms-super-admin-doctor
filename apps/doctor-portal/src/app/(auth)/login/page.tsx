@@ -22,12 +22,6 @@ export default function LoginPage() {
             </p>
           </div>
           
-          <div className="border-t border-slate-200 pt-6">
-            <p className="text-xs text-slate-500 font-semibold">Authentication Policy Sandbox Mode:</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Use <span className="font-mono font-semibold text-emerald-600">doctor@medichain.com</span> and password <span className="font-mono font-semibold text-emerald-600">password123</span> to authenticate.
-            </p>
-          </div>
         </div>
       </div>
 

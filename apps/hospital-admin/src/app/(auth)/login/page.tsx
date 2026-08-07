@@ -89,12 +89,6 @@ function LoginFormContent() {
               Hospital operations management, staffing configurations, department allocations, and clinical resource coordination workspace.
             </p>
           </div>
-          <div className="border-t border-slate-200 pt-6">
-            <p className="text-xs text-slate-500 font-semibold">Authorized Personnel Only:</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Sign in with your hospital or department administrator credentials.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -128,7 +122,7 @@ function LoginFormContent() {
                 <input
                   id="email"
                   type="email"
-                  placeholder="admin@hospital.com"
+                  placeholder="Enter your email"
                   disabled={isPending}
                   className="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
                   {...register("email")}
@@ -148,7 +142,7 @@ function LoginFormContent() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   disabled={isPending}
                   className="w-full h-10 pl-10 pr-10 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
                   {...register("password")}

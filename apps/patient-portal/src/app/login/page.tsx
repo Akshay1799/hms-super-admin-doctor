@@ -125,7 +125,7 @@ function LoginFormContent() {
                 <input
                   id="email"
                   type="email"
-                  placeholder="patient@medichain.com"
+                  placeholder="Enter your email"
                   className="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                   {...register("email")}
                   disabled={isPending}
@@ -147,7 +147,7 @@ function LoginFormContent() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   className="w-full h-10 pl-10 pr-10 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                   {...register("password")}
                   disabled={isPending}
