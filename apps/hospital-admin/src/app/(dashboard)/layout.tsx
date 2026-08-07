@@ -24,6 +24,7 @@ import {
   Clock,
   Receipt,
   ArrowLeftRight,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,7 +153,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (role === "NURSE") {
       return [
         { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-        { href: "/patients", label: "Assigned Patients & Vitals", icon: UserIcon },
+        { href: "/nursing", label: "Nursing Station", icon: ClipboardList },
+        { href: "/patients", label: "Assigned Patients", icon: UserIcon },
       ];
     }
     if (role === "DEPT_ADMIN") {
@@ -170,6 +172,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: "/departments", label: "Departments", icon: Building2 },
       { href: "/wards", label: "Ward Management", icon: Building2 },
       { href: "/transfers", label: "Bed Transfers", icon: ArrowLeftRight },
+      { href: "/nursing", label: "Nursing Station", icon: ClipboardList },
       { href: "/staff", label: "Staff Directory", icon: Users2 },
       { href: "/patients", label: "Patients EMR", icon: UserIcon },
       { href: "/appointments", label: "Appointments", icon: Calendar },
