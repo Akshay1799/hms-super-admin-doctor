@@ -44,11 +44,11 @@ export const MOCK_ADMISSIONS: Admission[] = [
 ];
 
 export const MOCK_BED_OCCUPANCY: BedOccupancy = {
-  totalBeds: 1540,
-  occupiedBeds: 1195,
-  availableBeds: 345,
-  icuBeds: 240,
-  emergencyBeds: 95,
+  totalBeds: 1100,
+  occupiedBeds: 890,
+  availableBeds: 210,
+  icuBeds: 160,
+  emergencyBeds: 65,
 };
 
 export const MOCK_CLINICAL_ANALYTICS = {
@@ -70,11 +70,8 @@ export const MOCK_CLINICAL_ANALYTICS = {
     { name: "Pediatrics", appointments: 290, rating: 4.6 },
   ],
   hospitalDistribution: [
-    { name: "Apollo Main Hospital", beds: 350, occupied: 280, icuBeds: 50, emergencyBeds: 20 },
-    { name: "Apollo Cardiac Clinic", beds: 120, occupied: 95, icuBeds: 30, emergencyBeds: 10 },
-    { name: "Max Medical Center", beds: 450, occupied: 360, icuBeds: 70, emergencyBeds: 25 },
-    { name: "Fortis Healthcare Node", beds: 300, occupied: 230, icuBeds: 45, emergencyBeds: 20 },
-    { name: "CityCare Specialty Hospital", beds: 200, occupied: 150, icuBeds: 30, emergencyBeds: 12 },
-    { name: "Metro Health Institute", beds: 120, occupied: 80, icuBeds: 15, emergencyBeds: 8 },
+    { name: "MediPlus Hospital", beds: 500, occupied: 420, icuBeds: 80, emergencyBeds: 30 },
+    { name: "Vivek Memorial Hospital", beds: 350, occupied: 290, icuBeds: 50, emergencyBeds: 20 },
+    { name: "R K Hospital", beds: 250, occupied: 180, icuBeds: 30, emergencyBeds: 15 },
   ],
 };
