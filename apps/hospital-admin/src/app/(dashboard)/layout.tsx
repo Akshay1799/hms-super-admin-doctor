@@ -57,7 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       id: "3",
       title: "System Parameters Sync",
-      description: "Tenant database sync with Apollo Clinics group completed.",
+      description: "Tenant database sync with organization group completed.",
       type: "info",
       isRead: true,
       date: "2 hours ago",

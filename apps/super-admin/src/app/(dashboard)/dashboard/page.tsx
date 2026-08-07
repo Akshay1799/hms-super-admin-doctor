@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
       {/* Main Header Panel */}
       <PageHeader
-        title={isTenantAdmin ? "Apollo Clinics Executive Dashboard" : "HMS SaaS Master Dashboard"}
+        title={isTenantAdmin ? `${user?.name ? user.name.replace(" Group Tenant Admin", "") : "Tenant"} Executive Dashboard` : "HMS SaaS Master Dashboard"}
         description={isTenantAdmin ? "Organization performance, branch occupancy, and doctor roster metrics." : "Platform insights, SaaS tenant subscriptions, and global infrastructure health."}
         actions={
           <div className="flex gap-2.5">
