@@ -16,6 +16,7 @@ import {
   Thermometer,
   HeartPulse
 } from "lucide-react";
+import { useAuthStore } from "@/store/auth.store";
 import { toast } from "sonner";
 
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
@@ -36,6 +37,9 @@ export default function NursingStationPage() {
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<typeof MOCK_PATIENTS[0] | null>(null);
+
+  const { user } = useAuthStore();
+  const isNurse = user?.role === "NURSE";
 
   const activePatients = patients.length;
   const criticalAlerts = patients.reduce((acc, p) => acc + p.alerts, 0);
@@ -148,23 +152,32 @@ export default function NursingStationPage() {
               </div>
               
               <div className="border-t border-border bg-muted/20 p-3 flex justify-between gap-2">
-                <button 
-                  onClick={() => { setSelectedPatient(patient); setIsVitalsModalOpen(true); }}
-                  className="flex-1 inline-flex items-center justify-center rounded-md text-[11px] font-medium transition-colors bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 h-8 px-3"
-                >
-                  <Thermometer className="mr-1.5 h-3.5 w-3.5" />
-                  Log Vitals
-                </button>
-                <button 
-                  onClick={() => { setSelectedPatient(patient); setIsNotesModalOpen(true); }}
-                  className="flex-1 inline-flex items-center justify-center rounded-md text-[11px] font-medium transition-colors bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 h-8 px-3"
-                >
-                  <FileText className="mr-1.5 h-3.5 w-3.5" />
-                  Add Note
-                </button>
+                {isNurse && (
+                  <>
+                    <button 
+                      onClick={() => { setSelectedPatient(patient); setIsVitalsModalOpen(true); }}
+                      className="flex-1 inline-flex items-center justify-center rounded-md text-[11px] font-medium transition-colors bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 h-8 px-3"
+                    >
+                      <Thermometer className="mr-1.5 h-3.5 w-3.5" />
+                      Log Vitals
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedPatient(patient); setIsNotesModalOpen(true); }}
+                      className="flex-1 inline-flex items-center justify-center rounded-md text-[11px] font-medium transition-colors bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 h-8 px-3"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Add Note
+                    </button>
+                  </>
+                )}
+                {!isNurse && (
+                  <div className="flex-1 flex items-center text-xs text-muted-foreground italic px-2">
+                    Read-only view
+                  </div>
+                )}
                 <Link 
                   href={`/nursing/${patient.id}`}
-                  className="inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground h-8 w-8"
+                  className="inline-flex items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground h-8 w-8 ml-auto"
                   title="View Full Chart"
                 >
                   <ChevronRight className="h-4 w-4" />
