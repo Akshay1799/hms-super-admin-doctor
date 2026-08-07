@@ -124,6 +124,18 @@ export default function BedsPage() {
                   </>
                 )}
               </div>
+
+              {/* Bed Actions */}
+              <div className="pt-3 border-t border-border mt-3 flex justify-end gap-2">
+                <button 
+                  onClick={() => {
+                    toast.success(`Bed vacated in ${dept.name} and marked for cleaning.`);
+                  }}
+                  className="text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-md font-semibold transition-colors"
+                >
+                  Vacate Bed (Discharge/Transfer)
+                </button>
+              </div>
             </div>
           );
         })}
