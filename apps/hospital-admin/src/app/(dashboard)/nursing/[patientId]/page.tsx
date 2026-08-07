@@ -14,6 +14,9 @@ import {
   AlertCircle
 } from "lucide-react";
 
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+
 // Mock Data specific to a patient chart
 const PATIENT_INFO = {
   id: "p-1",
@@ -29,6 +32,19 @@ const PATIENT_INFO = {
   allergies: "Penicillin",
 };
 
+interface TreatmentOrder {
+  _id: string;
+  type: string;
+  medicineName?: string;
+  dosage?: string;
+  route?: string;
+  frequency?: string;
+  volume?: string;
+  infusionRate?: string;
+  instructions?: string;
+  status: string;
+}
+
 const MOCK_TIMELINE = [
   { id: 1, type: "vitals", time: "08:00 AM, Today", user: "Nurse Anjali", details: { temp: "98.6 °F", hr: "72 bpm", bp: "120/80", spO2: "98%", rr: "16", pain: "2/10" } },
   { id: 2, type: "note", time: "08:15 AM, Today", user: "Nurse Anjali", category: "General Observation", content: "Patient slept well. Complains of mild cough. Vitals stable." },
@@ -39,6 +55,38 @@ const MOCK_TIMELINE = [
 
 export default function PatientNursingChartPage({ params }: { params: { patientId: string } }) {
   const [activeTab, setActiveTab] = useState("timeline");
+  const [orders, setOrders] = useState<TreatmentOrder[]>([]);
+  const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
+
+  const fetchOrders = async () => {
+    try {
+      const res = await apiClient.get(`/ipd-treatment/patients/${params.patientId}/orders`);
+      setOrders(res.data.data.filter((o: any) => o.type === "Medication" || o.type === "IVFluid"));
+    } catch (error) {
+      console.error("Failed to fetch orders", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "medications-mar") {
+      fetchOrders();
+    }
+  }, [activeTab, params.patientId]);
+
+  const handleAdminister = async (orderId: string, status: string) => {
+    setIsUpdatingId(orderId);
+    try {
+      await apiClient.post(`/ipd-treatment/orders/${orderId}/administer`, {
+        status,
+        scheduledTime: new Date()
+      });
+      toast.success(`Dose marked as ${status}`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to update administration record");
+    } finally {
+      setIsUpdatingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -81,12 +129,12 @@ export default function PatientNursingChartPage({ params }: { params: { patientI
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 border-b border-border">
-        {["timeline", "vitals-flowsheet", "intake-output", "care-plan"].map((tab) => (
+      <div className="flex space-x-1 border-b border-border overflow-x-auto">
+        {["timeline", "vitals-flowsheet", "intake-output", "medications-mar"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-semibold capitalize border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-semibold capitalize border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab 
                 ? "border-primary text-primary" 
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -155,7 +203,66 @@ export default function PatientNursingChartPage({ params }: { params: { patientI
           </div>
         )}
 
-        {activeTab !== "timeline" && (
+        {activeTab === "medications-mar" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-semibold text-lg text-foreground">Medication Administration Record (MAR)</h3>
+              <button className="px-3 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-600 rounded hover:bg-rose-500/20 transition-colors">
+                Report ADR
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {orders.length === 0 ? (
+                 <div className="text-center py-12 text-muted-foreground">No active medications prescribed for this patient.</div>
+              ) : (
+                orders.map((order) => (
+                  <div key={order._id} className="border border-border rounded-lg p-4 bg-background flex flex-col md:flex-row justify-between gap-4">
+                    <div>
+                      <h4 className="font-bold text-foreground flex items-center gap-2">
+                        {order.medicineName}
+                        <span className="text-[10px] bg-muted px-2 py-0.5 rounded uppercase text-muted-foreground">{order.type}</span>
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {order.dosage && <span>{order.dosage} • </span>}
+                        {order.route && <span>{order.route} • </span>}
+                        <span className="font-semibold text-foreground">{order.frequency}</span>
+                      </p>
+                      {order.instructions && (
+                        <p className="text-xs mt-2 italic text-muted-foreground border-l-2 border-primary pl-2">{order.instructions}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 md:mt-0">
+                      <button 
+                        onClick={() => handleAdminister(order._id, "Administered")}
+                        disabled={isUpdatingId === order._id}
+                        className="px-3 py-1.5 text-xs font-semibold bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                      >
+                        Administer
+                      </button>
+                      <button 
+                        onClick={() => handleAdminister(order._id, "Delayed")}
+                        disabled={isUpdatingId === order._id}
+                        className="px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-600 rounded hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                      >
+                        Delay
+                      </button>
+                      <button 
+                        onClick={() => handleAdminister(order._id, "Missed")}
+                        disabled={isUpdatingId === order._id}
+                        className="px-3 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-600 rounded hover:bg-rose-500/20 transition-colors disabled:opacity-50"
+                      >
+                        Miss
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab !== "timeline" && activeTab !== "medications-mar" && (
           <div className="flex items-center justify-center h-64 text-muted-foreground flex-col gap-2">
             <Activity className="w-8 h-8 opacity-50" />
             <p>This section is under construction. Future data will populate here from the backend.</p>
