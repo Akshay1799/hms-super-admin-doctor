@@ -68,7 +68,7 @@ const AppointmentSchema = new Schema<IAppointment>(
     duration: { type: Number, default: 15 },
     type: {
       type: String,
-      enum: ['New Consultation', 'Follow-up', 'Review Visit', 'Teleconsultation', 'Preventive Health Check', 'Executive Health Package', 'Specialist Referral', 'Corporate Appointment', 'Insurance Appointment', 'VIP Appointment', 'Walk-in'],
+      enum: ['New Consultation', 'Follow-up', 'Review Visit', 'Teleconsultation', 'Preventive Health Check', 'Executive Health Package', 'Specialist Referral', 'Corporate Appointment', 'Insurance Appointment', 'VIP Appointment', 'Walk-in', 'Emergency Consultation', 'Procedure Consultation'],
       default: 'New Consultation',
     },
     status: {
