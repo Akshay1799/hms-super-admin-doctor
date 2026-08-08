@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { DischargeSummary } from '../models/DischargeSummary';
 import { Patient } from '../models/Patient';
 import { Bed } from '../models/Bed';
-import { sendSuccess, AppError } from '../utils/response';
+import { BedAllocation } from '../models/BedAllocation';
+import { Admission } from '../models/Admission';
+import { sendSuccess, AppError, ConflictError } from '../utils/response';
 
 // GET /api/ipd/discharge-summaries
 export async function getDischargeSummaries(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -124,27 +127,59 @@ export async function clearBilling(req: Request, res: Response, next: NextFuncti
 
 // POST /api/ipd/discharge-summaries/:id/publish
 export async function publishDischargeSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
     const { id } = req.params;
     const hospitalId = req.user?.hospitalId;
 
-    const summary = await DischargeSummary.findOne({ _id: id, hospitalId });
+    const summary = await DischargeSummary.findOne({ _id: id, hospitalId }).session(session);
     if (!summary) throw new AppError('Discharge summary not found', 404);
-    if (summary.status !== 'Billing Cleared') throw new AppError('Must clear billing before publish', 400);
+    if (summary.status !== 'Billing Cleared') throw new ConflictError('Must clear billing before publish');
 
     summary.status = 'Published';
     summary.publishedAt = new Date();
-    await summary.save();
+    await summary.save({ session });
 
     // Update Patient Status
-    const patient = await Patient.findOne({ _id: summary.patientId, hospitalId });
+    const patient = await Patient.findOne({ _id: summary.patientId, hospitalId }).session(session);
     if (patient) {
       patient.status = 'Discharged';
-      await patient.save();
+      await patient.save({ session });
     }
 
+    // Automatically release any active bed allocation for this admission
+    const activeAllocation = await BedAllocation.findOne({
+      admissionId: summary.admissionId,
+      hospitalId,
+      status: { $in: ['Occupied', 'Reserved'] }
+    }).session(session);
+
+    if (activeAllocation) {
+      activeAllocation.status = 'Released';
+      activeAllocation.releaseTime = new Date();
+      await activeAllocation.save({ session });
+
+      const bed = await Bed.findOne({ _id: activeAllocation.bedId, hospitalId }).session(session);
+      if (bed) {
+        bed.status = 'Cleaning';
+        await bed.save({ session });
+      }
+    }
+    
+    // Update Admission Status
+    const admission = await Admission.findOne({ _id: summary.admissionId, hospitalId }).session(session);
+    if (admission) {
+       admission.status = 'Discharged';
+       await admission.save({ session });
+    }
+
+    await session.commitTransaction();
     sendSuccess(res, summary, 'Patient discharged successfully');
   } catch (error) {
+    await session.abortTransaction();
     next(error);
+  } finally {
+    session.endSession();
   }
 }
