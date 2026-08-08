@@ -36,7 +36,18 @@ const AdmissionSchema = new Schema<IAdmission>(
 );
 
 AdmissionSchema.index({ tenantId: 1, hospitalId: 1, admissionNumber: 1 }, { unique: true });
+AdmissionSchema.index(
+  { tenantId: 1, hospitalId: 1, patientId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      status: { $in: ['Approved', 'Admitted', 'Discharge Planned'] } 
+    },
+    name: 'unique_active_admission'
+  }
+);
 AdmissionSchema.index({ patientId: 1 });
 AdmissionSchema.index({ status: 1 });
 
 export const Admission = mongoose.model<IAdmission>('Admission', AdmissionSchema);
+

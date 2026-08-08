@@ -4,7 +4,7 @@ import { BedAllocation } from '../models/BedAllocation';
 import { Bed } from '../models/Bed';
 import { Ward } from '../models/Ward';
 import { Room } from '../models/Room';
-import { sendSuccess, AppError } from '../utils/response';
+import { sendSuccess, AppError, ConflictError } from '../utils/response';
 
 /**
  * Create a new Admission
@@ -14,7 +14,7 @@ export async function createAdmission(req: Request, res: Response, next: NextFun
     const { tenantId, hospitalId, id: userId } = (req as any).user!;
     const { patientId, admittingDoctorId } = req.body;
 
-    // Check if patient already has an active admission
+    // Check if patient already has an active admission (quick check)
     const existingAdmission = await Admission.findOne({
       tenantId,
       hospitalId,
@@ -23,19 +23,27 @@ export async function createAdmission(req: Request, res: Response, next: NextFun
     });
 
     if (existingAdmission) {
-      throw new AppError('Patient already has an active admission', 400);
+      throw new ConflictError('Patient already has an active admission in this hospital');
     }
 
-    const admission = await Admission.create({
-      patientId,
-      admittingDoctorId,
-      tenantId,
-      hospitalId,
-      createdBy: userId,
-      status: 'Approved' // Starts as Approved before Bed is allocated
-    });
+    try {
+      const admission = await Admission.create({
+        patientId,
+        admittingDoctorId,
+        tenantId,
+        hospitalId,
+        createdBy: userId,
+        status: 'Approved' // Starts as Approved before Bed is allocated
+      });
 
-    sendSuccess(res, admission, 'Admission created successfully', 201);
+      sendSuccess(res, admission, 'Admission created successfully', 201);
+    } catch (createErr: any) {
+      // 11000 is MongoDB's duplicate key error
+      if (createErr.code === 11000 && createErr.message && createErr.message.includes('unique_active_admission')) {
+        throw new ConflictError('Patient already has an active admission in this hospital');
+      }
+      throw createErr;
+    }
   } catch (err) {
     next(err);
   }
