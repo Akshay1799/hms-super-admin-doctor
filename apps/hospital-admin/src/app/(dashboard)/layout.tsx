@@ -26,6 +26,7 @@ import {
   ArrowLeftRight,
   ClipboardList,
   Activity,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -181,6 +182,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: "/billing", label: "Billing Checkout", icon: Receipt },
       { href: "/beds", label: "Bed Management", icon: Bed },
       { href: "/ot", label: "Operation Theatres", icon: Activity },
+      { href: "/discharges", label: "Discharge Management", icon: FileText },
       { href: "/reports", label: "Reports & Analytics", icon: FileBarChart2 },
       { href: "/settings", label: "Settings", icon: Settings },
     ];

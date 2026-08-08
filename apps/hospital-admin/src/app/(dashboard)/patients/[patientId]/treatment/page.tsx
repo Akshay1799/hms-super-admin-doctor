@@ -12,7 +12,8 @@ import {
   Clock,
   Loader2,
   Trash2,
-  Scissors
+  Scissors,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
@@ -56,6 +57,15 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
     priority: "Elective",
     estimatedDurationMins: "60",
     notes: ""
+  });
+
+  // Discharge State
+  const [showDischargeModal, setShowDischargeModal] = useState(false);
+  const [isSubmittingDischarge, setIsSubmittingDischarge] = useState(false);
+  const [dischargeForm, setDischargeForm] = useState({
+    chiefComplaints: "",
+    finalDiagnosis: "",
+    hospitalCourse: "",
   });
 
   // Form State
@@ -124,7 +134,13 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Treatment Sheet & Orders</h1>
           <p className="text-sm text-muted-foreground">Prescribe medications, IV fluids, and nursing instructions</p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-3">
+          <button 
+            onClick={() => setShowDischargeModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+          >
+            <FileText className="w-4 h-4" /> Draft Discharge
+          </button>
           <button 
             onClick={() => setShowSurgeryModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
@@ -401,6 +417,81 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
                 disabled={isSubmittingSurgery}
               >
                 {isSubmittingSurgery ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discharge Draft Modal */}
+      {showDischargeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-lg rounded-xl shadow-xl overflow-hidden border border-border">
+            <div className="p-4 border-b border-border bg-indigo-50/50 dark:bg-indigo-900/20">
+              <h3 className="font-bold text-lg text-indigo-900 dark:text-indigo-200">Clinical Discharge Summary</h3>
+              <p className="text-sm text-indigo-700 dark:text-indigo-400">Draft the clinical notes for {PATIENT_INFO.name}</p>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Chief Complaints at Admission</label>
+                <textarea 
+                  value={dischargeForm.chiefComplaints} 
+                  onChange={e => setDischargeForm({...dischargeForm, chiefComplaints: e.target.value})} 
+                  className="mt-1 flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Final Diagnosis</label>
+                <input 
+                  value={dischargeForm.finalDiagnosis} 
+                  onChange={e => setDischargeForm({...dischargeForm, finalDiagnosis: e.target.value})} 
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Hospital Course & Clinical Progress</label>
+                <textarea 
+                  value={dischargeForm.hospitalCourse} 
+                  onChange={e => setDischargeForm({...dischargeForm, hospitalCourse: e.target.value})} 
+                  className="mt-1 flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Note: The patient's active medications will be automatically imported into the Discharge Summary.</p>
+            </div>
+            <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
+              <button 
+                onClick={() => setShowDischargeModal(false)}
+                className="px-4 py-2 rounded-md font-semibold text-sm border border-input hover:bg-muted"
+                disabled={isSubmittingDischarge}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsSubmittingDischarge(true);
+                  try {
+                    await apiClient.post("/ipd/discharge-summaries", {
+                      patientId: params.patientId,
+                      admissionId: params.patientId, 
+                      clinicalDetails: {
+                        chiefComplaints: dischargeForm.chiefComplaints,
+                        finalDiagnosis: dischargeForm.finalDiagnosis,
+                        hospitalCourse: dischargeForm.hospitalCourse,
+                      }
+                    });
+                    toast.success("Discharge Summary drafted successfully! Sent for billing clearance.");
+                    setShowDischargeModal(false);
+                    setDischargeForm({ chiefComplaints: "", finalDiagnosis: "", hospitalCourse: "" });
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.message || "Failed to draft discharge");
+                  } finally {
+                    setIsSubmittingDischarge(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-md font-semibold text-sm bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2"
+                disabled={isSubmittingDischarge}
+              >
+                {isSubmittingDischarge ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve Clinical Discharge"}
               </button>
             </div>
           </div>
