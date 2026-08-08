@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { IPDKpiCards } from "@repo/ui/components/widgets/IPDKpiCards";
-import { BedOccupancyChart } from "@repo/ui/components/widgets/BedOccupancyChart";
+import { IPDKpiCards } from "../../../../../../packages/ui/src/components/widgets/IPDKpiCards";
+import { BedOccupancyChart } from "../../../../../../packages/ui/src/components/widgets/BedOccupancyChart";
 
 interface DashboardStats {
   deptCount: number;
@@ -59,7 +59,6 @@ export default function DashboardPage() {
       } finally {
         setIsLoading(false);
       }
-    }
     }
     async function fetchIpdAnalytics() {
       if (user?.role === 'NURSE') {

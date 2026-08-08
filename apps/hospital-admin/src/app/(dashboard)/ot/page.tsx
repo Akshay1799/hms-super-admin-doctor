@@ -12,6 +12,7 @@ interface OperationTheatre {
   category: string;
   status: string;
   floor: string;
+  capacity?: number;
 }
 
 export default function OTDashboardPage() {

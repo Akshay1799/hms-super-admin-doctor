@@ -45,7 +45,6 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
   const [activeTab, setActiveTab] = useState("medication");
   const [isPrescribing, setIsPrescribing] = useState(false);
   const [orders, setOrders] = useState<TreatmentOrder[]>([]);
-  const [orders, setOrders] = useState<TreatmentOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Surgery Request State

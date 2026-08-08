@@ -16,8 +16,8 @@ function buildPatientFilter(req: Request): Record<string, unknown> {
     if (req.user?.tenantId) filter.tenantId = req.user.tenantId;
   }
 
-  if (req.user?.role === 'HOSPITAL_ADMIN') {
-    filter.hospitalId = req.user.hospitalId;
+  if (req.user?.role === 'HOSPITAL_ADMIN' || req.user?.role === 'DEPT_ADMIN' || req.user?.role === 'DOCTOR' || req.user?.role === 'NURSE' || req.user?.role === 'RECEPTIONIST' || req.user?.role === 'STAFF') {
+    if (req.user?.hospitalId) filter.hospitalId = req.user.hospitalId;
   }
 
   if (req.user?.role === 'DEPT_ADMIN') {
@@ -27,16 +27,11 @@ function buildPatientFilter(req: Request): Record<string, unknown> {
     }
   }
 
+  // Doctor scope is now safely contained within their hospital via the hospitalId check above.
   if (req.user?.role === 'DOCTOR') {
-    const docId = req.user._id;
-    const hospId = req.user.hospitalId;
-    const tenId = req.user.tenantId;
-    
-    filter.$or = [
-      { assignedDoctorId: docId },
-      { hospitalId: hospId },
-      { tenantId: tenId }
-    ].filter(cond => Object.values(cond)[0] !== undefined);
+    // If the system later requires doctors to ONLY see assigned patients,
+    // we would add `filter.assignedDoctorId = req.user._id;` here.
+    // Based on the original $or logic, doctors were intended to see all hospital patients.
   }
 
   return filter;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -43,6 +44,14 @@ interface Department {
 
 export default function DepartmentsPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && !['SUPER_ADMIN', 'TENANT_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN'].includes(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [user, router]);
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [isLoading, setIsLoading] = useState(true);

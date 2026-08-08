@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
 import {
   Settings,
@@ -14,6 +15,14 @@ import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && !['SUPER_ADMIN', 'TENANT_ADMIN', 'HOSPITAL_ADMIN'].includes(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [user, router]);
+
   const [activeTab, setActiveTab] = useState<"profile" | "hospital" | "notifications">("profile");
 
   const [profileData, setProfileData] = useState({

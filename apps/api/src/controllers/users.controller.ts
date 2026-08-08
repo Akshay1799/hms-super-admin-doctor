@@ -400,12 +400,17 @@ export async function inviteDoctor(req: Request, res: Response, next: NextFuncti
 export async function updateDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     delete req.body.password;
+
+    const query: Record<string, unknown> = { _id: req.params.id, role: 'DOCTOR' };
+    if (req.user?.role === 'HOSPITAL_ADMIN') query.hospitalId = req.user.hospitalId;
+    if (req.user?.role === 'DEPT_ADMIN') query.departmentId = req.user.departmentId;
+
     const doctor = await User.findOneAndUpdate(
-      { _id: req.params.id, role: 'DOCTOR' },
+      query,
       req.body,
       { new: true, runValidators: true }
     ).select('-password');
-    if (!doctor) throw new NotFoundError('Doctor not found');
+    if (!doctor) throw new NotFoundError('Doctor not found or you do not have permission to modify this doctor');
     sendSuccess(res, doctor, 'Doctor updated successfully');
   } catch (err) {
     next(err);
@@ -414,8 +419,12 @@ export async function updateDoctor(req: Request, res: Response, next: NextFuncti
 
 export async function deleteDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const doctor = await User.findOneAndDelete({ _id: req.params.id, role: 'DOCTOR' });
-    if (!doctor) throw new NotFoundError('Doctor not found');
+    const query: Record<string, unknown> = { _id: req.params.id, role: 'DOCTOR' };
+    if (req.user?.role === 'HOSPITAL_ADMIN') query.hospitalId = req.user.hospitalId;
+    if (req.user?.role === 'DEPT_ADMIN') query.departmentId = req.user.departmentId;
+
+    const doctor = await User.findOneAndDelete(query);
+    if (!doctor) throw new NotFoundError('Doctor not found or you do not have permission to delete this doctor');
 
     // HIERARCHICAL SYNC: Decrement counts
     if (doctor.departmentId) {

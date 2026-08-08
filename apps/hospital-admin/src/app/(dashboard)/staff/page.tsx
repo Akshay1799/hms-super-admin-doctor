@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -44,6 +44,13 @@ function StaffPageContent() {
   const [viewMode, setViewMode] = useState<"card" | "list">("list");
   const [departments, setDepartments] = useState<any[]>([]);
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && !['SUPER_ADMIN', 'TENANT_ADMIN', 'HOSPITAL_ADMIN', 'DEPT_ADMIN'].includes(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [user, router]);
   const [isLoading, setIsLoading] = useState(true);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
