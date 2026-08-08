@@ -291,6 +291,48 @@ export async function connectDB(): Promise<void> {
       }
     }
 
+    // Check/Create Operation Theatres
+    const { OperationTheatre } = await import('../models/OperationTheatre');
+    const existingOTs = await OperationTheatre.countDocuments({ hospitalId: hospital._id });
+    if (existingOTs === 0) {
+      await OperationTheatre.insertMany([
+        {
+          otNumber: 'OT-101',
+          name: 'Cardiac Surgery OT',
+          category: 'Cardiac',
+          floor: '1st Floor',
+          departmentId: department._id,
+          capacity: 1,
+          status: 'Available',
+          tenantId: tenant._id,
+          hospitalId: hospital._id
+        },
+        {
+          otNumber: 'OT-102',
+          name: 'General Surgery OT',
+          category: 'General',
+          floor: '1st Floor',
+          departmentId: department._id,
+          capacity: 1,
+          status: 'Available',
+          tenantId: tenant._id,
+          hospitalId: hospital._id
+        },
+        {
+          otNumber: 'OT-201',
+          name: 'Emergency OT',
+          category: 'Emergency',
+          floor: 'Ground Floor',
+          departmentId: department._id,
+          capacity: 1,
+          status: 'Available',
+          tenantId: tenant._id,
+          hospitalId: hospital._id
+        }
+      ]);
+      logger.info('   -> Created default Operation Theatres');
+    }
+
     logger.info('🌱 Verification complete! Credentials:');
     logger.info('   - Super Admin: admin@medichain.com / password123');
     logger.info('   - Doctor:      doctor@medichain.com / password123');

@@ -48,6 +48,7 @@ import appointmentGroupRoutes from './routes/appointmentGroups.routes';
 import laboratoryRoutes from './routes/laboratory.routes';
 import radiologyRoutes from './routes/radiology.routes';
 import ipdTreatmentRoutes from './routes/ipdTreatment.routes';
+import otRoutes from './routes/ot.routes';
 import { startReminderJobs } from './jobs/reminderJob';
 
 const app = express();
@@ -186,6 +187,7 @@ app.use('/api/appointment-groups', appointmentGroupRoutes);
 app.use('/api/laboratory', laboratoryRoutes);
 app.use('/api/radiology', radiologyRoutes);
 app.use('/api/ipd-treatment', ipdTreatmentRoutes);
+app.use('/api/ot', otRoutes);
 
 // Catch all unmatched routes (404)
 app.use(notFoundHandler);

@@ -11,7 +11,8 @@ import {
   Plus,
   Clock,
   Loader2,
-  Trash2
+  Trash2,
+  Scissors
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
@@ -43,7 +44,19 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
   const [activeTab, setActiveTab] = useState("medication");
   const [isPrescribing, setIsPrescribing] = useState(false);
   const [orders, setOrders] = useState<TreatmentOrder[]>([]);
+  const [orders, setOrders] = useState<TreatmentOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Surgery Request State
+  const [showSurgeryModal, setShowSurgeryModal] = useState(false);
+  const [isSubmittingSurgery, setIsSubmittingSurgery] = useState(false);
+  const [surgeryForm, setSurgeryForm] = useState({
+    surgeryName: "",
+    category: "General",
+    priority: "Elective",
+    estimatedDurationMins: "60",
+    notes: ""
+  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -110,6 +123,14 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Treatment Sheet & Orders</h1>
           <p className="text-sm text-muted-foreground">Prescribe medications, IV fluids, and nursing instructions</p>
+        </div>
+        <div className="ml-auto">
+          <button 
+            onClick={() => setShowSurgeryModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+          >
+            <Scissors className="w-4 h-4" /> Request Surgery
+          </button>
         </div>
       </div>
 
@@ -277,6 +298,114 @@ export default function TreatmentSheetPage({ params }: { params: { patientId: st
           </div>
         </div>
       </div>
+
+      {/* Surgery Request Modal */}
+      {showSurgeryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-md rounded-xl shadow-xl overflow-hidden border border-border">
+            <div className="p-4 border-b border-border bg-muted/30">
+              <h3 className="font-bold text-lg text-foreground">Request Surgery for {PATIENT_INFO.name}</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Surgery Name</label>
+                <input 
+                  required 
+                  value={surgeryForm.surgeryName} 
+                  onChange={e => setSurgeryForm({...surgeryForm, surgeryName: e.target.value})} 
+                  placeholder="e.g. Appendectomy" 
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Category</label>
+                  <select 
+                    value={surgeryForm.category} 
+                    onChange={e => setSurgeryForm({...surgeryForm, category: e.target.value})} 
+                    className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="General">General Surgery</option>
+                    <option value="Cardiac">Cardiac Surgery</option>
+                    <option value="Orthopedic">Orthopedic Surgery</option>
+                    <option value="Emergency">Emergency</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Priority</label>
+                  <select 
+                    value={surgeryForm.priority} 
+                    onChange={e => setSurgeryForm({...surgeryForm, priority: e.target.value})} 
+                    className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="Elective">Elective</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="STAT">STAT</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Est. Duration (Mins)</label>
+                  <input 
+                    type="number"
+                    value={surgeryForm.estimatedDurationMins} 
+                    onChange={e => setSurgeryForm({...surgeryForm, estimatedDurationMins: e.target.value})} 
+                    className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Clinical Notes</label>
+                <textarea 
+                  value={surgeryForm.notes} 
+                  onChange={e => setSurgeryForm({...surgeryForm, notes: e.target.value})} 
+                  className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" 
+                  placeholder="Pre-op conditions, special equipment needed..."
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
+              <button 
+                onClick={() => setShowSurgeryModal(false)}
+                className="px-4 py-2 rounded-md font-semibold text-sm border border-input hover:bg-muted"
+                disabled={isSubmittingSurgery}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if(!surgeryForm.surgeryName) return toast.error("Surgery name is required");
+                  setIsSubmittingSurgery(true);
+                  try {
+                    // For prototype, passing a fake admissionId or null if backend allows.
+                    // The API requires admissionId, we'll pass a dummy objectId or the patientId.
+                    await apiClient.post("/ot/surgeries", {
+                      patientId: params.patientId,
+                      admissionId: params.patientId, // In real app, fetch real admissionId
+                      ...surgeryForm
+                    });
+                    toast.success("Surgery requested successfully!");
+                    setShowSurgeryModal(false);
+                    setSurgeryForm({
+                      surgeryName: "", category: "General", priority: "Elective", estimatedDurationMins: "60", notes: ""
+                    });
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.message || "Failed to request surgery");
+                  } finally {
+                    setIsSubmittingSurgery(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-md font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+                disabled={isSubmittingSurgery}
+              >
+                {isSubmittingSurgery ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
