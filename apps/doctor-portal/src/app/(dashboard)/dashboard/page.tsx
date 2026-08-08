@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { ROUTES } from "@/constants/routes";
 import dynamic from "next/dynamic";
+import { apiClient } from "@/lib/api-client";
 
 const WeeklyAppointmentsTrend = dynamic(
   () => import("@/features/dashboard/components/WeeklyAppointmentsTrend").then(m => m.WeeklyAppointmentsTrend),
@@ -36,9 +37,12 @@ export default function DashboardPage() {
   const { data: appointmentsTrend, isLoading: isAppointmentsLoading, error: appointmentsError } = useWeeklyAppointmentTrend();
   const { data: patientsTrend, isLoading: isPatientsLoading, error: patientsError } = useAdmissionTrend();
 
+  const [ipdData, setIpdData] = React.useState<any>(null);
+
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
+    apiClient.get('/ipd/analytics/doctor-dashboard').then(res => setIpdData(res.data.data)).catch(console.error);
   }, []);
 
   const isLoading = isDashboardLoading || isAppointmentsLoading || isPatientsLoading || !mounted;
@@ -245,6 +249,90 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* IPD Active Patients & Discharges */}
+      {ipdData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Admitted Patients */}
+          <Card>
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <BedDouble className="h-5 w-5 text-indigo-500" />
+                My Admitted Patients
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="p-3 font-bold text-muted-foreground uppercase tracking-wider">Patient</th>
+                      <th className="p-3 font-bold text-muted-foreground uppercase tracking-wider">Location</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {ipdData.myPatients.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="p-6 text-center text-muted-foreground">No admitted patients.</td>
+                      </tr>
+                    ) : (
+                      ipdData.myPatients.map((patient: any) => (
+                        <tr key={patient._id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3">
+                            <p className="font-bold text-foreground">{patient.name}</p>
+                            <p className="text-muted-foreground">{patient.mrn}</p>
+                          </td>
+                          <td className="p-3 text-muted-foreground font-semibold">
+                            {patient.ward} - {patient.bedNumber}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Discharges */}
+          <Card>
+            <CardHeader className="pb-3 border-b border-border">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-orange-500">
+                <AlertTriangle className="h-5 w-5" />
+                Pending Clinical Discharges
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="p-3 font-bold text-muted-foreground uppercase tracking-wider">Patient</th>
+                      <th className="p-3 font-bold text-muted-foreground uppercase tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {ipdData.pendingDischarges.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="p-6 text-center text-muted-foreground">No pending discharges.</td>
+                      </tr>
+                    ) : (
+                      ipdData.pendingDischarges.map((discharge: any) => (
+                        <tr key={discharge._id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3 font-bold text-foreground">{discharge.patientId?.name}</td>
+                          <td className="p-3 text-right">
+                            <Link href={`/patients`} className="text-primary font-bold hover:underline">Draft Now</Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

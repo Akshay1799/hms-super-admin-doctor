@@ -32,15 +32,26 @@ export default function ReportsPage() {
 
   const reportsList = [
     {
-      title: "Bed Occupancy Trends",
-      description: "Monthly trends breakdown of ward admissions, discharges, and average lengths of stay.",
+      title: "Bed Occupancy Trends (IPD)",
+      description: "Monthly trends breakdown of ward admissions, discharges, and average lengths of stay (ALOS).",
       type: "Clinical",
-      headers: ["Date", "Ward Name", "Occupied Beds", "Admissions", "Discharges"],
+      headers: ["Date", "Ward Name", "Occupied Beds", "Admissions", "Discharges", "ALOS (Days)"],
       data: [
-        ["2026-07-01", "General Ward", "18", "3", "1"],
-        ["2026-07-02", "ICU Unit", "4", "1", "0"],
-        ["2026-07-03", "OPD Block", "12", "6", "4"],
-        ["2026-07-04", "Pediatric Ward", "8", "2", "2"],
+        ["2026-07-01", "General Ward", "18", "3", "1", "3.2"],
+        ["2026-07-02", "ICU Unit", "4", "1", "0", "5.1"],
+        ["2026-07-03", "OPD Block", "12", "6", "4", "1.1"],
+        ["2026-07-04", "Pediatric Ward", "8", "2", "2", "2.8"],
+      ],
+    },
+    {
+      title: "Surgery & OT Performance (IPD)",
+      description: "Analysis of Operation Theatre utilization, successful surgeries, and delays.",
+      type: "Operational",
+      headers: ["OT Room", "Total Surgeries", "Avg Duration (Mins)", "Delayed Cases", "Utilization %"],
+      data: [
+        ["Main OT - A", "45", "120", "2", "85%"],
+        ["Main OT - B", "38", "90", "1", "72%"],
+        ["Cardiac OT", "15", "240", "0", "90%"],
       ],
     },
     {

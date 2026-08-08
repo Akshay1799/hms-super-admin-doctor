@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { IPDKpiCards } from "@repo/ui/components/widgets/IPDKpiCards";
+import { BedOccupancyChart } from "@repo/ui/components/widgets/BedOccupancyChart";
 
 interface DashboardStats {
   deptCount: number;
@@ -31,6 +33,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [ipdKpis, setIpdKpis] = useState<any>(null);
+  const [bedOccupancy, setBedOccupancy] = useState<any>(null);
+  const [nurseData, setNurseData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -55,8 +60,33 @@ export default function DashboardPage() {
         setIsLoading(false);
       }
     }
-    fetchStats();
-  }, []);
+    }
+    async function fetchIpdAnalytics() {
+      if (user?.role === 'NURSE') {
+        try {
+          const res = await apiClient.get("/ipd/analytics/nurse-dashboard");
+          setNurseData(res.data.data);
+        } catch (err: any) {
+          console.error("Failed to load Nurse analytics");
+        }
+      } else {
+        try {
+          const [kpiRes, occRes] = await Promise.all([
+            apiClient.get("/ipd/analytics/kpis"),
+            apiClient.get("/ipd/analytics/bed-occupancy")
+          ]);
+          setIpdKpis(kpiRes.data.data);
+          setBedOccupancy(occRes.data.data);
+        } catch (err: any) {
+          console.error("Failed to load IPD analytics");
+        }
+      }
+    }
+    
+    Promise.all([fetchStats(), fetchIpdAnalytics()]).finally(() => {
+      setIsLoading(false);
+    });
+  }, [user]);
 
   if (isLoading || !stats) {
     return (
@@ -145,32 +175,79 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Lower section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Alerts */}
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
-            Critical Department Alerts
+      {user?.role === 'NURSE' && nurseData && (
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Activity className="h-5 w-5 text-rose-500" />
+            Nursing Action Center
           </h3>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-lg text-xs">
-              <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-              <div>
-                <p className="font-bold text-foreground">ICU Bed Shortage</p>
-                <p className="text-muted-foreground mt-0.5">ICU Ward has reached 90% capacity. Review emergency discharge checklist.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-red-500/10 rounded-lg text-xs">
-              <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
-              <div>
-                <p className="font-bold text-foreground">Pending Doctor Invites</p>
-                <p className="text-muted-foreground mt-0.5">3 doctor invitations are expiring in less than 12 hours.</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-foreground">Patients Requiring Vitals</h3>
+              <div className="space-y-3">
+                {nurseData.patientsNeedingVitals.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">All vitals are up to date.</p>
+                ) : (
+                  nurseData.patientsNeedingVitals.map((patient: any) => (
+                    <div key={patient._id} className="flex items-center justify-between p-3 bg-rose-500/10 rounded-lg">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{patient.name}</p>
+                        <p className="text-xs text-muted-foreground">{patient.ward} - {patient.bedNumber}</p>
+                      </div>
+                      <button 
+                        onClick={() => router.push(`/patients/${patient._id}/vitals`)}
+                        className="text-xs font-semibold px-3 py-1 bg-rose-600 text-white rounded-md hover:bg-rose-700"
+                      >
+                        Record Vitals
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         </div>
+      )}
 
+      {/* IPD Metrics Section */}
+      {user?.role !== 'NURSE' && (
+        <div className="space-y-4 border-t border-border pt-6">
+          <h3 className="text-lg font-bold text-foreground">Inpatient Department (IPD) Overview</h3>
+          {ipdKpis && <IPDKpiCards data={ipdKpis} isLoading={isLoading} />}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-[350px]">
+              {bedOccupancy && <BedOccupancyChart data={bedOccupancy} isLoading={isLoading} />}
+            </div>
+            {/* Recent Alerts (Moved from below) */}
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
+                Critical Department Alerts
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-lg text-xs">
+                  <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                  <div>
+                    <p className="font-bold text-foreground">ICU Bed Shortage</p>
+                    <p className="text-muted-foreground mt-0.5">ICU Ward has reached 90% capacity. Review emergency discharge checklist.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-red-500/10 rounded-lg text-xs">
+                  <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                  <div>
+                    <p className="font-bold text-foreground">Pending Doctor Invites</p>
+                    <p className="text-muted-foreground mt-0.5">3 doctor invitations are expiring in less than 12 hours.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lower section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Quick Operations */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
           <h3 className="text-sm font-bold text-foreground">Quick Administration Actions</h3>
